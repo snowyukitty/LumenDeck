@@ -275,6 +275,13 @@ internal sealed class MainForm : Form
 
             ReportInventory(reason);
 
+            // Capability strings are the slowest DDC request there is, so they
+            // are read after the window is already usable, one monitor at a
+            // time, and each panel grows its own extra controls as its answer
+            // arrives. Doing this during enumeration put seconds back onto
+            // startup for information most people never open.
+            _ = LoadFeaturesAsync(gen);
+
             Diagnostics.Log(() =>
                 $"rebuild {gen}  monitors={_monitors.Count}  panels={_panels.Count}  " +
                 $"controls={Diagnostics.CountControls(this)}  " +
@@ -287,6 +294,36 @@ internal sealed class MainForm : Form
         finally
         {
             if (!IsDisposed) _refreshButton.Enabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Probe each monitor's extra controls in the background and hand them to
+    /// its panel as they arrive.
+    ///
+    /// Per monitor rather than all at once, so a slow or unresponsive panel
+    /// delays only its own controls. The generation check drops results from a
+    /// rebuild that has since been superseded - otherwise controls belonging to
+    /// disposed panels get added to the window.
+    /// </summary>
+    private async Task LoadFeaturesAsync(int gen)
+    {
+        var panels = _panels.ToList();
+        foreach (var panel in panels)
+        {
+            if (IsDisposed || gen != _generation) return;
+
+            var monitor = panel.Monitor;
+            await Task.Run(() =>
+            {
+                lock (_worker.HandleLock)
+                {
+                    if (gen == _generation) MonitorService.LoadFeatures(monitor);
+                }
+            });
+
+            if (IsDisposed || gen != _generation || panel.IsDisposed) return;
+            panel.PopulateFeatures(_worker);
         }
     }
 

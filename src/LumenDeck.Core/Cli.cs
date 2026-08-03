@@ -69,6 +69,33 @@ internal static class Cli
                 return ExitOk;
             }
 
+            if (Flag("--features"))
+            {
+                foreach (var m in monitors.OrderBy(x => x.Rect.Left).ThenBy(x => x.Rect.Top))
+                {
+                    MonitorService.LoadFeatures(m);
+                    Console.WriteLine();
+                    Console.WriteLine($"{m.FriendlyName}  ({m.PositionLabel})");
+                    if (!m.HasPhysicalHandle) { Console.WriteLine("    no DDC handle"); continue; }
+                    if (m.Features.Count == 0) { Console.WriteLine("    advertises no adjustable controls this app knows about"); continue; }
+                    foreach (var f in m.Features)
+                    {
+                        string detail = f.Definition.Kind switch
+                        {
+                            VcpCatalog.Kind.Continuous => $"{f.Current} of 0-{f.Max}",
+                            VcpCatalog.Kind.Select =>
+                                f.LabelFor(f.Current) + "   options: " +
+                                string.Join(", ", f.AllowedValues.Where(v => !(f.CurrentIsUnadvertised && v == f.Current))
+                                                                 .Select(v => VcpCatalog.ValueName(f.Definition, v))),
+                            _ => "action",
+                        };
+                        Console.WriteLine($"    0x{f.Code:X2}  {f.Name,-22} {detail}");
+                    }
+                }
+                Console.WriteLine();
+                return ExitOk;
+            }
+
             if (Flag("--list") || args.Length == 0)
             {
                 Console.WriteLine(json ? ListJson(monitors) : ListText(monitors));
@@ -252,6 +279,7 @@ internal static class Cli
 
           --list                  Show every monitor and its current settings
           --diagnose              Why a monitor does or does not respond
+          --features              Extra controls each monitor advertises
           --json                  Machine-readable output (with --list)
 
           -m, --monitor <text>    Only monitors whose name, position or device

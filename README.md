@@ -44,6 +44,22 @@ composed on top of whatever ICC or colorimeter profile is already loaded, and
 Windows Night light is not an alternative here: it is one global switch that
 tints every attached monitor.
 
+**Every monitor gets its own controls, discovered from that monitor.** Panels
+genuinely differ: one exposes input source, picture mode and speaker volume,
+its neighbour exposes black levels and no volume at all. LumenDeck reads each
+monitor's MCCS capability string and builds only the controls that monitor
+actually claims — input source, colour preset, picture mode, volume, sharpness,
+RGB gain, black levels, power mode, factory reset — plus per-monitor preset
+buttons so a single odd screen can be fixed without touching the others.
+
+Nothing is offered on a guess. Reading a VCP code a monitor does not implement
+does not fail; it answers with a plausible number. One panel here returns `80`
+for three RGB black-level codes it never advertised, which reads exactly like a
+real setting in need of correction. So a control appears only where the monitor
+listed the code, and when a monitor reports a *current* value it never
+advertised, the UI says `Unknown (0x07)` rather than naming it from the standard
+table and stating a confident falsehood.
+
 **It never asks you to trust a monitor number.** `\\.\DISPLAYn` is not a stable
 identity — the numbering carries gaps from past hot-plugging, and need not match
 what Windows paints on screen during *Identify*. LumenDeck labels monitors by
@@ -81,6 +97,7 @@ single executable pretending to be both prints nothing when piped.
 --list                  Every monitor and its current settings
 --json                  Machine-readable output
 --diagnose              Why a monitor does or does not respond
+--features              Extra controls each monitor advertises
 
 -m, --monitor <text>    Only monitors whose name, position or device matches
 -p, --preset <name>     Day | Evening | Night

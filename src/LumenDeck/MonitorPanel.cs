@@ -27,6 +27,10 @@ internal sealed class MonitorPanel : Panel
 
     private bool _suppress;
 
+    private readonly TableLayoutPanel _grid;
+    private int _nextRow;
+    private Label _featureStatus;
+
     private static readonly Color Ink = Color.FromArgb(228, 228, 234);
     private static readonly Color InkDim = Color.FromArgb(150, 150, 158);
     private static readonly Color InkOff = Color.FromArgb(112, 112, 120);
@@ -60,7 +64,7 @@ internal sealed class MonitorPanel : Panel
         Padding = new Padding(12, 10, 12, 12);
         Margin = new Padding(0, 0, 0, 10);
 
-        var grid = new TableLayoutPanel
+        var grid = _grid = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
             AutoSize = true,
@@ -149,6 +153,70 @@ internal sealed class MonitorPanel : Panel
         _kelvin.LargeChange = 500;
         _kelvinValue = MakeValueLabel();
         AddRow(grid, 4, "Warmth", _kelvin, _kelvinValue, true);
+
+        _nextRow = 5;
+
+        // Per-monitor presets. The toolbar's buttons deliberately apply to every
+        // screen at once; these apply to this one only, which is what you want
+        // when a single panel is the odd one out.
+        var presetRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(4, 6, 0, 0),
+            BackColor = Color.Transparent,
+        };
+        presetRow.Controls.Add(new Label
+        {
+            Text = "This monitor:",
+            Font = FontSmall,
+            ForeColor = InkDim,
+            AutoSize = true,
+            Margin = new Padding(0, 7, 8, 0),
+        });
+        foreach (var level in Presets.Levels)
+        {
+            var captured = level;
+            var b = new Button
+            {
+                Text = captured.Name,
+                AutoSize = false,
+                Width = 74,
+                Height = 25,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(48, 48, 54),
+                ForeColor = Color.White,
+                Margin = new Padding(0, 2, 6, 2),
+                Font = FontSmall,
+            };
+            b.FlatAppearance.BorderColor = Color.FromArgb(70, 70, 78);
+            b.Click += (_, _) =>
+            {
+                ApplyBrightness(Presets.BrightnessFor(Monitor, captured.Nits));
+                ApplyKelvin(captured.Kelvin);
+                _onChanged();
+                _report($"{Monitor.FriendlyName}: {captured.Name}, about {captured.Nits} nits, {captured.Kelvin}K.");
+            };
+            presetRow.Controls.Add(b);
+        }
+        _grid.Controls.Add(presetRow, 0, _nextRow);
+        _grid.SetColumnSpan(presetRow, 3);
+        _nextRow++;
+
+        _featureStatus = new Label
+        {
+            Text = m.HasPhysicalHandle ? "Reading this monitor's other controls..." : "",
+            Font = FontSmall,
+            ForeColor = InkDim,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(4, 6, 0, 2),
+        };
+        _grid.Controls.Add(_featureStatus, 0, _nextRow);
+        _grid.SetColumnSpan(_featureStatus, 3);
+        _nextRow++;
 
         Controls.Add(grid);
 
@@ -325,5 +393,27 @@ internal sealed class MonitorPanel : Panel
         _kelvinValue.Text = _kelvin.Value >= GammaControl.NeutralKelvin
             ? "off"
             : _kelvin.Value + "K";
+    }
+
+    /// <summary>
+    /// Called once the background capability probe has finished for this
+    /// monitor. Adds only the controls this panel actually reported.
+    /// </summary>
+    public void PopulateFeatures(DdcWorker worker)
+    {
+        if (IsDisposed || _grid.IsDisposed) return;
+
+        if (Monitor.Features.Count == 0)
+        {
+            _featureStatus.Text = Monitor.HasPhysicalHandle
+                ? "No other controls advertised by this monitor."
+                : "";
+            return;
+        }
+
+        _grid.SuspendLayout();
+        _featureStatus.Text = "";
+        _nextRow = FeatureControls.Build(_grid, _nextRow, Monitor, worker, _report);
+        _grid.ResumeLayout(true);
     }
 }

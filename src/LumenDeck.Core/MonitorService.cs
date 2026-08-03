@@ -45,6 +45,17 @@ internal sealed class Monitor : IDisposable
 
     public string CapabilityString = "";
 
+    /// <summary>
+    /// The extra controls this particular monitor advertises - input source,
+    /// picture mode, volume, whatever it actually has. Filled in lazily after
+    /// the window is up, because reading a capability string is the slowest DDC
+    /// request there is.
+    /// </summary>
+    public List<VcpFeature> Features = new();
+
+    /// <summary>Set once the capability probe has run, successful or not.</summary>
+    public bool FeaturesLoaded;
+
     /// <summary>Why this monitor did or did not answer, for --diagnose.</summary>
     public string Diagnostic = "no physical monitor handle";
 
@@ -192,6 +203,31 @@ internal static class MonitorService
         AssignPositionLabels(list);
         AssignStableKeys(list);
         return list;
+    }
+
+    /// <summary>
+    /// Read this monitor's capability string and work out which extra controls
+    /// it really offers. Slow - several hundred ms - so it runs off the UI
+    /// thread, once, after the window already exists.
+    /// </summary>
+    public static void LoadFeatures(Monitor m)
+    {
+        if (m.FeaturesLoaded) return;
+        try
+        {
+            if (m.HasPhysicalHandle && string.IsNullOrEmpty(m.CapabilityString))
+                m.CapabilityString = ReadCapabilities(m.PhysicalHandle);
+
+            m.Features = Capabilities.Discover(m);
+        }
+        catch
+        {
+            m.Features = new List<VcpFeature>();
+        }
+        finally
+        {
+            m.FeaturesLoaded = true;
+        }
     }
 
     /// <summary>

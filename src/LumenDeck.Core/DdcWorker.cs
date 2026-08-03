@@ -28,9 +28,12 @@ namespace LumenDeck;
 /// </summary>
 internal sealed class DdcWorker : IDisposable
 {
-    public enum Feature { Brightness, Contrast }
+    public enum Feature { Brightness, Contrast, Vcp }
 
-    private readonly record struct Target(Monitor Mon, Feature What);
+    // Code is part of the key so two different VCP features on one monitor
+    // coalesce independently - dragging the volume slider must not discard a
+    // pending input-source change.
+    private readonly record struct Target(Monitor Mon, Feature What, byte Code);
 
     private readonly ConcurrentDictionary<Target, int> _pending = new();
     private readonly AutoResetEvent _signal = new(false);
@@ -69,7 +72,19 @@ internal sealed class DdcWorker : IDisposable
     public void Set(Monitor m, Feature what, int value)
     {
         if (m == null) return;
-        _pending[new Target(m, what)] = value;
+        _pending[new Target(m, what, 0)] = value;
+        _signal.Set();
+    }
+
+    /// <summary>
+    /// Queue any VCP code. Callers must only pass codes the monitor advertised -
+    /// writing an unadvertised code is not rejected, it is simply obeyed by
+    /// whatever that code happens to mean on that firmware.
+    /// </summary>
+    public void SetVcp(Monitor m, byte code, int value)
+    {
+        if (m == null) return;
+        _pending[new Target(m, Feature.Vcp, code)] = value;
         _signal.Set();
     }
 
@@ -124,6 +139,7 @@ internal sealed class DdcWorker : IDisposable
                             {
                                 Feature.Brightness => Native.SetMonitorBrightness(h, (uint)value),
                                 Feature.Contrast => Native.SetMonitorContrast(h, (uint)value),
+                                Feature.Vcp => Native.SetVCPFeature(h, key.Code, (uint)value),
                                 _ => true,
                             };
                         }
@@ -132,6 +148,10 @@ internal sealed class DdcWorker : IDisposable
                     // A false return is a real failure - the monitor is asleep,
                     // on another input, or DDC dropped the request. Ignoring it
                     // is how a UI ends up showing a number the panel never took.
+                    // SetVCPFeature is fire-and-forget: MCCS has no
+                    // acknowledgement, so a true return proves only that the
+                    // request reached the driver. Do not report success for it,
+                    // and do not treat its false as more meaningful than it is.
                     if (!ok) WriteFailed?.Invoke(key.Mon, key.What);
                 }
                 catch

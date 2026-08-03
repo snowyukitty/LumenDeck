@@ -86,6 +86,22 @@ internal static class Native
     [DllImport("dxva2.dll", SetLastError = true)]
     public static extern bool SetMonitorContrast(IntPtr h, uint value);
 
+    /// <summary>
+    /// Read any VCP code. Only call this for codes the monitor advertised: an
+    /// unsupported code does not reliably fail, it answers with a plausible
+    /// number, which is indistinguishable from a real setting.
+    /// </summary>
+    [DllImport("dxva2.dll", SetLastError = true)]
+    public static extern bool GetVCPFeatureAndVCPFeatureReply(IntPtr h, byte code, IntPtr type, ref uint current, ref uint max);
+
+    /// <summary>
+    /// Write any VCP code. MCCS "set" is fire-and-forget with no
+    /// acknowledgement, so a true return means the request reached the driver
+    /// and nothing more.
+    /// </summary>
+    [DllImport("dxva2.dll", SetLastError = true)]
+    public static extern bool SetVCPFeature(IntPtr h, byte code, uint value);
+
     [DllImport("dxva2.dll", SetLastError = true)]
     public static extern bool GetCapabilitiesStringLength(IntPtr h, ref uint len);
 
