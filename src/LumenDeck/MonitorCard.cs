@@ -141,7 +141,7 @@ internal sealed class MonitorCard : Panel
                 _onChanged();
                 _report($"{Monitor.FriendlyName}: {captured.Name} - about {captured.Nits} nits, {captured.Kelvin}K.");
             };
-            new ToolTip().SetToolTip(b, $"{captured.Description}\nThis monitor only.");
+            _tips.SetToolTip(b, $"{captured.Description}\nThis monitor only.");
             presets.Controls.Add(b);
         }
         _grid.Controls.Add(presets, 1, row++);
@@ -496,6 +496,9 @@ internal sealed class ChipLabel : Control
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
         Font = Theme.Small;
+        // Purely a label. Control.TabStop defaults to true, so without this the
+        // Tab order stops on something with no focus cue and no key handling.
+        TabStop = false;
         var size = TextRenderer.MeasureText(text, Theme.Small);
         Size = new Size(size.Width + 16, 20);
         Margin = new Padding(0, 2, 6, 0);
@@ -531,6 +534,51 @@ internal sealed class FlatButton : Control
         Height = 30;
         Width = 84;
         Cursor = Cursors.Hand;
+        TabStop = true;
+    }
+
+    // A custom Control is not a Button: it gets no Space/Enter handling, no
+    // focus rectangle and no accessible role for free. Without these, every
+    // preset - global and per-monitor - plus Identify, Refresh and Warmth off
+    // was mouse-only, and Narrator announced them as anonymous client areas.
+    protected override bool IsInputKey(Keys key) =>
+        key is Keys.Space or Keys.Enter || base.IsInputKey(key);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (!Enabled || (e.KeyCode != Keys.Space && e.KeyCode != Keys.Enter)) return;
+        _down = true;
+        Invalidate();
+        e.Handled = true;
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+        if (!Enabled || (e.KeyCode != Keys.Space && e.KeyCode != Keys.Enter)) return;
+        _down = false;
+        Invalidate();
+        OnClick(EventArgs.Empty);
+        e.Handled = true;
+    }
+
+    protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
+    protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); _down = false; Invalidate(); }
+
+    protected override AccessibleObject CreateAccessibilityInstance() =>
+        new ButtonAccessibleObject(this);
+
+    /// <summary>Lets assistive tech press the button, not merely describe it.</summary>
+    internal void PerformClick() => OnClick(EventArgs.Empty);
+
+    private sealed class ButtonAccessibleObject : ControlAccessibleObject
+    {
+        private readonly FlatButton _owner;
+        public ButtonAccessibleObject(FlatButton owner) : base(owner) => _owner = owner;
+        public override AccessibleRole Role => AccessibleRole.PushButton;
+        public override string DefaultAction => "Press";
+        public override void DoDefaultAction() => _owner.PerformClick();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -547,6 +595,11 @@ internal sealed class FlatButton : Control
 
         Theme.FillRound(g, r, 7, Enabled ? face : Theme.Card);
         if (edge.A > 0) Theme.StrokeRound(g, r, 7, edge);
+        if (Focused)
+        {
+            var inner = Rectangle.Inflate(r, -3, -3);
+            Theme.StrokeRound(g, inner, 5, Color.FromArgb(190, Theme.AmberLight), 1.5f);
+        }
         TextRenderer.DrawText(g, Text, Font, r, text,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }

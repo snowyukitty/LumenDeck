@@ -17,15 +17,21 @@ internal static class AppIcon
     private const string ResourceName = "LumenDeck.assets.LumenDeck.ico";
 
     /// <summary>
-    /// Returns a fresh Icon the caller owns. Windows picks the right frame per
-    /// surface - 16px in the tray, 32px in Alt-Tab, 256px in the shell.
+    /// The window icon, for the taskbar and Alt-Tab.
+    ///
+    /// The size argument is not optional. `new Icon(stream)` is documented to
+    /// return the **smallest** image in the file, which here is the 16px frame -
+    /// and WinForms passes whatever it gets straight to WM_SETICON as ICON_BIG,
+    /// so the taskbar would upscale a 16px bitmap while a hinted 32/48/256 frame
+    /// sat unused in the same file. Asking for the large icon size selects the
+    /// right frame.
     /// </summary>
     public static Icon Load()
     {
         try
         {
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName);
-            if (stream != null) return new Icon(stream);
+            if (stream != null) return new Icon(stream, SystemInformation.IconSize);
         }
         catch
         {

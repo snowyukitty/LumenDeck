@@ -42,6 +42,29 @@ internal sealed class Slider : Control
         TabStop = true;
     }
 
+    /// <summary>
+    /// What a screen reader announces. Without this the whole window is a set of
+    /// unnamed custom controls: a slider that arrow keys drive but Narrator
+    /// cannot describe is not actually keyboard-accessible.
+    /// </summary>
+    protected override AccessibleObject CreateAccessibilityInstance() => new SliderAccessibleObject(this);
+
+    private sealed class SliderAccessibleObject : ControlAccessibleObject
+    {
+        private readonly Slider _owner;
+        public SliderAccessibleObject(Slider owner) : base(owner) => _owner = owner;
+
+        public override AccessibleRole Role => AccessibleRole.Slider;
+        public override string Value => _owner.Format(_owner.Value);
+        public override string Name => _owner.AccessibleName ?? _owner.Name;
+
+        public override string Description =>
+            $"{_owner.Value} of {_owner.Minimum} to {_owner.Maximum}";
+
+        public override AccessibleStates State =>
+            base.State | (_owner.Enabled ? AccessibleStates.None : AccessibleStates.Unavailable);
+    }
+
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public int Minimum
     {
@@ -76,16 +99,45 @@ internal sealed class Slider : Control
         Invalidate();
     }
 
-    private const int TrackH = 8;
-    private const int ThumbR = 8;
-    private const int ReadoutW = 52;
+    // Logical (96-dpi) metrics. Owner-drawn constants are device pixels and
+    // WinForms does not touch them, so at 150% a 52px readout stays 52px while
+    // the text inside it grows - "6500K" was getting clipped. Scale them from
+    // DeviceDpi and re-scale when the window moves to another monitor.
+    private const int TrackHDip = 8;
+    private const int ThumbRDip = 8;
+    private const int ReadoutWDip = 52;
+
+    private int _trackH = TrackHDip;
+    private int _thumbR = ThumbRDip;
+    private int _readoutW = ReadoutWDip;
+
+    private void RescaleMetrics()
+    {
+        _trackH = LogicalToDeviceUnits(TrackHDip);
+        _thumbR = LogicalToDeviceUnits(ThumbRDip);
+        _readoutW = LogicalToDeviceUnits(ReadoutWDip);
+        Height = Math.Max(Height, LogicalToDeviceUnits(30));
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        RescaleMetrics();
+    }
+
+    protected override void RescaleConstantsForDpi(int deviceDpiOld, int deviceDpiNew)
+    {
+        base.RescaleConstantsForDpi(deviceDpiOld, deviceDpiNew);
+        RescaleMetrics();
+        Invalidate();
+    }
 
     private Rectangle TrackRect
     {
         get
         {
-            int y = (Height - TrackH) / 2;
-            return new Rectangle(ThumbR, y, Math.Max(1, Width - ReadoutW - ThumbR * 2), TrackH);
+            int y = (Height - _trackH) / 2;
+            return new Rectangle(_thumbR, y, Math.Max(1, Width - _readoutW - _thumbR * 2), _trackH);
         }
     }
 
@@ -98,7 +150,7 @@ internal sealed class Slider : Control
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
         var track = TrackRect;
-        Theme.FillRound(g, track, TrackH / 2, Theme.Sunken);
+        Theme.FillRound(g, track, _trackH / 2, Theme.Sunken);
 
         int fillW = (int)Math.Round(track.Width * Fraction);
         if (fillW > 2)
@@ -109,12 +161,12 @@ internal sealed class Slider : Control
                 using var brush = new LinearGradientBrush(
                     new Rectangle(track.X, track.Y, Math.Max(2, track.Width), track.Height),
                     Theme.Amber, Theme.AmberLight, LinearGradientMode.Horizontal);
-                using var path = Theme.Round(fill, TrackH / 2);
+                using var path = Theme.Round(fill, _trackH / 2);
                 g.FillPath(brush, path);
             }
             else
             {
-                Theme.FillRound(g, fill, TrackH / 2, Theme.AmberDim);
+                Theme.FillRound(g, fill, _trackH / 2, Theme.AmberDim);
             }
         }
 
@@ -122,7 +174,7 @@ internal sealed class Slider : Control
         {
             int cx = track.X + fillW;
             int cy = track.Y + track.Height / 2;
-            int r = _dragging || _hover ? ThumbR + 1 : ThumbR;
+            int r = _dragging || _hover ? _thumbR + 1 : _thumbR;
             using var shadow = new SolidBrush(Color.FromArgb(90, 0, 0, 0));
             g.FillEllipse(shadow, cx - r, cy - r + 1, r * 2, r * 2);
             using var thumb = new SolidBrush(Theme.AmberLight);
@@ -134,7 +186,7 @@ internal sealed class Slider : Control
             }
         }
 
-        var readout = new Rectangle(track.Right + ThumbR + 6, 0, ReadoutW - 6, Height);
+        var readout = new Rectangle(track.Right + _thumbR + 6, 0, _readoutW - 6, Height);
         TextRenderer.DrawText(g, Format(_value), Theme.Value, readout,
             Enabled ? Theme.Ink : Theme.InkFaint,
             TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding);
@@ -164,6 +216,9 @@ internal sealed class Slider : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        // Belt and braces with OnMouseCaptureChanged: if the button is not
+        // actually down, this is not a drag no matter what the flag says.
+        if (_dragging && (MouseButtons & MouseButtons.Left) == 0) { _dragging = false; Invalidate(); return; }
         if (_dragging) SetFromX(e.X);
     }
 
@@ -174,16 +229,45 @@ internal sealed class Slider : Control
         Invalidate();
     }
 
+    /// <summary>
+    /// Losing capture ends the drag.
+    ///
+    /// Clearing _dragging only in OnMouseUp leaves a ghost drag whenever
+    /// something else takes capture mid-gesture - an Alt-Tab, a modal, a
+    /// display-change rebuild. After that, merely moving the cursor across the
+    /// slider with no button held would move the value and fire DDC writes.
+    /// </summary>
+    protected override void OnMouseCaptureChanged(EventArgs e)
+    {
+        base.OnMouseCaptureChanged(e);
+        if (!Capture && _dragging)
+        {
+            _dragging = false;
+            Invalidate();
+        }
+    }
+
     protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
     protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+
+    private int _wheelResidue;
 
     protected override void OnMouseWheel(MouseEventArgs e)
     {
         if (!Enabled) return;
-        // A wheel over a slider is the fastest way to nudge a monitor, and it is
-        // what people try first.
+
+        // Scale by the real delta rather than its sign. A precision touchpad
+        // sends many small deltas and a fast wheel sends coalesced multiples of
+        // 120; treating both as "one notch" makes the first hypersensitive and
+        // the second sluggish. Residue carries sub-notch movement forward so
+        // slow scrolling is not silently discarded.
+        _wheelResidue += e.Delta;
+        int notches = _wheelResidue / SystemInformation.MouseWheelScrollDelta;
+        if (notches == 0) return;
+        _wheelResidue -= notches * SystemInformation.MouseWheelScrollDelta;
+
         int step = Math.Max(1, (_max - _min) / 50);
-        int v = Math.Clamp(_value + (e.Delta > 0 ? step : -step), _min, _max);
+        int v = Math.Clamp(_value + notches * step, _min, _max);
         if (v == _value) return;
         _value = v;
         Invalidate();

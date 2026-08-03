@@ -29,6 +29,10 @@ internal sealed class LayoutMap : Control
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         BackColor = Theme.Bar;
         Height = 108;
+        // A convenience shortcut for the mouse, not a control in its own right:
+        // everything it does is also reachable from the cards below, so it must
+        // not sit in the Tab order with no focus cue.
+        TabStop = false;
     }
 
     public void SetMonitors(IEnumerable<Monitor> monitors)

@@ -31,8 +31,15 @@ internal sealed class MainForm : Form
         BackColor = Theme.Base;
         ForeColor = Theme.Ink;
         Font = Theme.Body;
-        MinimumSize = new Size(620, 460);
-        Size = new Size(700, 820);
+        // AutoScaleMode defaults to None, which leaves the whole layout in raw
+        // device pixels under PerMonitorV2. Dpi is what the DPI-aware path wants.
+        AutoScaleMode = AutoScaleMode.Dpi;
+
+        // 620 was too narrow for its own toolbar: the buttons and margins need
+        // ~590px inside the bar's padding, and the row does not wrap, so
+        // "Warmth off" was clipped at the minimum size with no affordance.
+        MinimumSize = new Size(720, 480);
+        Size = new Size(720, 820);
         StartPosition = FormStartPosition.CenterScreen;
 
         // Two instances, because they are different frames: the window wants
@@ -115,6 +122,14 @@ internal sealed class MainForm : Form
         };
 
         _status = new StatusStripe { Dock = DockStyle.Bottom };
+
+        // A vertical scrollbar appearing shrinks _list.ClientSize but does not
+        // resize the form, so nothing recomputed the card width and earlier
+        // cards stayed wider than later ones. Watch the panel's own client size.
+        _list.ClientSizeChanged += (_, _) =>
+        {
+            foreach (var c in _cards) c.SetWidth(CardWidth);
+        };
 
         Controls.Add(_list);
         Controls.Add(_status);
@@ -502,6 +517,7 @@ internal sealed class StatusStripe : Control
         Height = 46;
         BackColor = Theme.Bar;
         Font = Theme.Small;
+        TabStop = false;   // output only
     }
 
     public void Set(string text, StatusKind kind)

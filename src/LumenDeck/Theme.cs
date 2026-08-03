@@ -22,7 +22,11 @@ internal static class Theme
     // Text.
     public static readonly Color Ink = Color.FromArgb(238, 240, 245);
     public static readonly Color InkMuted = Color.FromArgb(150, 156, 170);
-    public static readonly Color InkFaint = Color.FromArgb(104, 110, 124);
+    // Lightened from 104,110,124 after measuring: that value gave 3.15:1 on
+    // Card and 3.41:1 on Bar, below the 4.5:1 small-text floor - and it was
+    // carrying real content, not decoration (the nits readout, "All monitors",
+    // "No monitors detected"). This clears 4.5:1 on both surfaces.
+    public static readonly Color InkFaint = Color.FromArgb(139, 146, 162);
 
     // The brand ramp, straight off the icon.
     public static readonly Color AmberLight = Color.FromArgb(255, 210, 103);

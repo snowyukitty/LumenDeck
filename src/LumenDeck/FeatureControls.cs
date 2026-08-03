@@ -43,16 +43,12 @@ internal static class FeatureControls
 
             Control editor = f.Definition.Kind switch
             {
-                VcpCatalog.Kind.Continuous => BuildSlider(f, monitor, worker, out var valueLabel1, report),
+                VcpCatalog.Kind.Continuous => BuildSlider(f, monitor, worker, out _, report),
                 VcpCatalog.Kind.Select => BuildDropdown(f, monitor, worker, report),
                 _ => BuildActionButton(f, monitor, worker, report),
             };
             grid.Controls.Add(editor, 1, row);
-
-            // The third column shows the live value for a slider, and stays
-            // empty for the others - a dropdown already shows its own state.
-            if (f.Definition.Kind == VcpCatalog.Kind.Continuous && editor.Tag is Label live)
-                grid.Controls.Add(live, 2, row);
+            // No separate value column any more: Slider carries its own readout.
 
             string tip = f.Definition.Description;
             if (!string.IsNullOrEmpty(tip) && tips != null)
@@ -69,37 +65,28 @@ internal static class FeatureControls
     private static Control BuildSlider(VcpFeature f, Monitor m, DdcWorker worker,
                                        out Label valueLabel, Action<string> report)
     {
+        // The same Slider as the three headline controls. Leaving these as stock
+        // TrackBars meant expanding "more controls" brought the grey Win95 groove
+        // straight back into a window built to be rid of it - along with a second
+        // set of DPI and keyboard behaviours.
         int max = Math.Max(1, f.Max);
-        var bar = new TrackBar
+        var bar = new Slider
         {
             Minimum = 0,
             Maximum = max,
             Value = Math.Clamp(f.Current, 0, max),
-            TickStyle = TickStyle.None,
             Dock = DockStyle.Fill,
-            Height = 30,
             Margin = new Padding(6, 0, 6, 0),
+            AccessibleName = f.Name,
         };
 
-        var live = new Label
-        {
-            Text = f.Current.ToString(),
-            Font = FontValue,
-            ForeColor = Ink,
-            AutoSize = false,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-        };
-
-        bar.Scroll += (_, _) =>
+        bar.ValueChanged += (_, _) =>
         {
             f.Current = bar.Value;
-            live.Text = bar.Value.ToString();
             worker.SetVcp(m, f.Code, bar.Value);
         };
 
-        bar.Tag = live;
-        valueLabel = live;
+        valueLabel = null;
         return bar;
     }
 
