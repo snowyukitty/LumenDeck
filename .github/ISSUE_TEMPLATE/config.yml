@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: My monitor does not appear at all
+    url: https://github.com/snowyukitty/LumenDeck#troubleshooting
+    about: Usually DDC/CI is disabled in the monitor's own menu, or a KVM/dock is blocking it. Check the troubleshooting section first.

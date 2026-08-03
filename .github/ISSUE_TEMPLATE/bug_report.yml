@@ -1,0 +1,39 @@
+name: Bug report
+description: Something does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please include `--diagnose` output. Monitor behaviour varies enormously
+        between models, and that output usually identifies the cause outright.
+  - type: textarea
+    id: diagnose
+    attributes:
+      label: Output of `lumendeck-cli --diagnose`
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected instead
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: LumenDeck version
+      description: "`lumendeck-cli --version`, or the release you downloaded"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: "`winver`"
+  - type: input
+    id: connection
+    attributes:
+      label: How the monitor is connected
+      description: DisplayPort / HDMI / USB-C, and whether a dock, hub or KVM is in the path

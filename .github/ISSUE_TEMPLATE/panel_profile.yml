@@ -1,0 +1,29 @@
+name: Panel profile
+description: Add a monitor to the luminance table so presets match it properly
+labels: [panel-profile]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Presets aim every monitor at the same perceived brightness, which needs
+        each panel's rated peak luminance. Without a profile yours gets a
+        generic estimate.
+  - type: input
+    id: name
+    attributes:
+      label: Monitor name exactly as `lumendeck-cli --list` shows it
+    validations:
+      required: true
+  - type: input
+    id: peak
+    attributes:
+      label: Rated peak brightness in cd/m²
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Where that number came from
+      description: Spec sheet link, or "measured with <colorimeter>"
+    validations:
+      required: true

@@ -2,120 +2,133 @@
 
 # LumenDeck
 
-Brightness, contrast and colour temperature for **every** monitor on a Windows
-PC — external ones over DDC/CI, a laptop's built-in panel over WMI — from one
-window or one command.
+**Control the brightness, contrast and colour temperature of every monitor on
+Windows — from one window, or one command.**
 
-Windows itself cannot do this. Its brightness slider and the `Fn` brightness
-keys drive `WmiMonitorBrightnessMethods`, which exists **only for an internal
-laptop panel**. Plug in external monitors and there is simply no slider to find:
-you are meant to reach behind the screen and press buttons. LumenDeck talks to
-the monitors directly over DDC/CI — the control channel that rides the video
-cable and drives the same values as the on-screen menu.
+[![build](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml/badge.svg)](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#install)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](#build-from-source)
+
+<br clear="left">
+
+Windows has no brightness control for external monitors. Its slider and the `Fn`
+brightness keys drive `WmiMonitorBrightnessMethods`, which exists **only for a
+laptop's built-in panel** — plug in a desktop monitor and there is simply no
+slider to find. You are meant to reach behind the screen and press buttons.
+
+LumenDeck talks to the monitors directly over **DDC/CI**, the control channel
+that rides the video cable and drives the same values as the on-screen menu. A
+laptop's internal panel is handled too, over WMI. One app, every screen.
 
 Runs as an ordinary user. No administrator rights, no drivers, no service.
 
+```powershell
+lumendeck-cli --list            # every monitor and what it will accept
+lumendeck-cli --preset Night    # level the whole desk for the evening
+lumendeck-cli -m "left" -b 55 -w 5000
 ```
-lumendeck-cli --list
-lumendeck-cli --preset Night
-lumendeck-cli -m "left" --brightness 55 --warmth 5000
-```
 
-## What makes it different
+---
 
-**Presets match perceived luminance, not slider numbers.** An identical DDC
-value means different light on different panels: on a 400-nit panel and a
-250-nit one, 43 and 76 look the same to the eye. Setting every monitor to "50"
-is exactly what produces a desk where one screen glares and its neighbour looks
-dead. LumenDeck models each panel as `nits ≈ floor + (peak − floor) × pct` and
-solves for the value that hits the target luminance.
+## What it does
 
-Panels it has no profile for get a generic estimate — and the UI *says* it is an
+| | |
+|---|---|
+| **Brightness & contrast** | Per monitor, over DDC/CI (`VCP 0x10` / `0x12`) |
+| **Colour temperature** | Per monitor, 3000K–6500K, as a blue light filter |
+| **Luminance-matched presets** | Day / Evening / Night — aims every panel at the *same light*, not the same number |
+| **Everything else your monitor offers** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, power, factory reset — discovered from each monitor, not assumed |
+| **Desk map** | A scale drawing of your actual monitor layout; click a screen to jump to it |
+| **Identify** | Puts each monitor's name on its own glass |
+| **Laptop panels** | Internal displays via `WmiMonitorBrightnessMethods` |
+| **Command line** | Scriptable, with JSON output and meaningful exit codes |
+| **Tray app** | Lives in the notification area; optional start-with-Windows |
+
+---
+
+## Three things it does that other brightness tools don't
+
+### 1. Presets match perceived brightness, not slider numbers
+
+An identical DDC value means a different amount of light on different panels. On
+a 400-nit monitor and a 250-nit one, **43 and 76 look the same to the eye**.
+Setting every screen to "50" is exactly what leaves one glaring next to a
+neighbour that looks dead.
+
+LumenDeck models each panel as `nits ≈ floor + (peak − floor) × pct` and solves
+for the value that hits the target luminance. On the desk it was built for, four
+monitors end up at **76 / 43 / 56 / 50 — and all read ~200 nits.**
+
+Panels it has no profile for get a generic estimate, and the UI *says* it is an
 estimate rather than presenting a guess as a measurement. Add your own in
 `%APPDATA%\LumenDeck\panels.json`.
 
-**Colour temperature works even when the monitor refuses.** The obvious way to
-reduce blue light is the monitor's own RGB gain registers. Many monitors
-advertise those registers and then ignore every write to them — measured by
-sweeping the full 0–100 range and reading back an unchanged value thirteen times
-in a row, while every call reported success. Some offer no warm preset at all,
-only 6500K and *cooler*. So warmth is applied as a per-display GPU gamma ramp,
-composed on top of whatever ICC or colorimeter profile is already loaded, and
-"off" restores that profile exactly instead of flattening it.
+### 2. Blue light reduction that works even when the monitor refuses
 
-Windows Night light is not an alternative here: it is one global switch that
-tints every attached monitor.
+The obvious way to reduce blue light is the monitor's own RGB gain registers.
+**Many monitors advertise those registers and ignore every write to them.** That
+was measured, not assumed: sweeping blue across the full 0–100 range returned an
+unchanged value thirteen times in a row while every call reported success. Some
+monitors offer no warm preset at all — only 6500K and *cooler*.
 
-**Every monitor gets its own controls, discovered from that monitor.** Panels
-genuinely differ: one exposes input source, picture mode and speaker volume,
-its neighbour exposes black levels and no volume at all. LumenDeck reads each
-monitor's MCCS capability string and builds only the controls that monitor
-actually claims — input source, colour preset, picture mode, volume, sharpness,
-RGB gain, black levels, power mode, factory reset — plus per-monitor preset
-buttons so a single odd screen can be fixed without touching the others.
+So warmth is applied as a per-display **GPU gamma ramp**, composed on top of
+whatever ICC or colorimeter profile is already loaded — and turning it off
+restores that profile exactly, instead of flattening your calibration.
 
-Nothing is offered on a guess. Reading a VCP code a monitor does not implement
-does not fail; it answers with a plausible number. One panel here returns `80`
-for three RGB black-level codes it never advertised, which reads exactly like a
-real setting in need of correction. So a control appears only where the monitor
-listed the code, and when a monitor reports a *current* value it never
-advertised, the UI says `Unknown (0x07)` rather than naming it from the standard
-table and stating a confident falsehood.
+Windows Night Light cannot do this: it is one global switch that tints every
+attached monitor at once. LumenDeck warms **one screen** and leaves the rest.
 
-**It never asks you to trust a monitor number.** `\\.\DISPLAYn` is not a stable
-identity — the numbering carries gaps from past hot-plugging, and need not match
-what Windows paints on screen during *Identify*. LumenDeck labels monitors by
-model and physical position, keys saved settings on EDID identity (falling back
-to the physical port when two panels are genuinely identical), and has its own
-**Identify** button that puts each monitor's name on its own glass.
+### 3. It never asks you to trust a monitor number
 
-## The window
+`\\.\DISPLAY1`, `2`, `3`… is not a stable identity. The numbering carries gaps
+from past hot-plugging, and it need not match the number Windows paints during
+*Identify*. Acting on a guessed mapping adjusts the wrong monitor and looks
+exactly like success.
 
-A dark surface with one amber accent - the same ramp as the icon, because the
-thing being adjusted is light.
+LumenDeck labels monitors by **model and physical position**, keys saved settings
+on **EDID identity** (falling back to the physical port when two panels are truly
+identical), draws your desk to scale, and has its own **Identify**.
 
-- **A scale drawing of your desk** across the top. Every monitor sits in its
-  real position and proportion, and its fill tracks its actual brightness, so a
-  screen out of step with the others is visible without reading a number. Click
-  a rectangle to jump to its card.
-- **One card per monitor.** Brightness, contrast and warmth on custom sliders
-  that carry their own value; the discovered extras stay folded away behind a
-  disclosure so the default view is calm.
-- **Per-monitor preset buttons** beside the global ones, for when a single
-  screen is the odd one out.
-- Sliders respond to drag, mouse wheel and arrow keys.
+---
 
 ## Install
 
-Grab a build from [Releases](../../releases), or:
+Download from **[Releases](../../releases)** — self-contained, nothing to
+install alongside it.
+
+Two executables:
+
+| | |
+|---|---|
+| `LumenDeck.exe` | the window and the tray icon |
+| `lumendeck-cli.exe` | the command line |
+
+They are separate binaries on purpose: a GUI-subsystem process cannot stream
+stdout back to the shell that launched it, so a single executable pretending to
+be both prints nothing when piped.
+
+### Build from source
 
 ```powershell
 git clone https://github.com/snowyukitty/LumenDeck
 cd LumenDeck
-dotnet build -c Release
+dotnet build LumenDeck.slnx -c Release
+powershell -File install.ps1        # installs, shortcuts, adds to PATH
 ```
 
-Requires the .NET 10 SDK to build. The published release is self-contained and
-needs nothing installed.
+Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). `install.ps1
+-Uninstall` reverses everything it did.
 
-Two executables come out of the build:
-
-| | |
-|---|---|
-| `LumenDeck.exe` | the window and tray icon |
-| `lumendeck-cli.exe` | the command line |
-
-They are separate binaries on purpose. A GUI-subsystem process cannot stream
-stdout back to the shell that launched it or make it wait for an exit code, so a
-single executable pretending to be both prints nothing when piped.
+---
 
 ## Command line
 
 ```
 --list                  Every monitor and its current settings
 --json                  Machine-readable output
---diagnose              Why a monitor does or does not respond
 --features              Extra controls each monitor advertises
+--diagnose              Why a monitor does or does not respond
 
 -m, --monitor <text>    Only monitors whose name, position or device matches
 -p, --preset <name>     Day | Evening | Night
@@ -123,18 +136,74 @@ single executable pretending to be both prints nothing when piped.
 -w, --warmth <kelvin>   3000-6500, or "off"
 ```
 
-Exit codes: `0` done, `1` nothing matched, `2` a monitor refused the change.
+Exit codes: `0` done, `1` nothing matched, `2` a monitor refused the change — so
+it can be used in a scheduled task or bound to a hotkey by whatever launcher you
+already use.
 
-## When a monitor does not appear
+```powershell
+# dim everything a notch
+lumendeck-cli --brightness -10
 
-Run `lumendeck-cli --diagnose`. Common causes, in order of likelihood:
+# warm only the screen on the left
+lumendeck-cli -m left --warmth 4600
 
-- **DDC/CI is switched off in the monitor's own menu.** Several brands ship it
-  disabled. It is usually under Settings, OSD or System.
-- **A KVM switch or some USB-C docks do not pass DDC through.** Nothing on the
-  PC side can fix that.
-- **The panel is a laptop's built-in display.** That is handled, but only where
-  the OEM implements the ACPI brightness interface.
+# feed it to something else
+lumendeck-cli --list --json | ConvertFrom-Json
+```
+
+---
+
+## How it compares
+
+Both alternatives below are good, actively maintained tools. This is about
+*what is different*, not what is better.
+
+| | LumenDeck | [Twinkle Tray](https://github.com/xanderfrangos/twinkle-tray) | [Monitorian](https://github.com/emoacht/Monitorian) | Windows Night Light |
+|---|---|---|---|---|
+| External monitor brightness | ✔ | ✔ | ✔ | ✘ |
+| Laptop internal panel | ✔ | ✔ | ✔ | n/a |
+| Contrast | ✔ | ✘ | ✔ | ✘ |
+| Colour temperature **per monitor** | ✔ | ✘ | ✘ | ✘ (global only) |
+| Preserves an existing ICC / calibration | ✔ | n/a | n/a | ✘ |
+| Presets matched by **luminance**, not value | ✔ | ✘ | ✘ | ✘ |
+| Input source, picture mode, volume, RGB gain… | ✔ | ✘ | ✘ | ✘ |
+| Scale drawing of your desk layout | ✔ | ✘ | ✘ | ✘ |
+| Command line with JSON | ✔ | ✘ | ✘ | ✘ |
+| In the native Windows brightness flyout | ✘ | ✔ | ✘ | n/a |
+| Time-of-day automation | ✘ (use the CLI) | ✔ | ✘ | ✔ |
+
+If you want brightness inside the native Windows flyout, Twinkle Tray does that
+and LumenDeck does not. If you want a very small brightness-only app, Monitorian
+is excellent. LumenDeck is for a **multi-monitor desk where the screens
+disagree**.
+
+---
+
+## Troubleshooting
+
+**A monitor is missing, or its sliders are greyed out.**
+Run `lumendeck-cli --diagnose`. In order of likelihood:
+
+1. **DDC/CI is switched off in the monitor's own menu.** Several brands ship it
+   disabled — look under Settings, OSD, System or Other.
+2. **A KVM switch, or some USB-C docks and hubs, do not pass DDC through.**
+   Nothing on the PC side can fix that.
+3. The panel is a laptop's built-in display — handled, but only where the OEM
+   implements the ACPI brightness interface.
+
+**Brightness changes, but nothing else does.** Your monitor advertises the
+feature and ignores writes to it. That is common firmware behaviour, not a bug
+here; `--features` shows what it actually claims.
+
+**The warmth reverts after a reboot.** A GPU gamma ramp is GPU state, not monitor
+state — it is lost on reboot, on a display mode change, on a driver restart, and
+when some exclusive-fullscreen games exit. Turn on **Start with Windows** in the
+tray menu and LumenDeck reapplies it at login.
+
+**Windows still shows the old icon.** That is the shell icon cache, not the
+build.
+
+---
 
 ## Configuration
 
@@ -142,17 +211,30 @@ Run `lumendeck-cli --diagnose`. Common causes, in order of likelihood:
 
 | File | |
 |---|---|
-| `settings.json` | saved colour temperature per monitor, keyed on EDID identity |
+| `settings.json` | colour temperature per monitor, keyed on EDID identity |
 | `panels.json` | your own panel luminance profiles; an example is written on first run |
-| `error.log` | written only if something throws |
+| `error.log` | only if something throws |
 | `diag.log` | only when `LUMENDECK_DIAG=1` |
+
+---
 
 ## Design notes
 
-The interesting problems here were not the UI. They are written up in
-[docs/notes.md](docs/notes.md) — including a physical monitor handle that is
-legitimately `0`, why `SetVCPFeature` returning success means nothing, and why
-working set is the wrong instrument for finding a leak.
+The interesting problems were not the UI. [docs/notes.md](docs/notes.md) covers
+a physical monitor handle that is legitimately `0`, why `SetVCPFeature` returning
+success proves nothing, why working set is the wrong instrument for finding a
+leak, and why colour temperature has to compose rather than overwrite.
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Luminance
+profiles for panels not yet in the table are especially useful.
+
+---
+
+<sub>Keywords: Windows monitor brightness control, external display brightness,
+DDC/CI, MCCS, VCP, multi-monitor brightness, per-monitor colour temperature,
+blue light filter, night mode, contrast control, monitor input source switching,
+KVM, tray app, command line, C#, .NET, WinForms, f.lux alternative, Twinkle Tray
+alternative, Monitorian alternative, Windows 10, Windows 11.</sub>
 
 ## Licence
 
