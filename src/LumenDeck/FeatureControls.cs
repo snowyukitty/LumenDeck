@@ -24,7 +24,7 @@ internal static class FeatureControls
     /// <paramref name="row"/>. Returns the next free row.
     /// </summary>
     public static int Build(TableLayoutPanel grid, int row, Monitor monitor,
-                            DdcWorker worker, Action<string> report)
+                            DdcWorker worker, Action<string> report, ToolTip tips)
     {
         foreach (var f in monitor.Features)
         {
@@ -55,11 +55,10 @@ internal static class FeatureControls
                 grid.Controls.Add(live, 2, row);
 
             string tip = f.Definition.Description;
-            if (!string.IsNullOrEmpty(tip))
+            if (!string.IsNullOrEmpty(tip) && tips != null)
             {
-                var t = new ToolTip { AutoPopDelay = 15000 };
-                t.SetToolTip(caption, tip);
-                t.SetToolTip(editor, tip);
+                tips.SetToolTip(caption, tip);
+                tips.SetToolTip(editor, tip);
             }
 
             row++;

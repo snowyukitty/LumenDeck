@@ -10,7 +10,7 @@
 
     <AssemblyName>LumenDeck</AssemblyName>
     <RootNamespace>LumenDeck</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>LumenDeck</Product>
     <Description>Brightness, contrast and colour temperature for every monitor, over DDC/CI.</Description>
     <Copyright>Copyright (c) LumenDeck contributors</Copyright>
@@ -21,7 +21,18 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- The icon Explorer, the taskbar and Alt-Tab show for the exe. -->
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\assets\LumenDeck.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Embedded as well as applied to the exe: the tray loads the 16px frame
+         at runtime, and extracting it from the exe would depend on the file
+         path on disk, which does not survive a single-file publish. -->
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\assets\LumenDeck.ico"
+                      LogicalName="LumenDeck.assets.LumenDeck.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LumenDeck.Core\LumenDeck.Core.csproj" />

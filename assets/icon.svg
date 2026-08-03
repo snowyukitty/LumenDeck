@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>LumenDeck</title>
+  <desc>A wide landscape panel and a tall portrait panel standing on one rail:
+  screens of different shape, held at one light level, under one control.</desc>
+  <defs>
+    <!-- Per-shape gradient on purpose. A single gradient in canvas space made the
+         taller panel reach into a different part of the ramp, so the two panels
+         rendered as visibly different tones - drawing "mismatched" when the
+         whole point is "matched". Identical per-shape ramps make different
+         shapes read as identically lit, which is the product in one image. -->
+    <linearGradient id="lit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD267"/>
+      <stop offset="1" stop-color="#F98A26"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Landscape panel. -->
+  <rect x="88" y="244" width="488" height="384" rx="58" fill="url(#lit)"/>
+
+  <!-- Portrait panel. The orientation contrast is what names the mark
+       "monitors" rather than "bars on a chart" - a stepped row of same-width
+       blocks tested as a bar chart and was killed at bake-off. -->
+  <rect x="712" y="140" width="224" height="488" rx="52" fill="url(#lit)"/>
+
+  <!-- The rail. It turns two floating rectangles into one object - a deck - and
+       is what makes the silhouette ownable rather than "two rounded squares".
+       Both gaps are 128 units: at 16px that is two clear pixels, so neither the
+       panel gap nor the rail gap closes up under anti-aliasing. -->
+  <rect x="88" y="756" width="848" height="128" rx="64" fill="url(#lit)"/>
+</svg>

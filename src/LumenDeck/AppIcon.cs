@@ -1,65 +1,65 @@
-using System.Drawing.Drawing2D;
+using System.Reflection;
 
 namespace LumenDeck;
 
 /// <summary>
-/// Draws the tray and window icon at runtime, so the project carries no binary
-/// assets and builds from source alone.
+/// Loads the app icon from the embedded .ico.
+///
+/// It used to be drawn at runtime with GDI+ - a sun with rays. That was a
+/// placeholder in two ways: it kept the project asset-free, and a sun is the
+/// single most generic brightness glyph there is, indistinguishable from every
+/// OS brightness control at 16px. The shipped mark is a real designed icon with
+/// proper hinted frames at 16/24/32/48/64/256, which a runtime drawing cannot
+/// match: small sizes need hand-tuned geometry, not a scaled-down circle.
 /// </summary>
 internal static class AppIcon
 {
-    public static Icon Create(int size = 32)
+    private const string ResourceName = "LumenDeck.assets.LumenDeck.ico";
+
+    /// <summary>
+    /// Returns a fresh Icon the caller owns. Windows picks the right frame per
+    /// surface - 16px in the tray, 32px in Alt-Tab, 256px in the shell.
+    /// </summary>
+    public static Icon Load()
     {
-        using var bmp = new Bitmap(size, size);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.Transparent);
-
-            float c = size / 2f;
-            float r = size * 0.26f;
-
-            // A sun: filled core, rays around it - reads as "brightness" at 16px.
-            using (var glow = new GraphicsPath())
-            {
-                glow.AddEllipse(c - r * 1.7f, c - r * 1.7f, r * 3.4f, r * 3.4f);
-                using var brush = new PathGradientBrush(glow)
-                {
-                    CenterColor = Color.FromArgb(120, 255, 214, 120),
-                    SurroundColors = new[] { Color.FromArgb(0, 255, 214, 120) },
-                };
-                g.FillPath(brush, glow);
-            }
-
-            using (var core = new SolidBrush(Color.FromArgb(255, 250, 196, 70)))
-                g.FillEllipse(core, c - r, c - r, r * 2, r * 2);
-
-            using (var pen = new Pen(Color.FromArgb(255, 250, 196, 70), Math.Max(1.6f, size * 0.055f))
-                   { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    double a = i * Math.PI / 4.0;
-                    float inner = r * 1.45f;
-                    float outer = r * 1.95f;
-                    g.DrawLine(pen,
-                        c + (float)(Math.Cos(a) * inner), c + (float)(Math.Sin(a) * inner),
-                        c + (float)(Math.Cos(a) * outer), c + (float)(Math.Sin(a) * outer));
-                }
-            }
-        }
-
-        IntPtr h = bmp.GetHicon();
         try
         {
-            // Clone, because the Icon returned by FromHandle does not own the
-            // handle and the handle must be destroyed to avoid a GDI leak.
-            using var tmp = Icon.FromHandle(h);
-            return (Icon)tmp.Clone();
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName);
+            if (stream != null) return new Icon(stream);
         }
-        finally
+        catch
         {
-            Native.DestroyIcon(h);
+            // Fall through: a missing resource must not stop the app starting.
         }
+        return Fallback();
     }
+
+    /// <summary>
+    /// The tray needs the small frame specifically. Asking for 16x16 makes
+    /// Windows select the hinted frame instead of downscaling the 256 one,
+    /// which is the difference between a crisp tray icon and a smudge.
+    /// </summary>
+    public static Icon LoadTray()
+    {
+        try
+        {
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName);
+            if (stream != null) return new Icon(stream, SystemInformation.SmallIconSize);
+        }
+        catch
+        {
+        }
+        return Fallback();
+    }
+
+    /// <summary>
+    /// A disposable stand-in.
+    ///
+    /// Returning SystemIcons.Application directly would be a trap: it is a
+    /// process-wide shared static, and every caller here owns and disposes what
+    /// it is given. Disposing the shared instance corrupts it for the rest of
+    /// the process - including WinForms itself - and the symptom appears far
+    /// from the cause. Hand back a clone instead.
+    /// </summary>
+    private static Icon Fallback() => (Icon)SystemIcons.Application.Clone();
 }

@@ -1,3 +1,5 @@
+<img src="docs/assets/icon.png" alt="" width="88" align="left" hspace="12" vspace="4">
+
 # LumenDeck
 
 Brightness, contrast and colour temperature for **every** monitor on a Windows
@@ -66,6 +68,22 @@ what Windows paints on screen during *Identify*. LumenDeck labels monitors by
 model and physical position, keys saved settings on EDID identity (falling back
 to the physical port when two panels are genuinely identical), and has its own
 **Identify** button that puts each monitor's name on its own glass.
+
+## The window
+
+A dark surface with one amber accent - the same ramp as the icon, because the
+thing being adjusted is light.
+
+- **A scale drawing of your desk** across the top. Every monitor sits in its
+  real position and proportion, and its fill tracks its actual brightness, so a
+  screen out of step with the others is visible without reading a number. Click
+  a rectangle to jump to its card.
+- **One card per monitor.** Brightness, contrast and warmth on custom sliders
+  that carry their own value; the discovered extras stay folded away behind a
+  disclosure so the default view is calm.
+- **Per-monitor preset buttons** beside the global ones, for when a single
+  screen is the odd one out.
+- Sliders respond to drag, mouse wheel and arrow keys.
 
 ## Install
 
