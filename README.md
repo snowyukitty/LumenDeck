@@ -14,9 +14,9 @@ cable and drives the same values as the on-screen menu.
 Runs as an ordinary user. No administrator rights, no drivers, no service.
 
 ```
-lumendeck --list
-lumendeck --preset Night
-lumendeck -m "left" --brightness 55 --warmth 5000
+lumendeck-cli --list
+lumendeck-cli --preset Night
+lumendeck-cli -m "left" --brightness 55 --warmth 5000
 ```
 
 ## What makes it different
@@ -69,7 +69,7 @@ Two executables come out of the build:
 | | |
 |---|---|
 | `LumenDeck.exe` | the window and tray icon |
-| `lumendeck.exe` | the command line |
+| `lumendeck-cli.exe` | the command line |
 
 They are separate binaries on purpose. A GUI-subsystem process cannot stream
 stdout back to the shell that launched it or make it wait for an exit code, so a
@@ -92,7 +92,7 @@ Exit codes: `0` done, `1` nothing matched, `2` a monitor refused the change.
 
 ## When a monitor does not appear
 
-Run `lumendeck --diagnose`. Common causes, in order of likelihood:
+Run `lumendeck-cli --diagnose`. Common causes, in order of likelihood:
 
 - **DDC/CI is switched off in the monitor's own menu.** Several brands ship it
   disabled. It is usually under Settings, OSD or System.

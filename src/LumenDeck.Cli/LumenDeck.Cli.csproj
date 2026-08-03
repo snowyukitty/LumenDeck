@@ -4,7 +4,7 @@
     <!-- A real console subsystem executable, not a GUI app pretending.
          A WinExe launched from a shell does not attach to its console, does not
          stream stdout, and does not make the shell wait for its exit code, so
-         `lumendeck.exe list | Select-String` silently produced nothing at all.
+         piping its output into anything silently produced nothing at all.
          Console output has to come from a console binary. -->
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -12,8 +12,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <RootNamespace>LumenDeck</RootNamespace>
-    <!-- Lowercase, because it is typed. -->
-    <AssemblyName>lumendeck</AssemblyName>
+    <!-- Lowercase because it is typed, and suffixed because Windows file
+         names are case-insensitive: "lumendeck.exe" and the GUI's
+         "LumenDeck.exe" are the same file, so shipping both in one folder
+         silently kept only whichever was written last. -->
+    <AssemblyName>lumendeck-cli</AssemblyName>
     <Version>1.0.0</Version>
     <Product>LumenDeck CLI</Product>
     <Description>Command line for LumenDeck: list monitors, set brightness, contrast and colour temperature.</Description>

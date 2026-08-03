@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace LumenDeck;
 
 /// <summary>
-/// Settings live in %APPDATA%\DisplayControl\settings.json.
+/// Settings live in %APPDATA%\LumenDeck\settings.json.
 ///
 /// Monitor entries are keyed on EDID identity, never on \\.\DISPLAYn: the device
 /// suffix is not stable across cable swaps and is not even contiguous on this

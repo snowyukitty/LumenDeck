@@ -20,7 +20,7 @@ internal static class CliProgram
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("lumendeck: " + ex.Message);
+            Console.Error.WriteLine("lumendeck-cli: " + ex.Message);
             return 3;
         }
     }

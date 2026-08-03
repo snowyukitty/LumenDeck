@@ -13,9 +13,9 @@ internal static class Program
         if (args.Length > 0)
         {
             MessageBox.Show(
-                "Command line options belong to lumendeck.exe, the console build." +
+                "Command line options belong to lumendeck-cli.exe, the console build." +
                 Environment.NewLine + Environment.NewLine +
-                "Try:  lumendeck --help",
+                "Try:  lumendeck-cli --help",
                 "LumenDeck", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return 2;
         }

@@ -47,14 +47,14 @@ jobs:
         # arguments and exits cleanly rather than throwing - which is exactly
         # what breaks when a dependency fails to resolve in a clean environment.
         run: |
-          ./artifacts/cli/lumendeck.exe --help
-          if ($LASTEXITCODE -ne 0) { throw "lumendeck --help exited $LASTEXITCODE" }
-          ./artifacts/cli/lumendeck.exe --version
-          if ($LASTEXITCODE -ne 0) { throw "lumendeck --version exited $LASTEXITCODE" }
+          ./artifacts/cli/lumendeck-cli.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "lumendeck-cli --help exited $LASTEXITCODE" }
+          ./artifacts/cli/lumendeck-cli.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "lumendeck-cli --version exited $LASTEXITCODE" }
 
       - uses: actions/upload-artifact@v4
         with:
           name: lumendeck-win-x64
           path: |
             artifacts/gui/LumenDeck.exe
-            artifacts/cli/lumendeck.exe
+            artifacts/cli/lumendeck-cli.exe

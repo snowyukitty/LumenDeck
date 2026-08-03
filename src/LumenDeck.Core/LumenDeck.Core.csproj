@@ -26,7 +26,7 @@
          intended consumers, so widening everything to public would advertise an
          API surface this project does not want to promise. -->
     <InternalsVisibleTo Include="LumenDeck" />
-    <InternalsVisibleTo Include="lumendeck" />
+    <InternalsVisibleTo Include="lumendeck-cli" />
   </ItemGroup>
 
 </Project>

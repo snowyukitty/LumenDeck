@@ -13,3 +13,6 @@ artifacts/
 # OS
 Thumbs.db
 desktop.ini
+
+# Publish output from install.ps1
+dist/

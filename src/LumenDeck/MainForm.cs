@@ -24,7 +24,7 @@ internal sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Display Control";
+        Text = "LumenDeck";
         BackColor = Color.FromArgb(26, 26, 29);
         ForeColor = Color.White;
         Font = new Font("Segoe UI", 9f);
@@ -107,12 +107,56 @@ internal sealed class MainForm : Form
             menu.Items.Add(captured.Name, null, (_, _) => ApplyLevel(captured));
         }
         menu.Items.Add(new ToolStripSeparator());
+
+        var warmthOff = new ToolStripMenuItem("Warmth off", null, (_, _) =>
+        {
+            foreach (var p in _panels) p.ApplyKelvin(GammaControl.NeutralKelvin);
+            SaveSoon();
+            SetStatus("All monitors restored to their original colour.");
+        });
+        menu.Items.Add(warmthOff);
+
+        // If the executable moved since this was switched on, the entry points
+        // at a copy that may no longer exist - so fix it before showing its
+        // state, rather than reporting "on" for something that cannot run.
+        StartupEntry.RepairIfStale();
+        var startWithWindows = new ToolStripMenuItem("Start with Windows")
+        {
+            CheckOnClick = true,
+            Checked = StartupEntry.IsEnabled,
+            ToolTipText = "A gamma ramp does not survive a reboot, so warmth is reapplied at login.",
+        };
+        bool syncingStartup = false;
+        startWithWindows.CheckedChanged += (_, _) =>
+        {
+            if (syncingStartup) return;
+
+            bool want = startWithWindows.Checked;
+            if (StartupEntry.Set(want))
+            {
+                SetStatus(want
+                    ? "LumenDeck will start with Windows and reapply your saved warmth."
+                    : "LumenDeck will no longer start with Windows.");
+                return;
+            }
+
+            // Put the tick back. The menu must never claim a state the registry
+            // did not accept - a checkbox that lies is worse than one that
+            // refuses. The guard stops the correction re-entering this handler.
+            syncingStartup = true;
+            startWithWindows.Checked = StartupEntry.IsEnabled;
+            syncingStartup = false;
+            SetStatus("Could not change the startup setting - the registry write was refused.");
+        };
+        menu.Items.Add(startWithWindows);
+
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => { _reallyClosing = true; Close(); });
 
         _tray = new NotifyIcon
         {
             Icon = _appIcon,
-            Text = "Display Control",
+            Text = "LumenDeck",
             Visible = true,
             ContextMenuStrip = menu,
         };
