@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LumenDeck</RootNamespace>
+    <AssemblyName>LumenDeck.Core</AssemblyName>
+    <Version>1.0.0</Version>
+    <!-- No WinForms here on purpose: the monitor engine must be usable from a
+         plain console process, a service, or a test host. Only the GUI project
+         pulls in WinForms. -->
+    <UseWindowsForms>false</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The only dependency, and only for laptop internal panels: those are not
+         reachable over DDC/CI and need WmiMonitorBrightnessMethods instead. -->
+    <PackageReference Include="System.Management" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The engine's types stay internal; the two front-ends are the only
+         intended consumers, so widening everything to public would advertise an
+         API surface this project does not want to promise. -->
+    <InternalsVisibleTo Include="LumenDeck" />
+    <InternalsVisibleTo Include="lumendeck" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,60 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Windows-only by nature: the whole project is Win32 display APIs.
+    # This job exists as much to prove the repository builds on a machine that
+    # is not the author's as to catch regressions.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore LumenDeck.slnx
+
+      - name: Build
+        run: dotnet build LumenDeck.slnx -c Release --no-restore /warnaserror
+
+      - name: Publish self-contained
+        run: >
+          dotnet publish src/LumenDeck/LumenDeck.csproj -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/gui
+
+      - name: Publish CLI self-contained
+        run: >
+          dotnet publish src/LumenDeck.Cli/LumenDeck.Cli.csproj -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/cli
+
+      - name: Smoke test the CLI
+        # No monitor answers DDC on a CI runner, so this cannot assert on
+        # hardware. What it can prove is that the binary starts, parses
+        # arguments and exits cleanly rather than throwing - which is exactly
+        # what breaks when a dependency fails to resolve in a clean environment.
+        run: |
+          ./artifacts/cli/lumendeck.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "lumendeck --help exited $LASTEXITCODE" }
+          ./artifacts/cli/lumendeck.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "lumendeck --version exited $LASTEXITCODE" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumendeck-win-x64
+          path: |
+            artifacts/gui/LumenDeck.exe
+            artifacts/cli/lumendeck.exe

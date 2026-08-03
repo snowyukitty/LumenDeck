@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- A real console subsystem executable, not a GUI app pretending.
+         A WinExe launched from a shell does not attach to its console, does not
+         stream stdout, and does not make the shell wait for its exit code, so
+         `lumendeck.exe list | Select-String` silently produced nothing at all.
+         Console output has to come from a console binary. -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LumenDeck</RootNamespace>
+    <!-- Lowercase, because it is typed. -->
+    <AssemblyName>lumendeck</AssemblyName>
+    <Version>1.0.0</Version>
+    <Product>LumenDeck CLI</Product>
+    <Description>Command line for LumenDeck: list monitors, set brightness, contrast and colour temperature.</Description>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LumenDeck.Core\LumenDeck.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/LumenDeck.Core/LumenDeck.Core.csproj" />
+  <Project Path="src/LumenDeck/LumenDeck.csproj" />
+  <Project Path="src/LumenDeck.Cli/LumenDeck.Cli.csproj" />
+</Solution>
