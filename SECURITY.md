@@ -29,4 +29,8 @@ monitor names become `Display A`, `B`, `C`.
 
 ## Supported versions
 
-The latest release. This is a small tool; fixes go forward, not into old tags.
+Fixes go into the next release, never back into an old tag. This is a small tool
+maintained by one person, so before reporting anything, check
+[Releases](https://github.com/snowyukitty/LumenDeck/releases) for a build newer
+than the one you are running — `lumendeck-cli --diagnose` prints the version and
+the commit it was built from.

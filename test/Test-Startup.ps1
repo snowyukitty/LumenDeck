@@ -1,5 +1,5 @@
 # Test-Startup.ps1
-# Two things the app must get right at launch.
+# Three things the app must get right at launch.
 #
 # 1. TIME TO WINDOW. The first version enumerated every monitor over DDC inside
 #    the form constructor, so nothing appeared for 6.72 s after a double-click -
@@ -11,6 +11,10 @@
 #    constructor, before the message loop exists, where Application.ThreadException
 #    cannot catch it. The app would simply vanish at launch with no window and no
 #    error dialog. Every case below must still produce a window.
+#
+# 3. STARTING MINIMISED. The one launch path with no window to wait for, and it
+#    used to kill the process: exit code 0xC00000FD, STACK_OVERFLOW, with no
+#    window, no tray icon and no error.log. See the case at the bottom.
 #
 # Restores the real settings file afterwards.
 #
@@ -61,6 +65,15 @@ $fail = 0
 Write-Host ''
 Write-Host '=== time to window, normal settings ==='
 if (Test-Path $settings) { Remove-Item $settings -Force }
+
+# One launch thrown away first. The very first run of a freshly built executable
+# pays for JIT and for paging a large binary in off disk: measured at 2.97 s here
+# against 0.41 s on every run after it. That is a failure every time somebody
+# builds and immediately tests, which is when everybody tests - and it is not the
+# thing this case is about. The question is whether the DDC enumeration still
+# blocks the window, and that cost does not disappear when the binary is warm.
+[void](Start-AndWaitForWindow)
+
 $r = Start-AndWaitForWindow
 if (-not $r.Ok) {
     Write-Host ('  FAIL - ' + $r.Why)
@@ -97,6 +110,53 @@ foreach ($c in $cases) {
         Write-Host ('  FAIL - ' + $r.Why)
         if (Test-Path $errlog) { Write-Host '  --- error.log ---'; Get-Content $errlog | ForEach-Object { Write-Host ('  ' + $_) } }
         $fail++
+    }
+}
+
+# ------------------------------------------------------ 3. starting minimised
+#
+# The only launch path with nothing to wait for, which is exactly why it went
+# unnoticed. Assigning WindowState in the form constructor put the first WM_SIZE
+# before the window had ever been shown; the minimise-to-tray path reacted by
+# assigning ShowInTaskbar, which recreates the window handle, which resizes the
+# form, which re-entered that path with the state still Minimized. Round it went
+# until the stack was gone.
+#
+# So this asserts the two things that were false: the process is still alive,
+# and it got as far as reading the monitors. The second is visible in the
+# settings file - the first rebuild seeds a Custom entry per monitor, so a file
+# that goes in with an empty Monitors list comes out with one entry per screen.
+Write-Host ''
+Write-Host '=== starting minimised ==='
+New-Item -ItemType Directory -Path $dir -Force | Out-Null
+Set-Content -Path $settings -Encoding UTF8 `
+    -Value '{"Monitors": [], "StartMinimised": true, "MinimiseToTray": true}'
+
+Get-Process LumenDeck -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 700
+if (Test-Path $errlog) { Remove-Item $errlog -Force }
+
+$p = Start-Process $exe -PassThru
+Start-Sleep -Seconds 20
+$p.Refresh()
+
+if ($p.HasExited) {
+    Write-Host ('  FAIL - process exited, code 0x{0:X8}' -f $p.ExitCode)
+    if ($p.ExitCode -eq -1073741571) { Write-Host '         that is STACK_OVERFLOW - the minimise-at-launch recursion is back' }
+    if (Test-Path $errlog) { Write-Host '  --- error.log ---'; Get-Content $errlog | ForEach-Object { Write-Host ('  ' + $_) } }
+    $fail++
+} else {
+    $seen = 0
+    try { $seen = @((Get-Content $settings -Raw | ConvertFrom-Json).Monitors).Count } catch { $seen = 0 }
+
+    if ($p.MainWindowHandle -ne 0) {
+        Write-Host '  FAIL - a window was shown; StartMinimised should go straight to the tray'
+        $fail++
+    } elseif ($seen -eq 0) {
+        Write-Host '  FAIL - alive, but it never enumerated: no monitor reached the settings file'
+        $fail++
+    } else {
+        Write-Host ('  PASS - alive in the tray, no window, ' + $seen + ' monitor(s) enumerated')
     }
 }
 

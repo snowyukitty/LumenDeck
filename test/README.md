@@ -14,7 +14,7 @@ powershell -File test\Test-Gamma.ps1
 
 ## Test-Startup.ps1
 
-Time to window, and survival of a broken settings file.
+Time to window, survival of a broken settings file, and starting minimised.
 
 Enumerating monitors over DDC used to happen inside the form constructor, so
 nothing appeared for **6.7 seconds** after launch - measured, not estimated. It
@@ -25,6 +25,14 @@ It also writes six flavours of damaged `settings.json` - including
 requires a window every time. That failure mode is nasty precisely because it
 happens before the message loop exists, so no exception handler can report it:
 the app just never appears.
+
+The last case launches with `StartMinimised` on, which is the one path with no
+window to wait for — and which used to end in `0xC00000FD`, `STACK_OVERFLOW`,
+because hiding to the tray before the window existed reassigned `ShowInTaskbar`,
+recreated the handle, resized the form and re-entered the same path. No window,
+no tray icon, no `error.log`: a stack overflow cannot be caught. It asserts the
+process is still alive and that it reached the monitors, since there is nothing
+on screen to look at.
 
 ## Test-RebuildLeak.ps1
 

@@ -104,9 +104,9 @@ the captured copy to turn it off.
 
 ## …but "the ramp loaded right now" is not the baseline
 
-The fix above was right and its implementation was wrong in a way that took
-months to notice, because the symptom looked like a colour bug and the cause was
-a lifetime bug.
+The fix above was right, and its implementation was wrong in a way no test the
+app could run on itself would ever have caught: the symptom looked like a colour
+bug and the cause was a lifetime bug.
 
 `SetDeviceGammaRamp` outlives the process that called it. Quit the app and the
 warm ramp is still on the display. The enumerator captured whatever ramp was
@@ -175,6 +175,53 @@ The general lesson is worth more than the constant: **a correct number in the
 wrong domain is still wrong, and it will not look wrong in any log.** The
 comment saying "linear" was accurate and sat three lines above the code that
 used it as though it were encoded.
+
+## A setting nothing in the product could set
+
+`StartMinimised` sat in `settings.json` from the first commit with no menu item,
+no checkbox and no command-line flag. The only way to switch it on was to edit
+the JSON by hand — so nobody did, and nobody found that switching it on kills the
+process before it draws anything.
+
+Setting `WindowState = Minimized` in the form constructor means the first
+`WM_SIZE` arrives before the window has ever been shown. The minimise-to-tray
+handler reacts to it by assigning `ShowInTaskbar`, and **assigning
+`ShowInTaskbar` makes WinForms recreate the window handle** — which resizes the
+form, which re-enters the handler with the state still `Minimized`. There is no
+floor to the recursion until the stack runs out: exit code `0xC00000FD`,
+`STACK_OVERFLOW`.
+
+Nothing reports it. A stack overflow cannot be caught, so
+`Application.ThreadException` never fires, `error.log` is never written, no
+window appears and no tray icon appears. The app is simply absent — and the
+launch that exercises this path is the one at login, which is precisely the
+launch nobody is watching.
+
+Two lessons, and the second is the bigger one. Hiding a window is not free:
+`ShowInTaskbar`, `FormBorderStyle` and `Opacity` all recreate the handle, so any
+resize handler that assigns them can re-enter itself. And **a setting with no way
+to set it is untested by definition.** It is not dormant, it is unexplored. The
+fix moved the minimise to `OnShown`, where the ordinary minimise path already
+worked, and put the toggle in the tray menu so the path has a user who can reach
+it.
+
+## A version number that was right by coincidence
+
+`--version` read `typeof(Cli).Assembly`. `Cli.cs` lives in `LumenDeck.Core`, so
+what it printed was the engine's version and not the command line's. It had been
+wrong from the beginning and looked perfect, because both projects happened to
+carry `1.0.0`: the two numbers agreed for the same reason a stopped clock does.
+
+The moment they were bumped apart — the window to 1.1.0, the other two left
+behind — the command line began confidently reporting a version that belonged to
+no executable anyone could download. `.github/ISSUE_TEMPLATE/bug_report.yml`
+asks every reporter to paste that number.
+
+One version now lives in `Directory.Build.props` for all three projects, and CI
+asserts that what `--version` prints matches it and matches the file version on
+both executables. **Agreement between two values is not evidence that either is
+derived from the right source** — check where the number comes from, not whether
+it looks right.
 
 ## Raw VCP values are not percentages
 

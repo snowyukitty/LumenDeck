@@ -16,30 +16,35 @@ namespace LumenDeck;
 /// where peak is the panel's rated luminance and floor is what a desktop LCD
 /// still emits at brightness 0 - typically 40-50 nits, never zero.
 ///
-/// The built-in table is deliberately tiny and generic. Nobody's specific
-/// hardware is baked in: real profiles belong in the user's own file at
+/// Nobody's specific hardware is baked in. Real profiles belong in the user's
+/// own file at
 ///     %APPDATA%\LumenDeck\panels.json
-/// which is merged over the built-ins at startup. A monitor with no profile
-/// gets the generic fallback and the UI labels its figures as estimates rather
-/// than quietly presenting a guess as a measurement.
+/// which is loaded at startup and matched on the monitor's name. A monitor with
+/// no profile gets one of the two estimates below, and the UI labels its figures
+/// as estimates rather than quietly presenting a guess as a measurement.
+///
+/// There used to be a five-entry table of panel classes here - office IPS,
+/// gaming VA, budget, HDR400, laptop - keyed as "*office-ips" and so on. Four of
+/// the five could never be selected by anything: the matcher skips keys starting
+/// with "*", panels.json had no syntax for naming a class, and only the laptop
+/// entry was reachable, through the explicit internal-panel branch. So every
+/// desktop monitor got the generic fallback while the table implied a choice was
+/// being made. A table nothing can select is not a feature waiting to be
+/// finished, it is a claim the code does not honour, so it is gone. What is left
+/// is what the code actually does.
 /// </summary>
 internal static class PanelDatabase
 {
     public sealed record Profile(int PeakNits, int FloorNits, bool Measured = true, string Note = "");
 
     /// <summary>
-    /// Seeded by panel class, not by model. These are the honest averages for
-    /// each category and they are all flagged as estimates, because that is
-    /// what they are. Add your own model in panels.json to do better.
+    /// A laptop's internal panel, which is worth separating from the desktop
+    /// fallback for one reason: its backlight goes far lower. A 45-nit floor
+    /// would make every low-brightness estimate on a laptop wrong by three
+    /// times, and the presets solve against the floor.
     /// </summary>
-    private static readonly Dictionary<string, Profile> BuiltIn = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["*office-ips"] = new(300, 45, false, "Typical office IPS"),
-        ["*gaming-va"] = new(320, 50, false, "Typical gaming VA"),
-        ["*budget"] = new(250, 40, false, "Typical budget panel"),
-        ["*hdr400"] = new(400, 50, false, "DisplayHDR 400 class"),
-        ["*laptop"] = new(300, 15, false, "Typical laptop panel; backlight goes far lower"),
-    };
+    private static readonly Profile InternalPanel =
+        new(300, 15, Measured: false, Note: "typical laptop panel; backlight goes far lower");
 
     private static readonly Profile Fallback =
         new(300, 45, Measured: false, Note: "generic - no profile for this model");
@@ -50,7 +55,7 @@ internal static class PanelDatabase
         Path.Combine(AppSettings.Directory, "panels.json");
 
     /// <summary>
-    /// Load the user's own profiles. Any failure leaves the built-ins in place:
+    /// Load the user's own profiles. Any failure leaves the estimates in place:
     /// a broken optional file must never stop the app.
     /// </summary>
     public static void Load()
@@ -101,20 +106,16 @@ internal static class PanelDatabase
     }
 
     /// <summary>
-    /// Longest match wins, so a specific model beats a broad family prefix.
-    /// User entries are checked before built-ins.
+    /// A profile the user wrote if one matches this monitor's name, otherwise an
+    /// estimate. Longest match wins, so a specific model beats a broad family
+    /// prefix in somebody's own file.
     /// </summary>
     public static Profile For(Monitor m)
     {
-        string name = m?.FriendlyName ?? "";
-
-        var hit = BestMatch(_user, name);
+        var hit = BestMatch(_user, m?.FriendlyName ?? "");
         if (hit != null) return hit;
 
-        if (m is { IsInternalPanel: true } && BuiltIn.TryGetValue("*laptop", out var laptop)) return laptop;
-
-        hit = BestMatch(BuiltIn, name);
-        return hit ?? Fallback;
+        return m is { IsInternalPanel: true } ? InternalPanel : Fallback;
     }
 
     private static Profile BestMatch(Dictionary<string, Profile> table, string name)
@@ -124,7 +125,6 @@ internal static class PanelDatabase
         int bestLen = 0;
         foreach (var (key, value) in table)
         {
-            if (key.StartsWith('*')) continue;             // class keys are not name matches
             if (key.Length <= bestLen) continue;
             if (name.Contains(key, StringComparison.OrdinalIgnoreCase))
             {

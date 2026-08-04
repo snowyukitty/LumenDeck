@@ -30,6 +30,13 @@ internal sealed class MainForm : Form
     private int _generation;
     private bool _reallyClosing;
 
+    /// <summary>
+    /// Set once the window has actually been shown. Guards the minimise-to-tray
+    /// path in <see cref="OnResize"/>, which must not run before then - see the
+    /// comment on that guard.
+    /// </summary>
+    private bool _shown;
+
     public MainForm()
     {
         Text = "LumenDeck";
@@ -200,6 +207,27 @@ internal sealed class MainForm : Form
         };
         menu.Items.Add(startWithWindows);
 
+        // Its partner. StartMinimised has existed in settings.json from the
+        // start with nothing in the product to set it, which meant the only
+        // people who could reach it were people editing JSON by hand - and it
+        // crashed the app when they did. A setting worth having is worth
+        // offering next to the one it pairs with.
+        var startMinimised = new ToolStripMenuItem("Start minimised")
+        {
+            CheckOnClick = true,
+            Checked = _settings.StartMinimised,
+            ToolTipText = "Go straight to the notification area at launch, with no window.",
+        };
+        startMinimised.CheckedChanged += (_, _) =>
+        {
+            _settings.StartMinimised = startMinimised.Checked;
+            _settings.Save();
+            SetStatus(startMinimised.Checked
+                ? "LumenDeck will start in the notification area."
+                : "LumenDeck will show its window at launch.");
+        };
+        menu.Items.Add(startMinimised);
+
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => { _reallyClosing = true; Close(); });
 
@@ -239,7 +267,8 @@ internal sealed class MainForm : Form
         _worker.WriteFailed += OnWriteFailed;
 
         SetStatus("Reading monitors over DDC/CI...");
-        if (_settings.StartMinimised) WindowState = FormWindowState.Minimized;
+        // StartMinimised is applied in OnShown, not here. Setting WindowState in
+        // the constructor is what made the option crash the process - see there.
     }
 
     /// <summary>
@@ -252,7 +281,27 @@ internal sealed class MainForm : Form
     protected override async void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        _shown = true;
         FitMinimumWidthToToolbar();
+
+        // "Start minimised" happens here rather than in the constructor, and the
+        // difference is not cosmetic: it used to kill the process outright.
+        //
+        // Assigning WindowState before the window has ever been shown means the
+        // first WM_SIZE arrives already minimised. OnResize reacts by hiding to
+        // the tray, and part of that is assigning ShowInTaskbar - which forces
+        // WinForms to recreate the window handle, which resizes the form, which
+        // re-enters OnResize with the state still Minimized. Round it goes until
+        // the stack is gone: exit code 0xC00000FD, STACK_OVERFLOW. There is no
+        // window, no tray icon and no error.log, because a StackOverflowException
+        // cannot be caught - the app simply is not there after login, which is
+        // the one moment nobody is watching it start.
+        //
+        // Minimising from here takes the ordinary path, the same one a click on
+        // the minimise box has always taken. The window is briefly visible; that
+        // is the honest price and it beats not starting.
+        if (_settings.StartMinimised) WindowState = FormWindowState.Minimized;
+
         await RebuildAsync();
     }
 
@@ -563,7 +612,11 @@ internal sealed class MainForm : Form
         if (_list != null)
             foreach (var c in _cards) c.SetWidth(CardWidth);
 
-        if (_settings.MinimiseToTray && WindowState == FormWindowState.Minimized)
+        // _shown is the guard that keeps this off the pre-show resize. Hiding to
+        // the tray assigns ShowInTaskbar, which recreates the window handle and
+        // resizes the form again; before the window exists that recursion has no
+        // floor and overflows the stack. After it exists, it settles.
+        if (_shown && _settings.MinimiseToTray && WindowState == FormWindowState.Minimized)
         {
             Hide();
             ShowInTaskbar = false;

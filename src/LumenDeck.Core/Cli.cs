@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 
@@ -19,6 +20,32 @@ internal static class Cli
 
     public static bool WantsCli(string[] args) => args.Length > 0;
 
+    /// <summary>
+    /// The assembly that was actually launched.
+    ///
+    /// Deliberately not <c>typeof(Cli).Assembly</c>. This class lives in
+    /// LumenDeck.Core, so that expression reports the *engine's* version rather
+    /// than the version of the executable the person ran. Both projects happened
+    /// to carry 1.0.0 while each set its own, which is precisely why a number
+    /// coming from the wrong assembly went unnoticed - and
+    /// <c>bug_report.yml</c> asks people to paste this into every issue.
+    /// </summary>
+    private static Assembly Running => Assembly.GetEntryAssembly() ?? typeof(Cli).Assembly;
+
+    /// <summary>Three-part version, the form a person is asked to quote.</summary>
+    public static string VersionText => Running.GetName().Version?.ToString(3) ?? "unknown";
+
+    /// <summary>
+    /// Version plus the commit it was built from, when the build recorded one.
+    /// Worth having in --diagnose: two builds of 1.1.0 can differ, and diagnose
+    /// output is what arrives attached to a bug report.
+    /// </summary>
+    public static string FullVersionText =>
+        Running.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            is { Length: > 0 } informational
+            ? informational
+            : VersionText;
+
     public static int Run(string[] args)
     {
         bool json = args.Any(a => a.Equals("--json", StringComparison.OrdinalIgnoreCase));
@@ -35,7 +62,7 @@ internal static class Cli
         if (Flag("-h", "--help", "/?")) { Console.WriteLine(HelpText); return ExitOk; }
         if (Flag("-v", "--version"))
         {
-            Console.WriteLine(typeof(Cli).Assembly.GetName().Version?.ToString() ?? "unknown");
+            Console.WriteLine(VersionText);
             return ExitOk;
         }
 
@@ -57,11 +84,36 @@ internal static class Cli
                 return ExitNoMatch;
             }
 
+            // --monitor narrows to one; without it every monitor is affected,
+            // which is the common case and so the default.
+            //
+            // Resolved here, above everything, because it used to be resolved
+            // below the read-only commands - so --list, --json, --diagnose and
+            // --features each ignored it in silence. `--list -m left` printed
+            // every monitor and exited 0, which is an option that looks exactly
+            // like it worked. The help has always described --monitor as
+            // narrowing to the monitors it names, with no exception for reads.
+            string filter = Value("-m", "--monitor");
+            var targets = string.IsNullOrEmpty(filter)
+                ? monitors
+                : monitors.Where(x =>
+                      x.FriendlyName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                      x.DeviceName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                      x.PositionLabel.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (targets.Count == 0)
+            {
+                Console.Error.WriteLine($"No monitor matched \"{filter}\". Try --list.");
+                return ExitNoMatch;
+            }
+
             if (Flag("--diagnose"))
             {
                 Console.WriteLine("LumenDeck diagnostics");
-                Console.WriteLine($"  monitors detected: {monitors.Count}");
-                foreach (var m in monitors)
+                Console.WriteLine($"  version: {FullVersionText}");
+                Console.WriteLine($"  monitors detected: {monitors.Count}" +
+                                  (targets.Count == monitors.Count ? "" : $", {targets.Count} shown (--monitor \"{filter}\")"));
+                foreach (var m in targets)
                 {
                     Console.WriteLine();
                     Console.WriteLine($"  {m.DeviceName}  {m.DisplayName}");
@@ -79,7 +131,7 @@ internal static class Cli
 
             if (Flag("--features"))
             {
-                foreach (var m in monitors.OrderBy(x => x.Rect.Left).ThenBy(x => x.Rect.Top))
+                foreach (var m in targets.OrderBy(x => x.Rect.Left).ThenBy(x => x.Rect.Top))
                 {
                     MonitorService.LoadFeatures(m);
                     Console.WriteLine();
@@ -106,24 +158,8 @@ internal static class Cli
 
             if (Flag("--list") || args.Length == 0)
             {
-                Console.WriteLine(json ? ListJson(monitors) : ListText(monitors));
+                Console.WriteLine(json ? ListJson(targets) : ListText(targets));
                 return ExitOk;
-            }
-
-            // --monitor narrows to one; without it every monitor is affected,
-            // which is the common case and so the default.
-            string filter = Value("-m", "--monitor");
-            var targets = string.IsNullOrEmpty(filter)
-                ? monitors
-                : monitors.Where(x =>
-                      x.FriendlyName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                      x.DeviceName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                      x.PositionLabel.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
-
-            if (targets.Count == 0)
-            {
-                Console.Error.WriteLine($"No monitor matched \"{filter}\". Try --list.");
-                return ExitNoMatch;
             }
 
             int exit = ExitOk;
@@ -191,6 +227,28 @@ internal static class Cli
                 actions.Add("brightness " + brightness);
             }
 
+            // Contrast could be read by --list and restored by --preset Custom,
+            // but there was no way to set it from here at all: a value the tool
+            // remembers and can put back, and cannot be told. Same shape as -b,
+            // including the relative step, because the two sit side by side on
+            // every card in the window.
+            string contrast = Value("-c", "--contrast");
+            if (contrast != null)
+            {
+                foreach (var m in targets)
+                {
+                    int raw = ResolveContrast(m, contrast);
+                    if (raw < 0)
+                    {
+                        Console.Error.WriteLine($"Could not read \"{contrast}\" as a contrast value.");
+                        return ExitNoMatch;
+                    }
+                    if (!ApplyContrast(m, raw)) exit = ExitWriteRefused;
+                    settings.CaptureCustom(m);
+                }
+                actions.Add("contrast " + contrast);
+            }
+
             string warmth = Value("-w", "--warmth");
             if (warmth != null)
             {
@@ -249,6 +307,25 @@ internal static class Cli
         }
         if (!int.TryParse(spec, out int percent)) return -1;
         return Presets.PercentToRaw(m, percent);
+    }
+
+    /// <summary>
+    /// The same, for contrast. Percentages rather than raw numbers for the same
+    /// reason: MCCS lets a monitor report any range it likes, and one here
+    /// reports 0-100 while the next need not.
+    /// </summary>
+    private static int ResolveContrast(Monitor m, string spec)
+    {
+        if (string.IsNullOrWhiteSpace(spec)) return -1;
+
+        if (spec[0] is '+' or '-')
+        {
+            if (!int.TryParse(spec, out int delta)) return -1;
+            double pct = Presets.ToPercent(m.Contrast, m.ContrastMin, m.ContrastMax) + delta;
+            return Presets.FromPercent(pct, m.ContrastMin, m.ContrastMax);
+        }
+        if (!int.TryParse(spec, out int percent)) return -1;
+        return Presets.FromPercent(percent, m.ContrastMin, m.ContrastMax);
     }
 
     private static bool ApplyBrightness(Monitor m, int raw)
@@ -371,9 +448,12 @@ internal static class Cli
           -b, --brightness <n>    0-100 as a percentage of the panel's range,
                                   or a relative step: +10, -10
 
+          -c, --contrast <n>      0-100 as a percentage of the panel's range,
+                                  or a relative step: +10, -10
+
           -w, --warmth <kelvin>   3000-6500, or "off" for neutral
 
-        -b and -w set your own levels for the monitors they touch, so
+        -b, -c and -w set your own levels for the monitors they touch, so
         --preset Custom comes back to them.
 
           -h, --help              This text
@@ -381,10 +461,11 @@ internal static class Cli
 
         Examples
           LumenDeck --list
+          LumenDeck --list -m "left"
           LumenDeck --preset Night
           LumenDeck --preset Custom
           LumenDeck --brightness -10
-          LumenDeck -m "left" -b 55 -w 5000
+          LumenDeck -m "left" -b 55 -c 45 -w 5000
           LumenDeck --warmth off
 
         Exit codes: 0 done, 1 nothing matched, 2 a monitor refused the change.

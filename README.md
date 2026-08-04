@@ -84,10 +84,11 @@ on the very first press, before you have adjusted anything.
 ### 2. Blue light reduction that works even when the monitor refuses
 
 The obvious way to reduce blue light is the monitor's own RGB gain registers.
-**Many monitors advertise those registers and ignore every write to them.** That
-was measured, not assumed: sweeping blue across the full 0–100 range returned an
-unchanged value thirteen times in a row while every call reported success. Some
-monitors offer no warm preset at all — only 6500K and *cooler*.
+**A monitor can advertise those registers and ignore every write to them.** That
+was measured here, not assumed: on one of the panels this was built against,
+sweeping blue across the full 0–100 range returned an unchanged value thirteen
+times in a row while every call reported success. That same panel offers no warm
+colour preset at all — only 6500K and *cooler*.
 
 So warmth is applied as a per-display **GPU gamma ramp**, composed on top of
 whatever ICC or colorimeter profile is already loaded — and turning it off
@@ -119,7 +120,8 @@ identical), draws your desk to scale, and has its own **Identify**.
 ## Install
 
 Download from **[Releases](../../releases)** — self-contained, nothing to
-install alongside it.
+install alongside it. What changed in each one is in
+[CHANGELOG.md](CHANGELOG.md).
 
 Two executables:
 
@@ -157,7 +159,9 @@ Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). `install.ps1
 -m, --monitor <text>    Only monitors whose name, position or device matches
 -p, --preset <name>     Day | Evening | Night | Custom
 -b, --brightness <n>    0-100, or a relative step: +10, -10
+-c, --contrast <n>      0-100, or a relative step: +10, -10
 -w, --warmth <kelvin>   3000-6500, or "off"
+-v, --version           Version
 ```
 
 Exit codes: `0` done, `1` nothing matched, `2` a monitor refused the change — so
@@ -170,6 +174,9 @@ lumendeck-cli --brightness -10
 
 # warm only the screen on the left
 lumendeck-cli -m left --warmth 4600
+
+# -m narrows what is shown, too
+lumendeck-cli --list -m left
 
 # and back to your own levels on every screen
 lumendeck-cli --preset Custom
@@ -266,7 +273,9 @@ changes what is *shown*; the luminance profiles still match on the real name.
 The interesting problems were not the UI. [docs/notes.md](docs/notes.md) covers
 a physical monitor handle that is legitimately `0`, why `SetVCPFeature` returning
 success proves nothing, why working set is the wrong instrument for finding a
-leak, and why colour temperature has to compose rather than overwrite.
+leak, why colour temperature has to compose rather than overwrite, how a setting
+with no way to set it went straight to a stack overflow, and how two version
+numbers agreed with each other while both came from the wrong place.
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Luminance
 profiles for panels not yet in the table are especially useful.

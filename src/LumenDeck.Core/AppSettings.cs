@@ -34,6 +34,15 @@ internal sealed class AppSettings
         public double? CustomContrastPercent { get; set; }
         public int? CustomKelvin { get; set; }
 
+        /// <summary>
+        /// Derived, so it must not be written. A get-only property is still
+        /// serialised by System.Text.Json, and it was landing in settings.json as
+        /// a plain `"HasCustom": true` - which reads like a switch somebody could
+        /// turn off, in a file this class deliberately keeps hand-editable. It is
+        /// ignored on the way back in, so setting it does nothing at all: the
+        /// worst kind of knob.
+        /// </summary>
+        [JsonIgnore]
         public bool HasCustom =>
             CustomBrightnessPercent.HasValue || CustomContrastPercent.HasValue || CustomKelvin.HasValue;
     }
