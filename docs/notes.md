@@ -115,7 +115,8 @@ which is true exactly once. On the next launch it captured the app's *own* warm
 ramp and composed the saved warmth onto it again — and so did every Refresh
 click and every `WM_DISPLAYCHANGE`, both of which re-enumerate.
 
-What that predicts is what users reported:
+What that predicts is exactly the complaint that started this — *every screen is
+too warm and there is no way back from a preset*:
 
 - screens drift warmer the longer the app has been in use, on every make of
   monitor, because the compounding lives in the GPU and not in the panel;

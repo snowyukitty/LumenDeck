@@ -96,8 +96,8 @@ internal static class GammaControl
     /// entry by f therefore scales the emitted light by f^2.2, not by f.
     ///
     /// An earlier version multiplied the encoded ramp by the linear white points
-    /// above, which overshot every setting by that exponent and is why users
-    /// reported that every screen looked far too warm. At the Night preset the
+    /// above, which overshot every setting by that exponent and is why every
+    /// screen looked far too warm. At the Night preset the
     /// blue channel asks for 0.6345 of full; applied to the encoded ramp that
     /// emits 0.6345^2.2 = 0.37 of full, a white point nearer 3000K than the
     /// 4600K the button claims - a visibly orange screen on every panel,
