@@ -410,7 +410,7 @@ internal sealed class MainForm : Form
 
     private void SaveSoon()
     {
-        foreach (var m in _monitors) _settings.SetKelvin(m.StableKey, m.FriendlyName, m.Kelvin);
+        foreach (var m in _monitors) _settings.SetKelvin(m.StableKey, m.DisplayName, m.Kelvin);
         _map.Refresh(null);
         _saveTimer.Stop();
         _saveTimer.Start();

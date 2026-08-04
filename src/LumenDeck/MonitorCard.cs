@@ -139,7 +139,7 @@ internal sealed class MonitorCard : Panel
                 ApplyBrightness(Presets.BrightnessFor(Monitor, captured.Nits));
                 ApplyWarmth(captured.Kelvin);
                 _onChanged();
-                _report($"{Monitor.FriendlyName}: {captured.Name} - about {captured.Nits} nits, {captured.Kelvin}K.");
+                _report($"{Monitor.DisplayName}: {captured.Name} - about {captured.Nits} nits, {captured.Kelvin}K.");
             };
             _tips.SetToolTip(b, $"{captured.Description}\nThis monitor only.");
             presets.Controls.Add(b);
@@ -195,7 +195,7 @@ internal sealed class MonitorCard : Panel
 
         host.Controls.Add(new Label
         {
-            Text = m.FriendlyName,
+            Text = m.DisplayName,
             Font = Theme.H2,
             ForeColor = Theme.Ink,
             AutoSize = true,
@@ -319,7 +319,7 @@ internal sealed class MonitorCard : Panel
     private void ApplyGamma()
     {
         if (!GammaControl.Apply(Monitor.DeviceName, Monitor.Kelvin, Monitor.BaselineRamp))
-            _report($"{Monitor.FriendlyName}: the graphics driver refused the colour change.");
+            _report($"{Monitor.DisplayName}: the graphics driver refused the colour change.");
     }
 
     public void ApplyBrightness(int raw)

@@ -118,7 +118,7 @@ internal static class FeatureControls
             if (f.Definition.Risky)
             {
                 var answer = MessageBox.Show(
-                    $"Set {f.Name} on {m.FriendlyName} to {item.Label}?\n\n{f.Definition.Description}",
+                    $"Set {f.Name} on {m.DisplayName} to {item.Label}?\n\n{f.Definition.Description}",
                     "LumenDeck", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
                 if (answer != DialogResult.OK)
                 {
@@ -131,7 +131,7 @@ internal static class FeatureControls
 
             f.Current = item.Value;
             worker.SetVcp(m, f.Code, item.Value);
-            report($"{m.FriendlyName}: {f.Name} -> {item.Label}");
+            report($"{m.DisplayName}: {f.Name} -> {item.Label}");
         };
 
         return box;
@@ -154,13 +154,13 @@ internal static class FeatureControls
         b.Click += (_, _) =>
         {
             var answer = MessageBox.Show(
-                $"{f.Name} on {m.FriendlyName}?\n\n{f.Definition.Description}\n\nThis cannot be undone from here.",
+                $"{f.Name} on {m.DisplayName}?\n\n{f.Definition.Description}\n\nThis cannot be undone from here.",
                 "LumenDeck", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
             if (answer != DialogResult.OK) return;
 
             // MCCS defines these as write-1-to-trigger.
             worker.SetVcp(m, f.Code, 1);
-            report($"{m.FriendlyName}: {f.Name} sent. Press Refresh once the monitor settles.");
+            report($"{m.DisplayName}: {f.Name} sent. Press Refresh once the monitor settles.");
         };
 
         return b;

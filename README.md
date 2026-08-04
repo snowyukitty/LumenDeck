@@ -29,6 +29,15 @@ lumendeck-cli --preset Night    # level the whole desk for the evening
 lumendeck-cli -m "left" -b 55 -w 5000
 ```
 
+<p align="center">
+  <img src="docs/assets/screenshot.png" alt="LumenDeck: a scale drawing of the desk layout above one card per monitor, each with brightness, contrast and warmth sliders" width="620">
+</p>
+
+<p align="center"><sub>Three different sliders — 76%, 43%, 56% — and all three read
+<b>about 200 nits</b>. That is the whole idea.<br>
+Monitor names are anonymised here with <code>LUMENDECK_ANONYMISE=1</code>;
+your own screenshots can be too.</sub></p>
+
 ---
 
 ## What it does
@@ -215,6 +224,11 @@ build.
 | `panels.json` | your own panel luminance profiles; an example is written on first run |
 | `error.log` | only if something throws |
 | `diag.log` | only when `LUMENDECK_DIAG=1` |
+
+Set `LUMENDECK_ANONYMISE=1` to replace monitor names with `Display A`, `B`, `C`
+in the window, in `--list` and in `--diagnose` — so a screenshot or a pasted
+diagnostic can be shared without publishing which monitors you own. It only
+changes what is *shown*; the luminance profiles still match on the real name.
 
 ---
 

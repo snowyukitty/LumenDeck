@@ -58,7 +58,7 @@ internal static class Cli
                 foreach (var m in monitors)
                 {
                     Console.WriteLine();
-                    Console.WriteLine($"  {m.DeviceName}  {m.FriendlyName}");
+                    Console.WriteLine($"  {m.DeviceName}  {m.DisplayName}");
                     Console.WriteLine($"    primary    {m.IsPrimary}");
                     Console.WriteLine($"    interface  {m.DeviceInterfaceId}");
                     Console.WriteLine($"    edid       {(m.Edid == null ? "not readable" : m.Edid.IdentityKey)}");
@@ -75,7 +75,7 @@ internal static class Cli
                 {
                     MonitorService.LoadFeatures(m);
                     Console.WriteLine();
-                    Console.WriteLine($"{m.FriendlyName}  ({m.PositionLabel})");
+                    Console.WriteLine($"{m.DisplayName}  ({m.PositionLabel})");
                     if (!m.HasPhysicalHandle) { Console.WriteLine("    no DDC handle"); continue; }
                     if (m.Features.Count == 0) { Console.WriteLine("    advertises no adjustable controls this app knows about"); continue; }
                     foreach (var f in m.Features)
@@ -220,7 +220,7 @@ internal static class Cli
     {
         m.Kelvin = Math.Clamp(kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin);
         GammaControl.Apply(m.DeviceName, m.Kelvin, m.BaselineRamp);
-        settings.SetKelvin(m.StableKey, m.FriendlyName, m.Kelvin);
+        settings.SetKelvin(m.StableKey, m.DisplayName, m.Kelvin);
     }
 
     private static string ListText(List<Monitor> monitors)
@@ -234,7 +234,7 @@ internal static class Cli
                 Monitor.Backend.Wmi => "WMI (internal panel)",
                 _ => "no brightness control",
             };
-            sb.AppendLine($"{m.FriendlyName}  {m.SizeLabel}".TrimEnd());
+            sb.AppendLine($"{m.DisplayName}  {m.SizeLabel}".TrimEnd());
             sb.AppendLine($"    position   {m.PositionLabel}");
             sb.AppendLine($"    control    {backend}");
             if (m.SupportsBrightness)
@@ -254,7 +254,7 @@ internal static class Cli
         JsonSerializer.Serialize(
             monitors.OrderBy(x => x.Rect.Left).ThenBy(x => x.Rect.Top).Select(m => new
             {
-                name = m.FriendlyName,
+                name = m.DisplayName,
                 position = m.PositionLabel,
                 size = m.SizeLabel,
                 device = m.DeviceName,

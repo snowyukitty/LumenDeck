@@ -90,7 +90,22 @@ internal sealed class Monitor : IDisposable
         }
     }
 
-    /// <summary>What to call it in the UI. Never the device number.</summary>
+    /// <summary>
+    /// The name to SHOW. Identical to <see cref="FriendlyName"/> unless
+    /// LUMENDECK_ANONYMISE=1, in which case it becomes a placeholder.
+    ///
+    /// This exists so a screenshot or a pasted --list can be shared without
+    /// publishing which monitors somebody owns. It deliberately does not touch
+    /// FriendlyName, because that is what the luminance table matches on -
+    /// anonymising the matching key too would silently downgrade every panel to
+    /// a generic estimate, which is a different picture of the product.
+    /// </summary>
+    public string DisplayName => AnonymousName ?? FriendlyName;
+
+    /// <summary>Assigned by MonitorService when anonymising is on; null otherwise.</summary>
+    public string AnonymousName;
+
+    /// <summary>What to call it internally, and what the panel table matches on.</summary>
     public string FriendlyName
     {
         get
@@ -202,6 +217,7 @@ internal static class MonitorService
         AttachInternalPanels(list);
         AssignPositionLabels(list);
         AssignStableKeys(list);
+        AssignAnonymousNames(list);
         return list;
     }
 
@@ -228,6 +244,20 @@ internal static class MonitorService
         {
             m.FeaturesLoaded = true;
         }
+    }
+
+    /// <summary>
+    /// Opt-in placeholder names, for sharing a screenshot or a --list dump.
+    /// Letters rather than numbers on purpose: a number would imply the
+    /// \.\DISPLAYn ordering this app spends its effort not trusting.
+    /// </summary>
+    private static void AssignAnonymousNames(List<Monitor> list)
+    {
+        if (Environment.GetEnvironmentVariable("LUMENDECK_ANONYMISE") != "1") return;
+
+        int i = 0;
+        foreach (var m in list.OrderBy(x => x.Rect.Left).ThenBy(x => x.Rect.Top))
+            m.AnonymousName = "Display " + (char)('A' + i++);
     }
 
     /// <summary>

@@ -135,7 +135,7 @@ internal sealed class LayoutMap : Control
         if (_hoverIndex >= 0 && _hoverIndex < _monitors.Count)
         {
             var m = _monitors[_hoverIndex];
-            string label = m.FriendlyName + "  -  " + m.PositionLabel;
+            string label = m.DisplayName + "  -  " + m.PositionLabel;
             var size = TextRenderer.MeasureText(label, Theme.Small);
             var box = new Rectangle(6, Height - size.Height - 6, size.Width + 12, size.Height + 4);
             if (box.Right > Width) box.X = Math.Max(0, Width - box.Width - 6);

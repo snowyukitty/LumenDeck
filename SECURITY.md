@@ -21,6 +21,12 @@ Useful context for assessing a report:
 - The only third-party dependency is Microsoft's `System.Management`, used for
   laptop internal-panel brightness.
 
+## Sharing diagnostics safely
+
+`--diagnose` output includes EDID identity and PnP device paths. Set
+`LUMENDECK_ANONYMISE=1` before running it, or before taking a screenshot, and
+monitor names become `Display A`, `B`, `C`.
+
 ## Supported versions
 
 The latest release. This is a small tool; fixes go forward, not into old tags.
