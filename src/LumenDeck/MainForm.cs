@@ -20,6 +20,11 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _displayChangeTimer;
     private readonly FlatButton _refreshButton;
     private readonly ToolTip _tips = new();
+    private readonly Panel _bar;
+    private readonly FlowLayoutPanel _toolRow;
+
+    /// <summary>Mode buttons by name, so the one in force can be shown as such.</summary>
+    private readonly Dictionary<string, FlatButton> _modeButtons = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Bumped per rebuild so a slow enumeration cannot overwrite a newer one.</summary>
     private int _generation;
@@ -35,11 +40,13 @@ internal sealed class MainForm : Form
         // device pixels under PerMonitorV2. Dpi is what the DPI-aware path wants.
         AutoScaleMode = AutoScaleMode.Dpi;
 
-        // 620 was too narrow for its own toolbar: the buttons and margins need
-        // ~590px inside the bar's padding, and the row does not wrap, so
-        // "Warmth off" was clipped at the minimum size with no affordance.
+        // A hard-coded minimum width was wrong twice: 620 clipped "Warmth off",
+        // and 720 was about to clip the Custom button. The toolbar does not
+        // wrap, so its minimum is a fact about its contents and the DPI it is
+        // drawn at - measured in OnShown rather than guessed here. This is only
+        // the floor for a window with nothing in the bar at all.
         MinimumSize = new Size(720, 480);
-        Size = new Size(720, 820);
+        Size = new Size(780, 820);
         StartPosition = FormStartPosition.CenterScreen;
 
         // Two instances, because they are different frames: the window wants
@@ -51,9 +58,9 @@ internal sealed class MainForm : Form
         Icon = _appIcon;
 
         // ---- toolbar ------------------------------------------------------
-        var bar = new Panel { Dock = DockStyle.Top, Height = 58, BackColor = Theme.Bar, Padding = new Padding(14, 0, 14, 0) };
+        _bar = new Panel { Dock = DockStyle.Top, Height = 58, BackColor = Theme.Bar, Padding = new Padding(14, 0, 14, 0) };
 
-        var toolRow = new FlowLayoutPanel
+        _toolRow = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             WrapContents = false,
@@ -61,7 +68,7 @@ internal sealed class MainForm : Form
             Padding = new Padding(0, 14, 0, 0),
         };
 
-        toolRow.Controls.Add(new Label
+        _toolRow.Controls.Add(new Label
         {
             Text = "All monitors",
             Font = Theme.Small,
@@ -78,26 +85,37 @@ internal sealed class MainForm : Form
             b.Click += (_, _) => ApplyLevel(captured);
             _tips.SetToolTip(b,
                 $"{captured.Description}\nAims every panel at about {captured.Nits} nits, {captured.Kelvin}K.");
-            toolRow.Controls.Add(b);
+            _modeButtons[captured.Name] = b;
+            _toolRow.Controls.Add(b);
         }
+
+        // The way back. Separated from the three levels by a gap because it is
+        // not one of them: it restores what each monitor was set to by hand.
+        var customButton = new FlatButton(Presets.CustomName) { Width = 82, Margin = new Padding(10, 0, 0, 0) };
+        customButton.Click += (_, _) => ApplyCustom();
+        _tips.SetToolTip(customButton,
+            "Your own brightness, contrast and warmth, per monitor.\n" +
+            "Saved whenever you move a slider, and never overwritten by a preset.");
+        _modeButtons[Presets.CustomName] = customButton;
+        _toolRow.Controls.Add(customButton);
 
         var identify = new FlatButton("Identify") { Width = 84, Margin = new Padding(16, 0, 6, 0) };
         identify.Click += (_, _) => IdentifyOverlay.Show(_monitors);
         _tips.SetToolTip(identify, "Show each monitor's name on its own screen");
-        toolRow.Controls.Add(identify);
+        _toolRow.Controls.Add(identify);
 
         _refreshButton = new FlatButton("Refresh") { Width = 82, Margin = new Padding(0, 0, 6, 0) };
         _refreshButton.Click += (_, _) => _ = RebuildAsync();
         _tips.SetToolTip(_refreshButton, "Re-read every monitor");
-        toolRow.Controls.Add(_refreshButton);
+        _toolRow.Controls.Add(_refreshButton);
 
         var warmOff = new FlatButton("Warmth off") { Width = 100 };
         warmOff.Click += (_, _) => WarmthOff();
         _tips.SetToolTip(warmOff,
             "Restore each display's original gamma, including any ICC or colorimeter profile");
-        toolRow.Controls.Add(warmOff);
+        _toolRow.Controls.Add(warmOff);
 
-        bar.Controls.Add(toolRow);
+        _bar.Controls.Add(_toolRow);
 
         // ---- desk map ------------------------------------------------------
         _map = new LayoutMap { Dock = DockStyle.Top };
@@ -134,7 +152,7 @@ internal sealed class MainForm : Form
         Controls.Add(_list);
         Controls.Add(_status);
         Controls.Add(_map);
-        Controls.Add(bar);
+        Controls.Add(_bar);
 
         // ---- tray ----------------------------------------------------------
         var menu = new ContextMenuStrip { ShowImageMargin = false };
@@ -145,6 +163,9 @@ internal sealed class MainForm : Form
             var captured = level;
             menu.Items.Add(captured.Name, null, (_, _) => ApplyLevel(captured));
         }
+        // The tray is where a preset is most likely to be hit by accident, so
+        // the way back has to be here too.
+        menu.Items.Add(Presets.CustomName, null, (_, _) => ApplyCustom());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Warmth off", null, (_, _) => WarmthOff());
 
@@ -194,7 +215,17 @@ internal sealed class MainForm : Form
         // Settings are written on a delay so dragging a slider does not hammer
         // the disk with a write per pixel.
         _saveTimer = new System.Windows.Forms.Timer { Interval = 1200 };
-        _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); _settings.Save(); };
+        _saveTimer.Tick += (_, _) =>
+        {
+            _saveTimer.Stop();
+            _settings.Save();
+
+            // The gamma baselines ride the same timer. They only have to be
+            // current before the process ends - but if it ends unexpectedly, a
+            // stale record is what makes the next session unable to tell its own
+            // ramp from the display's.
+            DisplayGamma.Save();
+        };
 
         // Windows sends WM_DISPLAYCHANGE several times for one physical change,
         // and a rebuild costs a full DDC enumeration, so they are coalesced.
@@ -221,7 +252,32 @@ internal sealed class MainForm : Form
     protected override async void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        FitMinimumWidthToToolbar();
         await RebuildAsync();
+    }
+
+    /// <summary>
+    /// Make the window's minimum width whatever the toolbar actually needs.
+    ///
+    /// The row does not wrap, so a button added later - or the same buttons
+    /// drawn at 150% DPI - silently falls off the right-hand edge with no
+    /// scrollbar and no affordance. Twice now that has been fixed by raising a
+    /// constant, which fixes the instance and not the bug. Measured after the
+    /// window is shown, because that is the first moment the controls have been
+    /// scaled for the monitor they are on.
+    /// </summary>
+    private void FitMinimumWidthToToolbar()
+    {
+        int content = _bar.Padding.Horizontal + _toolRow.Padding.Horizontal;
+        foreach (Control c in _toolRow.Controls)
+            content += c.Width + c.Margin.Horizontal;
+
+        int chrome = Width - ClientSize.Width;
+        int need = content + chrome + LogicalToDeviceUnits(8);
+        if (need <= MinimumSize.Width) return;
+
+        MinimumSize = new Size(need, MinimumSize.Height);
+        if (Width < need) Width = need;
     }
 
     // ---------------------------------------------------------------- rebuild
@@ -270,19 +326,44 @@ internal sealed class MainForm : Form
             {
                 m.Kelvin = _settings.KelvinFor(m.StableKey);
 
-                // Reapply on every rebuild, not only at startup: a display
-                // change resets the GPU gamma ramp, so without this the warmth
-                // silently vanishes whenever a mode changes.
-                if (_settings.ReapplyColourOnStart && m.Kelvin != GammaControl.NeutralKelvin)
-                    GammaControl.Apply(m.DeviceName, m.Kelvin, m.BaselineRamp);
+                if (_settings.ReapplyColourOnStart)
+                {
+                    // Reapply on every rebuild, not only at startup: a display
+                    // change resets the GPU gamma ramp, so without this the
+                    // warmth silently vanishes whenever a mode changes.
+                    //
+                    // Also written when the saved warmth is neutral but the ramp
+                    // on the display is still one of ours - after a crash, say.
+                    // That case needs the baseline putting back, and skipping it
+                    // is how a display stays tinted with the slider reading off.
+                    if (m.Kelvin != GammaControl.NeutralKelvin || m.GammaIsOurs)
+                        DisplayGamma.Apply(m);
+                }
+                else if (!m.GammaIsOurs)
+                {
+                    // Not reapplying, and the ramp on the display is not ours -
+                    // a reboot or a driver restart cleared it. The saved number
+                    // is now a claim about nothing, so show what is true.
+                    m.Kelvin = GammaControl.NeutralKelvin;
+                }
 
-                var card = new MonitorCard(m, _worker, SaveSoon, s => SetStatus(s));
+                // Give this monitor a Custom position from whatever it is
+                // already set to, so the very first press of a preset is
+                // reversible rather than one-way.
+                _settings.SeedCustom(m);
+
+                var card = new MonitorCard(m, _settings, _worker, OnCardChanged, s => SetStatus(s));
                 card.SetWidth(CardWidth);
                 _cards.Add(card);
                 _list.Controls.Add(card);
             }
 
             _map.SetMonitors(_monitors);
+
+            // Seeded Custom positions and resolved baselines are both new facts
+            // about this desk. Persist them rather than waiting for the next
+            // slider move, or a crash before then loses the way back.
+            SaveSoon();
             ReportInventory(reason);
 
             // Capability strings are the slowest DDC request there is, so they
@@ -360,7 +441,10 @@ internal sealed class MainForm : Form
             kind = StatusKind.Warn;
         }
 
-        if (_monitors.Any(m => m.Kelvin != GammaControl.NeutralKelvin))
+        // Only claim this when it actually happened. The old wording appeared
+        // whenever a saved kelvin existed, including with reapply switched off,
+        // where nothing had been written to any display.
+        if (_settings.ReapplyColourOnStart && _monitors.Any(m => m.Kelvin != GammaControl.NeutralKelvin))
             s += "  Saved warmth reapplied.";
 
         if (reason != null) s = reason + "  " + s;
@@ -392,20 +476,64 @@ internal sealed class MainForm : Form
             c.ApplyWarmth(level.Kelvin);
         }
         SaveSoon();
-        _map.Refresh(null);
+        SetMode(level.Name);
 
         int unknown = _monitors.Count(m => !Presets.IsKnown(m));
         string caveat = unknown > 0
             ? $"  {unknown} panel{(unknown == 1 ? " is" : "s are")} not in the luminance table, so those values are estimates."
             : "";
-        SetStatus($"{level.Name}: every panel aimed at about {level.Nits} nits, {level.Kelvin}K.{caveat}");
+        SetStatus($"{level.Name}: every panel aimed at about {level.Nits} nits, {level.Kelvin}K." +
+                  $"{caveat}  Press {Presets.CustomName} to go back.");
+    }
+
+    /// <summary>
+    /// Put every monitor back to the levels its owner chose. This is the way out
+    /// of a preset pressed by accident, which used to be a one-way door.
+    /// </summary>
+    private void ApplyCustom()
+    {
+        int restored = _cards.Count(c => c.RestoreCustom());
+        SaveSoon();
+        SetMode(restored == 0 ? null : Presets.CustomName);
+
+        SetStatus(restored == 0
+            ? "No monitor has settings of its own saved yet - move a slider and they are remembered."
+            : $"Your own settings restored on {restored} monitor{(restored == 1 ? "" : "s")}.");
     }
 
     private void WarmthOff()
     {
         foreach (var c in _cards) c.ApplyWarmth(GammaControl.NeutralKelvin);
         SaveSoon();
+        SetMode(null);
         SetStatus("All monitors restored to their original colour.");
+    }
+
+    /// <summary>
+    /// Show which mode is in force. Null means the desk is mixed - a per-monitor
+    /// change, or warmth switched off under a preset - and no button lights up,
+    /// which is more honest than picking one.
+    /// </summary>
+    private void SetMode(string name)
+    {
+        foreach (var (key, button) in _modeButtons)
+        {
+            bool on = name != null && string.Equals(key, name, StringComparison.OrdinalIgnoreCase);
+            if (button.Primary == on) continue;
+            button.Primary = on;
+            button.Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// A card changed. <paramref name="manual"/> distinguishes a slider somebody
+    /// moved - which becomes their Custom position - from a preset being applied
+    /// to one monitor, which must not.
+    /// </summary>
+    private void OnCardChanged(MonitorCard card, bool manual)
+    {
+        SetMode(manual ? Presets.CustomName : null);
+        SaveSoon();
     }
 
     private void SaveSoon()
@@ -479,6 +607,7 @@ internal sealed class MainForm : Form
         _displayChangeTimer.Stop();
         _worker.WriteFailed -= OnWriteFailed;
         _settings.Save();
+        DisplayGamma.Save();
 
         _tray.Visible = false;
         _tray.Dispose();

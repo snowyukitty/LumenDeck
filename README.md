@@ -47,6 +47,7 @@ your own screenshots can be too.</sub></p>
 | **Brightness & contrast** | Per monitor, over DDC/CI (`VCP 0x10` / `0x12`) |
 | **Colour temperature** | Per monitor, 3000K–6500K, as a blue light filter |
 | **Luminance-matched presets** | Day / Evening / Night — aims every panel at the *same light*, not the same number |
+| **Custom** | Your own levels per monitor, remembered as you set them. Every preset is reversible |
 | **Everything else your monitor offers** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, power, factory reset — discovered from each monitor, not assumed |
 | **Desk map** | A scale drawing of your actual monitor layout; click a screen to jump to it |
 | **Identify** | Puts each monitor's name on its own glass |
@@ -73,6 +74,13 @@ Panels it has no profile for get a generic estimate, and the UI *says* it is an
 estimate rather than presenting a guess as a measurement. Add your own in
 `%APPDATA%\LumenDeck\panels.json`.
 
+A preset moves every screen at once, so there is a **Custom** button beside them
+that moves them all back. Your own brightness, contrast and warmth are saved per
+monitor the moment you touch a slider — and a preset never overwrites them, so
+Day / Evening / Night are somewhere you can return from rather than a one-way
+door. Monitors are seeded with whatever they were already set to, so this works
+on the very first press, before you have adjusted anything.
+
 ### 2. Blue light reduction that works even when the monitor refuses
 
 The obvious way to reduce blue light is the monitor's own RGB gain registers.
@@ -87,6 +95,13 @@ restores that profile exactly, instead of flattening your calibration.
 
 Windows Night Light cannot do this: it is one global switch that tints every
 attached monitor at once. LumenDeck warms **one screen** and leaves the rest.
+
+The number on the slider is the temperature that reaches the glass, and that is
+checked from outside the app rather than asserted. A gamma ramp holds *encoded*
+values, so scaling one by `f` scales the emitted light by `f^2.2` — get that
+wrong and a screen labelled 4600K delivers nearer 3000K while every value the app
+reads back agrees with itself. `test\Test-Gamma.ps1` reads the real ramp off the
+GPU and works forward to the light; see [docs/notes.md](docs/notes.md).
 
 ### 3. It never asks you to trust a monitor number
 
@@ -140,7 +155,7 @@ Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). `install.ps1
 --diagnose              Why a monitor does or does not respond
 
 -m, --monitor <text>    Only monitors whose name, position or device matches
--p, --preset <name>     Day | Evening | Night
+-p, --preset <name>     Day | Evening | Night | Custom
 -b, --brightness <n>    0-100, or a relative step: +10, -10
 -w, --warmth <kelvin>   3000-6500, or "off"
 ```
@@ -155,6 +170,9 @@ lumendeck-cli --brightness -10
 
 # warm only the screen on the left
 lumendeck-cli -m left --warmth 4600
+
+# and back to your own levels on every screen
+lumendeck-cli --preset Custom
 
 # feed it to something else
 lumendeck-cli --list --json | ConvertFrom-Json
@@ -220,10 +238,21 @@ build.
 
 | File | |
 |---|---|
-| `settings.json` | colour temperature per monitor, keyed on EDID identity |
+| `settings.json` | colour temperature and your Custom levels per monitor, keyed on EDID identity |
 | `panels.json` | your own panel luminance profiles; an example is written on first run |
+| `gamma-baselines.json` | each display's untouched gamma ramp, so warmth can be undone exactly — see below |
 | `error.log` | only if something throws |
 | `diag.log` | only when `LUMENDECK_DIAG=1` |
+
+`gamma-baselines.json` is the one file worth understanding. A GPU gamma ramp
+outlives the process that set it, so an app that simply reads the ramp at
+startup cannot tell your display's own state from the warmth it left there
+yesterday — and one that gets this wrong composes warmth onto warmth until
+"Warmth off" no longer means anything. LumenDeck stores the untouched ramp plus a
+signature of what it last wrote, so it can always recognise its own work and put
+your display back. Deleting the file is safe: an ordinary display is recovered
+from the shape of its ramp, and a calibrated one is left alone rather than
+guessed at.
 
 Set `LUMENDECK_ANONYMISE=1` to replace monitor names with `Display A`, `B`, `C`
 in the window, in `--list` and in `--diagnose` — so a screenshot or a pasted

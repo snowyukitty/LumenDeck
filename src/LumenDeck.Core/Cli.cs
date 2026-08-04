@@ -43,6 +43,12 @@ internal static class Cli
         var settings = AppSettings.Load();
         var monitors = MonitorService.Enumerate();
 
+        // Enumerate reads the hardware; the saved warmth lives in settings and
+        // has to be put back onto the monitors before anything reports it.
+        // Without this --list said "warmth off" on a display that was visibly
+        // tinted, because Monitor.Kelvin had never been anything but its default.
+        foreach (var m in monitors) m.Kelvin = settings.KelvinFor(m.StableKey);
+
         try
         {
             if (monitors.Count == 0)
@@ -64,7 +70,9 @@ internal static class Cli
                     Console.WriteLine($"    edid       {(m.Edid == null ? "not readable" : m.Edid.IdentityKey)}");
                     Console.WriteLine($"    backend    {m.BrightnessBackend}");
                     Console.WriteLine($"    ddc        {m.Diagnostic}");
-                    Console.WriteLine($"    gammaRamp  {(m.BaselineRamp == null ? "not readable" : "captured")}");
+                    Console.WriteLine($"    gammaRamp  {(m.CapturedRamp == null ? "not readable" : "captured")}, " +
+                                      $"baseline {(m.BaselineRamp == null ? "unknown" : "known")}, " +
+                                      $"loaded ramp is {(m.GammaIsOurs ? "LumenDeck's" : "the display's own")}");
                 }
                 return ExitOk;
             }
@@ -124,19 +132,42 @@ internal static class Cli
             string presetName = Value("-p", "--preset");
             if (presetName != null)
             {
-                var level = Presets.ByName(presetName);
-                if (level == null)
+                if (Presets.IsCustom(presetName))
                 {
-                    Console.Error.WriteLine(
-                        $"Unknown preset \"{presetName}\". Available: {string.Join(", ", Presets.Levels.Select(l => l.Name))}");
-                    return ExitNoMatch;
+                    int restored = 0;
+                    foreach (var m in targets)
+                        if (RestoreCustom(m, settings, ref exit)) restored++;
+
+                    if (restored == 0)
+                    {
+                        Console.Error.WriteLine(
+                            "No matching monitor has settings of its own saved yet. They are remembered " +
+                            "when a slider is moved in the window, or when -b / -w is used here.");
+                        return ExitNoMatch;
+                    }
+                    actions.Add($"preset {Presets.CustomName}");
                 }
-                foreach (var m in targets)
+                else
                 {
-                    if (!ApplyBrightness(m, Presets.BrightnessFor(m, level.Nits))) exit = ExitWriteRefused;
-                    ApplyWarmth(m, level.Kelvin, settings);
+                    var level = Presets.ByName(presetName);
+                    if (level == null)
+                    {
+                        Console.Error.WriteLine(
+                            $"Unknown preset \"{presetName}\". Available: " +
+                            $"{string.Join(", ", Presets.Levels.Select(l => l.Name))}, {Presets.CustomName}");
+                        return ExitNoMatch;
+                    }
+                    foreach (var m in targets)
+                    {
+                        // Remember where this monitor was before the preset
+                        // moves it, so --preset Custom can put it back even if
+                        // this is the first LumenDeck command ever run here.
+                        settings.SeedCustom(m);
+                        if (!ApplyBrightness(m, Presets.BrightnessFor(m, level.Nits))) exit = ExitWriteRefused;
+                        ApplyWarmth(m, level.Kelvin, settings);
+                    }
+                    actions.Add($"preset {level.Name} ({level.Nits} nits, {level.Kelvin}K)");
                 }
-                actions.Add($"preset {level.Name} ({level.Nits} nits, {level.Kelvin}K)");
             }
 
             string brightness = Value("-b", "--brightness");
@@ -151,6 +182,11 @@ internal static class Cli
                         return ExitNoMatch;
                     }
                     if (!ApplyBrightness(m, raw)) exit = ExitWriteRefused;
+
+                    // An explicit value here is the same act as moving a slider
+                    // in the window: it is what this person wants, so it becomes
+                    // what --preset Custom restores.
+                    settings.CaptureCustom(m);
                 }
                 actions.Add("brightness " + brightness);
             }
@@ -163,7 +199,11 @@ internal static class Cli
                     if (warmth.Equals("off", StringComparison.OrdinalIgnoreCase)) kelvin = GammaControl.NeutralKelvin;
                     else { Console.Error.WriteLine($"Could not read \"{warmth}\" as kelvin."); return ExitNoMatch; }
                 }
-                foreach (var m in targets) ApplyWarmth(m, kelvin, settings);
+                foreach (var m in targets)
+                {
+                    ApplyWarmth(m, kelvin, settings);
+                    settings.CaptureCustom(m);
+                }
                 actions.Add("warmth " + (kelvin >= GammaControl.NeutralKelvin ? "off" : kelvin + "K"));
             }
 
@@ -174,6 +214,7 @@ internal static class Cli
             }
 
             settings.Save();
+            DisplayGamma.Save();
 
             // Writes are queued to the hardware asynchronously in the GUI; here
             // they are direct, but a monitor still needs a moment before a read
@@ -186,6 +227,11 @@ internal static class Cli
         }
         finally
         {
+            // Resolving baselines can learn something new about a display even
+            // when the command changed nothing - a first sighting, or a ramp now
+            // recognised as ours. Losing that means the next run has to work it
+            // out again from shape alone.
+            DisplayGamma.Save();
             foreach (var m in monitors) m.Dispose();
         }
     }
@@ -216,11 +262,40 @@ internal static class Cli
         return ok;
     }
 
+    private static bool ApplyContrast(Monitor m, int raw)
+    {
+        if (!m.SupportsContrast || !m.HasPhysicalHandle) return true;   // nothing to refuse
+        bool ok = Native.SetMonitorContrast(m.PhysicalHandle, (uint)raw);
+        if (ok) m.Contrast = raw;
+        Thread.Sleep(60);
+        return ok;
+    }
+
     private static void ApplyWarmth(Monitor m, int kelvin, AppSettings settings)
     {
         m.Kelvin = Math.Clamp(kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin);
-        GammaControl.Apply(m.DeviceName, m.Kelvin, m.BaselineRamp);
+        DisplayGamma.Apply(m);
         settings.SetKelvin(m.StableKey, m.DisplayName, m.Kelvin);
+    }
+
+    /// <summary>
+    /// Put one monitor back to the levels its owner chose. False if none were
+    /// ever saved for it, so the caller can say so instead of reporting a
+    /// success that moved nothing.
+    /// </summary>
+    private static bool RestoreCustom(Monitor m, AppSettings settings, ref int exit)
+    {
+        var e = settings.Find(m.StableKey);
+        if (e is not { HasCustom: true }) return false;
+
+        if (e.CustomBrightnessPercent is double bp &&
+            !ApplyBrightness(m, Presets.PercentToRaw(m, bp))) exit = ExitWriteRefused;
+
+        if (e.CustomContrastPercent is double cp &&
+            !ApplyContrast(m, Presets.FromPercent(cp, m.ContrastMin, m.ContrastMax))) exit = ExitWriteRefused;
+
+        if (e.CustomKelvin is int k) ApplyWarmth(m, k, settings);
+        return true;
     }
 
     private static string ListText(List<Monitor> monitors)
@@ -289,10 +364,17 @@ internal static class Cli
                                   Aims every panel at the same perceived
                                   luminance, not the same slider number.
 
+                                  Custom
+                                  Back to your own levels per monitor - what
+                                  they were set to before a preset moved them.
+
           -b, --brightness <n>    0-100 as a percentage of the panel's range,
                                   or a relative step: +10, -10
 
           -w, --warmth <kelvin>   3000-6500, or "off" for neutral
+
+        -b and -w set your own levels for the monitors they touch, so
+        --preset Custom comes back to them.
 
           -h, --help              This text
           -v, --version           Version
@@ -300,6 +382,7 @@ internal static class Cli
         Examples
           LumenDeck --list
           LumenDeck --preset Night
+          LumenDeck --preset Custom
           LumenDeck --brightness -10
           LumenDeck -m "left" -b 55 -w 5000
           LumenDeck --warmth off

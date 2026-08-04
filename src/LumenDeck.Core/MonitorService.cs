@@ -66,8 +66,23 @@ internal sealed class Monitor : IDisposable
     /// The gamma ramp this display had before the app touched it - an ICC
     /// profile, a colorimeter's LUT, or plain identity. Warmth is composed onto
     /// this and "off" restores it exactly.
+    ///
+    /// Assigned by <see cref="DisplayGamma.Resolve"/>, never by the enumerator.
+    /// The ramp that happens to be loaded right now is not the same thing as the
+    /// display's own: LumenDeck's ramp survives its own process, so capturing
+    /// straight into this field is what made warmth compound.
     /// </summary>
     public ushort[] BaselineRamp;
+
+    /// <summary>The ramp actually read off the adapter at enumeration, before anything interprets it.</summary>
+    public ushort[] CapturedRamp;
+
+    /// <summary>
+    /// Whether the ramp currently loaded on this display is one LumenDeck wrote.
+    /// Distinguishes "warmth is on" from "warmth was on before a reboot cleared
+    /// the ramp, and the saved number is now a claim about nothing".
+    /// </summary>
+    public bool GammaIsOurs;
 
     /// <summary>
     /// Key that settings are stored under. Assigned by MonitorService, which is
@@ -207,9 +222,10 @@ internal static class MonitorService
 
             m.Edid = EdidInfo.TryRead(m.DeviceInterfaceId);
 
-            // Capture before anything is applied, so a monitor that already
-            // carries an ICC or colorimeter LUT can be restored to it exactly.
-            m.BaselineRamp = GammaControl.Capture(m.DeviceName);
+            // Read what is loaded, but do not decide what it means: that needs
+            // the stored records, and this runs before stable keys exist.
+            m.CapturedRamp = GammaControl.Capture(m.DeviceName);
+            m.BaselineRamp = m.CapturedRamp;
 
             list.Add(m);
         }
@@ -218,6 +234,11 @@ internal static class MonitorService
         AssignPositionLabels(list);
         AssignStableKeys(list);
         AssignAnonymousNames(list);
+
+        // Needs the stable keys, and every caller needs it - so it happens here
+        // rather than in each of them. Forgetting it leaves BaselineRamp holding
+        // whatever ramp was loaded, which is the bug it exists to prevent.
+        DisplayGamma.Resolve(list);
         return list;
     }
 

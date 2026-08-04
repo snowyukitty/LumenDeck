@@ -102,6 +102,80 @@ after pressing a button labelled "off".
 Capture each display's ramp before touching it, multiply onto that, and restore
 the captured copy to turn it off.
 
+## …but "the ramp loaded right now" is not the baseline
+
+The fix above was right and its implementation was wrong in a way that took
+months to notice, because the symptom looked like a colour bug and the cause was
+a lifetime bug.
+
+`SetDeviceGammaRamp` outlives the process that called it. Quit the app and the
+warm ramp is still on the display. The enumerator captured whatever ramp was
+loaded and called it "the ramp this display had before the app touched it",
+which is true exactly once. On the next launch it captured the app's *own* warm
+ramp and composed the saved warmth onto it again — and so did every Refresh
+click and every `WM_DISPLAYCHANGE`, both of which re-enumerate.
+
+What that predicts is what users reported:
+
+- screens drift warmer the longer the app has been in use, on every make of
+  monitor, because the compounding lives in the GPU and not in the panel;
+- **"Warmth off" does not undo it**, because it faithfully restores a polluted
+  capture;
+- neither does the Day preset, whose 6500 K writes that same capture back.
+
+Measured on the development desk, all four displays were delivering ~3100 K
+while `settings.json` recorded `"Kelvin": 6500` on every one of them. The
+settings said neutral and the glass was orange. There is no way back from inside
+that design.
+
+Storing the baseline is only half the repair, because a stored baseline is no
+use if the app cannot tell whether the ramp it just read is its own. Two records
+per display: the baseline, and a signature of the last ramp written. A ramp that
+matches the signature is ours, so the display's own state is the stored
+baseline.
+
+The signature goes stale after a crash or a wiped settings directory, so
+recognition falls back on shape. A ramp the app wrote onto an identity baseline
+is the identity scaled by one constant per channel, with red untouched — warming
+only ever removes green and blue. Nothing else produces that shape: a real
+calibration LUT is a measured curve and strays from linear by whole percent, and
+a ramp that dims red belongs to some other tool. When the shape matches, the
+original baseline is recoverable exactly, because it was identity. When it does
+not, the app declines to guess, which is the case where guessing would throw
+away somebody's calibration.
+
+`test/Test-Gamma.ps1` measures this from outside the app, which is the only
+place it is visible.
+
+## A gamma ramp is not in the same units as the light it makes
+
+The same measurement turned up a second, independent fault, and this one was in
+the arithmetic.
+
+A gamma ramp holds **encoded** values. The display raises them to roughly 2.2
+before any light comes out, so scaling a ramp entry by `f` scales the emitted
+light by `f^2.2`, not by `f`.
+
+The white points in `GammaControl` are linear light ratios — correctly derived,
+clearly commented as linear — and were multiplied straight onto the encoded
+ramp. Every setting therefore overshot by that exponent. The Night preset asks
+for 4600 K, whose blue is 0.6345 of full; applied to the encoded ramp that emits
+`0.6345^2.2 = 0.37`, a white point nearer **3000 K** — a visibly orange screen,
+on any monitor, at a setting labelled 4600 K.
+
+Nothing inside the app could catch this. Every value it could read back was the
+value it had written; the error is in what the display does with them
+afterwards. It needed a measurement that starts from the ramp and works forward
+to the light.
+
+Raise each linear ratio to `1/2.2` before it touches the ramp:
+`(e · f^(1/2.2))^2.2 = e^2.2 · f`. Requested 4600 K now measures 4600 K.
+
+The general lesson is worth more than the constant: **a correct number in the
+wrong domain is still wrong, and it will not look wrong in any log.** The
+comment saying "linear" was accurate and sat three lines above the code that
+used it as though it were encoded.
+
 ## Raw VCP values are not percentages
 
 MCCS lets a monitor report any brightness range it likes, and `0..255` is common.

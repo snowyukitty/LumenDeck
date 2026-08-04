@@ -20,7 +20,11 @@ internal sealed class MonitorCard : Panel
     public Monitor Monitor { get; }
 
     private readonly DdcWorker _worker;
-    private readonly Action _onChanged;
+    private readonly AppSettings _settings;
+
+    /// <summary>Raised after any change. The flag says whether a person moved a control by hand.</summary>
+    private readonly Action<MonitorCard, bool> _onChanged;
+
     private readonly Action<string> _report;
 
     private readonly Slider _brightness;
@@ -47,11 +51,13 @@ internal sealed class MonitorCard : Panel
     // is being disposed.
     private System.Windows.Forms.Timer _highlightTimer;
 
-    public MonitorCard(Monitor m, DdcWorker worker, Action onChanged, Action<string> report)
+    public MonitorCard(Monitor m, AppSettings settings, DdcWorker worker,
+                       Action<MonitorCard, bool> onChanged, Action<string> report)
     {
         Monitor = m;
+        _settings = settings;
         _worker = worker;
-        _onChanged = onChanged;
+        _onChanged = onChanged ?? ((_, _) => { });
         _report = report ?? (_ => { });
 
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
@@ -138,12 +144,34 @@ internal sealed class MonitorCard : Panel
             {
                 ApplyBrightness(Presets.BrightnessFor(Monitor, captured.Nits));
                 ApplyWarmth(captured.Kelvin);
-                _onChanged();
+                _onChanged(this, false);
                 _report($"{Monitor.DisplayName}: {captured.Name} - about {captured.Nits} nits, {captured.Kelvin}K.");
             };
             _tips.SetToolTip(b, $"{captured.Description}\nThis monitor only.");
             presets.Controls.Add(b);
         }
+
+        // Set apart from the three above, because it is not a fourth level: it
+        // is the way back from them.
+        var custom = new FlatButton(Presets.CustomName) { Width = 78, Margin = new Padding(10, 0, 0, 0) };
+        custom.Click += (_, _) =>
+        {
+            if (RestoreCustom())
+            {
+                _onChanged(this, false);
+                _report($"{Monitor.DisplayName}: back to your own settings.");
+            }
+            else
+            {
+                _report($"{Monitor.DisplayName} has no saved settings of its own yet - " +
+                        "move a slider and they are remembered.");
+            }
+        };
+        _tips.SetToolTip(custom,
+            "Your own brightness, contrast and warmth for this monitor.\n" +
+            "Saved whenever you move one of its sliders, and never touched by a preset.");
+        presets.Controls.Add(custom);
+
         _grid.Controls.Add(presets, 1, row++);
 
         // ---- extras, collapsed --------------------------------------------
@@ -286,7 +314,7 @@ internal sealed class MonitorCard : Panel
         Monitor.Brightness = _brightness.Value;
         _worker.Set(Monitor, DdcWorker.Feature.Brightness, _brightness.Value);
         RefreshLabels();
-        _onChanged();
+        ManualEdit();
     }
 
     private void OnContrast()
@@ -294,7 +322,18 @@ internal sealed class MonitorCard : Panel
         if (_suppress || !Monitor.SupportsContrast) return;
         Monitor.Contrast = _contrast.Value;
         _worker.Set(Monitor, DdcWorker.Feature.Contrast, _contrast.Value);
-        _onChanged();
+        ManualEdit();
+    }
+
+    /// <summary>
+    /// A person moved a control on this card. That is the only thing that
+    /// rewrites their Custom position - the presets deliberately do not, which
+    /// is what makes them reversible.
+    /// </summary>
+    private void ManualEdit()
+    {
+        _settings?.CaptureCustom(Monitor);
+        _onChanged(this, true);
     }
 
     private static int WarmthFromKelvin(int kelvin) =>
@@ -308,17 +347,18 @@ internal sealed class MonitorCard : Panel
         if (_suppress) return;
         Monitor.Kelvin = KelvinFromWarmth(_warmth.Value);
         ApplyGamma();
-        _onChanged();
+        ManualEdit();
     }
 
     /// <summary>
-    /// Composed onto the baseline captured before the app touched this display,
-    /// so 6500K restores whatever ICC or colorimeter LUT was already loaded
-    /// instead of flattening it to identity.
+    /// Composed onto the baseline this display owns, so 6500K restores whatever
+    /// ICC or colorimeter LUT was already loaded instead of flattening it to
+    /// identity - and onto the baseline rather than onto the ramp that happens
+    /// to be loaded, which is what stops warmth stacking on warmth.
     /// </summary>
     private void ApplyGamma()
     {
-        if (!GammaControl.Apply(Monitor.DeviceName, Monitor.Kelvin, Monitor.BaselineRamp))
+        if (!DisplayGamma.Apply(Monitor))
             _report($"{Monitor.DisplayName}: the graphics driver refused the colour change.");
     }
 
@@ -334,6 +374,17 @@ internal sealed class MonitorCard : Panel
         RefreshLabels();
     }
 
+    public void ApplyContrast(int raw)
+    {
+        if (!Monitor.SupportsContrast) return;
+        int v = Math.Clamp(raw, _contrast.Minimum, _contrast.Maximum);
+        _suppress = true;
+        _contrast.SetValueSilently(v);
+        _suppress = false;
+        Monitor.Contrast = v;
+        _worker.Set(Monitor, DdcWorker.Feature.Contrast, v);
+    }
+
     public void ApplyWarmth(int kelvin)
     {
         int k = Math.Clamp(kelvin, GammaControl.MinKelvin, GammaControl.NeutralKelvin);
@@ -342,6 +393,27 @@ internal sealed class MonitorCard : Panel
         _suppress = false;
         Monitor.Kelvin = k;
         ApplyGamma();
+    }
+
+    /// <summary>
+    /// Put this monitor back to the values its owner chose. False if none were
+    /// ever saved, so the caller can say so rather than appear to do nothing.
+    /// </summary>
+    public bool RestoreCustom()
+    {
+        var e = _settings?.Find(Monitor.StableKey);
+        if (e is not { HasCustom: true }) return false;
+
+        if (e.CustomBrightnessPercent is double bp)
+            ApplyBrightness(Presets.PercentToRaw(Monitor, bp));
+
+        if (e.CustomContrastPercent is double cp)
+            ApplyContrast(Presets.FromPercent(cp, Monitor.ContrastMin, Monitor.ContrastMax));
+
+        if (e.CustomKelvin is int k)
+            ApplyWarmth(k);
+
+        return true;
     }
 
     /// <summary>Pull live values back off the monitor into the controls.</summary>

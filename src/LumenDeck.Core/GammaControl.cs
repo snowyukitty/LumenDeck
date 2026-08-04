@@ -22,6 +22,10 @@ namespace LumenDeck;
 /// different greys and black point. Capture first, multiply onto it, and restore
 /// the captured copy to turn it off.
 ///
+/// Which baseline a display owns is <see cref="DisplayGamma"/>'s job, not this
+/// one's: capturing the current ramp every time is exactly how warmth ends up
+/// composed onto warmth.
+///
 /// The remaining catch, which the UI states rather than hides: a gamma ramp is
 /// GPU state, not monitor state. It is lost on reboot, on a display mode change,
 /// on driver restart, and when some exclusive-fullscreen games exit.
@@ -31,6 +35,15 @@ internal static class GammaControl
     public const int NeutralKelvin = 6500;
     public const int MinKelvin = 3000;
     public const int MaxKelvin = 6500;
+
+    /// <summary>
+    /// The exponent a display applies to what comes down the cable. sRGB and
+    /// every consumer panel are close enough to 2.2 for this purpose.
+    ///
+    /// This constant is the whole reason warmth used to be far stronger than the
+    /// number on the slider - see <see cref="EncodedMultipliers"/>.
+    /// </summary>
+    private const double DisplayGamma = 2.2;
 
     /// <summary>
     /// Linear white points normalised to 1.0 at 6500K.
@@ -50,6 +63,7 @@ internal static class GammaControl
         (3000, 1.0000, 0.5697, 0.2231),
     };
 
+    /// <summary>The white point in LINEAR light. Not what a gamma ramp takes.</summary>
     public static (double R, double G, double B) Multipliers(int kelvin)
     {
         kelvin = Math.Clamp(kelvin, MinKelvin, MaxKelvin);
@@ -74,9 +88,41 @@ internal static class GammaControl
     }
 
     /// <summary>
-    /// Read the ramp a display is currently using. Call this before applying
-    /// anything, so whatever calibration is already loaded can be preserved and
-    /// restored. Returns null if the adapter will not answer.
+    /// The same white point, converted into the domain a gamma ramp actually
+    /// works in.
+    ///
+    /// A gamma ramp holds ENCODED values: the display raises whatever it is
+    /// given to roughly the power 2.2 before any light comes out. Scaling a ramp
+    /// entry by f therefore scales the emitted light by f^2.2, not by f.
+    ///
+    /// An earlier version multiplied the encoded ramp by the linear white points
+    /// above, which overshot every setting by that exponent and is why users
+    /// reported that every screen looked far too warm. At the Night preset the
+    /// blue channel asks for 0.6345 of full; applied to the encoded ramp that
+    /// emits 0.6345^2.2 = 0.37 of full, a white point nearer 3000K than the
+    /// 4600K the button claims - a visibly orange screen on every panel,
+    /// regardless of make.
+    ///
+    /// Raising each linear ratio to 1/2.2 first makes the emitted light land on
+    /// the requested ratio, because (e * f^(1/2.2))^2.2 = e^2.2 * f.
+    /// </summary>
+    public static (double R, double G, double B) EncodedMultipliers(int kelvin)
+    {
+        var (r, g, b) = Multipliers(kelvin);
+        return (Encode(r), Encode(g), Encode(b));
+    }
+
+    private static double Encode(double linear) =>
+        linear <= 0 ? 0 : Math.Pow(linear, 1.0 / DisplayGamma);
+
+    /// <summary>
+    /// Read the ramp a display is currently using.
+    ///
+    /// Note what this cannot tell you: whether the ramp it returns is the
+    /// display's own state or something LumenDeck wrote earlier and left behind.
+    /// <see cref="DisplayGamma"/> answers that; capturing straight into a
+    /// baseline is the bug, not the fix. Returns null if the adapter will not
+    /// answer.
     /// </summary>
     public static ushort[] Capture(string deviceName)
     {
@@ -106,37 +152,117 @@ internal static class GammaControl
     }
 
     /// <summary>
-    /// Apply a colour temperature on top of <paramref name="baseline"/>.
-    /// At 6500K this writes the baseline back unchanged, so "off" really is off.
-    ///
-    /// Returns false if the adapter refused the ramp. Windows rejects ramps it
-    /// considers extreme, and that refusal has to reach the user rather than be
-    /// swallowed into a UI that claims success.
+    /// The ramp that puts <paramref name="kelvin"/> on top of
+    /// <paramref name="baseline"/>. At 6500K this is the baseline unchanged, so
+    /// "off" really is off.
     /// </summary>
-    public static bool Apply(string deviceName, int kelvin, ushort[] baseline)
+    public static ushort[] Compose(ushort[] baseline, int kelvin)
     {
-        baseline ??= Identity();
-        if (baseline.Length < 768) baseline = Identity();
+        if (baseline == null || baseline.Length < 768) baseline = Identity();
+
+        var (fr, fg, fb) = EncodedMultipliers(kelvin);
+        var ramp = new ushort[768];
+        for (int i = 0; i < 256; i++)
+        {
+            ramp[i] = Scale(baseline[i] * fr);
+            ramp[256 + i] = Scale(baseline[256 + i] * fg);
+            ramp[512 + i] = Scale(baseline[512 + i] * fb);
+        }
+        return ramp;
+    }
+
+    /// <summary>
+    /// Hand a ramp to the adapter.
+    ///
+    /// Returns false if it refused. Windows rejects ramps it considers extreme,
+    /// and that refusal has to reach the user rather than be swallowed into a UI
+    /// that claims success.
+    /// </summary>
+    public static bool Write(string deviceName, ushort[] ramp)
+    {
+        if (ramp == null || ramp.Length < 768) return false;
 
         IntPtr hdc = Native.CreateDC("DISPLAY", deviceName, null, IntPtr.Zero);
         if (hdc == IntPtr.Zero) return false;
-
         try
         {
-            var (fr, fg, fb) = Multipliers(kelvin);
-            var ramp = new ushort[768];
-            for (int i = 0; i < 256; i++)
-            {
-                ramp[i] = Scale(baseline[i] * fr);
-                ramp[256 + i] = Scale(baseline[256 + i] * fg);
-                ramp[512 + i] = Scale(baseline[512 + i] * fb);
-            }
             return Native.SetDeviceGammaRamp(hdc, ramp);
         }
         finally
         {
             Native.DeleteDC(hdc);
         }
+    }
+
+    /// <summary>Compose and write in one step, for callers with no baseline bookkeeping.</summary>
+    public static bool Apply(string deviceName, int kelvin, ushort[] baseline) =>
+        Write(deviceName, Compose(baseline, kelvin));
+
+    /// <summary>
+    /// A cheap fingerprint of a ramp, used to recognise a ramp LumenDeck wrote
+    /// when it is read back in a later session. FNV-1a; nothing here is
+    /// security-sensitive, it only has to be stable and collision-free enough to
+    /// tell one 1.5 KB blob from another.
+    /// </summary>
+    public static string Signature(ushort[] ramp)
+    {
+        if (ramp == null) return "";
+        ulong h = 14695981039346656037;
+        foreach (ushort v in ramp)
+        {
+            h = (h ^ (byte)v) * 1099511628211;
+            h = (h ^ (byte)(v >> 8)) * 1099511628211;
+        }
+        return h.ToString("x16");
+    }
+
+    /// <summary>Tolerated deviation from a straight line, out of 65535. 0.3%.</summary>
+    private const double LinearTolerance = 192;
+
+    /// <summary>
+    /// Whether this ramp is the identity scaled per channel - which is exactly
+    /// and only the shape LumenDeck writes when the display's baseline was
+    /// identity, and therefore the shape of a warm ramp left behind by an
+    /// earlier session or a crash.
+    ///
+    /// This is what lets a display that is already tinted be recovered without
+    /// any stored record. It is a narrow test on purpose:
+    ///
+    ///  - every channel must be a straight line through the origin, which a real
+    ///    ICC or colorimeter LUT is not (those carry a measured curve, deviating
+    ///    from linear by whole percent, far outside the tolerance here);
+    ///  - red must be essentially untouched, because warming only ever removes
+    ///    green and blue. A ramp that dims red is somebody else's - a screen
+    ///    dimmer, an accessibility filter - and must be left alone.
+    ///
+    /// If it matches, the original baseline is recoverable exactly: it was
+    /// identity.
+    /// </summary>
+    public static bool LooksLikeScaledIdentity(ushort[] ramp)
+    {
+        if (ramp == null || ramp.Length < 768) return false;
+
+        for (int c = 0; c < 3; c++)
+        {
+            int o = c * 256;
+            double f = ramp[o + 255] / 65535.0;
+            if (f > 1.0001) return false;
+
+            for (int i = 0; i < 256; i++)
+                if (Math.Abs(ramp[o + i] - i * 257.0 * f) > LinearTolerance) return false;
+        }
+
+        return ramp[255] / 65535.0 >= 0.995;
+    }
+
+    /// <summary>Whether a ramp is (near enough) the untouched 1:1 ramp.</summary>
+    public static bool IsIdentity(ushort[] ramp)
+    {
+        if (ramp == null || ramp.Length < 768) return false;
+        for (int c = 0; c < 3; c++)
+            for (int i = 0; i < 256; i++)
+                if (Math.Abs(ramp[c * 256 + i] - i * 257.0) > LinearTolerance) return false;
+        return true;
     }
 
     private static ushort Scale(double v)
