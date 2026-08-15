@@ -10,12 +10,10 @@
 
     <AssemblyName>LumenDeck</AssemblyName>
     <RootNamespace>LumenDeck</RootNamespace>
-    <Version>1.1.0</Version>
+    <!-- Version, copyright and repository come from Directory.Build.props, so
+         the two executables cannot drift apart. -->
     <Product>LumenDeck</Product>
     <Description>Brightness, contrast and colour temperature for every monitor, over DDC/CI.</Description>
-    <Copyright>Copyright (c) LumenDeck contributors</Copyright>
-    <RepositoryUrl>https://github.com/snowyukitty/LumenDeck</RepositoryUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
 
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

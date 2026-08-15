@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 namespace LumenDeck;
 
 /// <summary>
-/// Serialises every brightness/contrast write onto one background thread.
+/// Serialises every brightness/contrast/power write onto one background thread.
 ///
 /// Three facts drive this design, all of them learned the hard way:
 ///
@@ -28,7 +28,7 @@ namespace LumenDeck;
 /// </summary>
 internal sealed class DdcWorker : IDisposable
 {
-    public enum Feature { Brightness, Contrast, Vcp }
+    public enum Feature { Brightness, Contrast, Vcp, Power }
 
     // Code is part of the key so two different VCP features on one monitor
     // coalesce independently - dragging the volume slider must not discard a
@@ -40,16 +40,15 @@ internal sealed class DdcWorker : IDisposable
     private readonly Thread _thread;
     private volatile bool _running = true;
 
-    /// <summary>
-    /// Held around every native write, and by anyone about to call
-    /// DestroyPhysicalMonitor. Without it the UI thread can free a handle while
-    /// this thread is part way through a write to it - a use-after-free into a
-    /// driver, which does not fail politely.
-    /// </summary>
-    public object HandleLock { get; } = new();
+    // The Monitor owns per-device locking and MCCS pacing. Keeping that state on
+    // the monitor is what lets a slow request on one display coexist with an
+    // immediate brightness write to another.
 
-    /// <summary>Minimum gap between two writes, per MCCS. 60 ms is comfortably above the 50 ms floor.</summary>
-    private const int WriteGapMs = 60;
+    /// <summary>Time for firmware to make a set visible to a following read.</summary>
+    private const int VerifySettleMs = 80;
+
+    /// <summary>One initial write plus two retries for a silently dropped final value.</summary>
+    private const int VerifyAttempts = 3;
 
     /// <summary>
     /// Raised on the worker thread when a write reports failure.
@@ -63,7 +62,10 @@ internal sealed class DdcWorker : IDisposable
         {
             IsBackground = true,
             Name = "LumenDeckWriter",
-            Priority = ThreadPriority.BelowNormal,
+            // Slider feedback is latency-sensitive and this thread spends most
+            // of its life asleep. BelowNormal can starve it behind unrelated CPU
+            // work for no useful saving.
+            Priority = ThreadPriority.Normal,
         };
         _thread.Start();
     }
@@ -87,6 +89,32 @@ internal sealed class DdcWorker : IDisposable
         _pending[new Target(m, Feature.Vcp, code)] = value;
         _signal.Set();
     }
+
+    /// <summary>
+    /// Queue a DPMS power toggle and return true when the queued target is the
+    /// lowest-power off state. Repeated key presses toggle the pending absolute
+    /// target rather than collapsing into one ambiguous "toggle" command.
+    /// </summary>
+    public bool TogglePower(Monitor m)
+    {
+        if (m == null) return false;
+
+        var key = new Target(m, Feature.Power, MonitorPower.VcpCode);
+        int target = _pending.AddOrUpdate(
+            key,
+            _ => NextPowerMode(m.PowerMode),
+            (_, pending) => NextPowerMode(pending));
+
+        // Record the requested state at queue time. If a second key press lands
+        // after the first item has been removed but before its native call
+        // finishes, it still toggles the intent instead of sending Off twice.
+        m.PowerMode = target;
+        _signal.Set();
+        return target == MonitorPower.Off;
+    }
+
+    private static int NextPowerMode(int mode) =>
+        mode == MonitorPower.On ? MonitorPower.Off : MonitorPower.On;
 
     public bool Idle => _pending.IsEmpty;
 
@@ -112,60 +140,131 @@ internal sealed class DdcWorker : IDisposable
                 if (!_running) return;
                 if (!_pending.TryRemove(key, out int value)) continue;
 
-                bool ok = true;
-                try
-                {
-                    if (key.Mon.IsInternalPanel)
-                    {
-                        // WMI, and only brightness: a laptop panel has no
-                        // contrast control to speak to.
-                        ok = key.What == Feature.Brightness
-                             && WmiBrightness.Set(key.Mon.WmiInstanceName, value);
-                    }
-                    else
-                    {
-                        lock (HandleLock)
-                        {
-                            if (!_running) return;
-
-                            // Dispose clears the flag, so this is the check that
-                            // makes a stale queue entry harmless. It is a flag
-                            // and not a handle comparison on purpose: a valid
-                            // physical monitor handle can legitimately be 0.
-                            if (!key.Mon.HasPhysicalHandle) continue;
-                            IntPtr h = key.Mon.PhysicalHandle;
-
-                            ok = key.What switch
-                            {
-                                Feature.Brightness => Native.SetMonitorBrightness(h, (uint)value),
-                                Feature.Contrast => Native.SetMonitorContrast(h, (uint)value),
-                                Feature.Vcp => Native.SetVCPFeature(h, key.Code, (uint)value),
-                                _ => true,
-                            };
-                        }
-                    }
-
-                    // A false return is a real failure - the monitor is asleep,
-                    // on another input, or DDC dropped the request. Ignoring it
-                    // is how a UI ends up showing a number the panel never took.
-                    // SetVCPFeature is fire-and-forget: MCCS has no
-                    // acknowledgement, so a true return proves only that the
-                    // request reached the driver. Do not report success for it,
-                    // and do not treat its false as more meaningful than it is.
-                    if (!ok) WriteFailed?.Invoke(key.Mon, key.What);
-                }
-                catch
-                {
-                    // A monitor unplugged mid-write throws through the P/Invoke.
-                    // Dropping the write is correct: the enumeration is about to
-                    // be rebuilt by the display-change handler.
-                }
-
-                // Outside the lock, so the UI thread is never blocked for the
-                // full pacing delay while it waits to free handles.
-                Thread.Sleep(WriteGapMs);
+                Process(key, value);
             }
         }
+    }
+
+    private void Process(Target key, int value)
+    {
+        try
+        {
+            bool verify = !key.Mon.IsInternalPanel &&
+                          key.What is Feature.Brightness or Feature.Contrast;
+
+            for (int attempt = 0; attempt < (verify ? VerifyAttempts : 1); attempt++)
+            {
+                if (!_running) return;
+                if (!key.Mon.IsInternalPanel && !key.Mon.HasPhysicalHandle) return;
+
+                bool ok = Write(key, value);
+                if (!ok)
+                {
+                    if (key.What == Feature.Power)
+                        key.Mon.PowerMode = MonitorPower.Unknown;
+
+                    // A transient driver refusal is no more authoritative than
+                    // a silently dropped write. Give a final slider value the
+                    // same bounded retry treatment, then restore the value the
+                    // panel reports so the UI never claims success.
+                    if (verify && attempt + 1 < VerifyAttempts &&
+                        !_pending.ContainsKey(key))
+                        continue;
+
+                    if (verify && !_pending.ContainsKey(key) &&
+                        ReadBack(key, out int reported))
+                        StoreActual(key, reported);
+
+                    WriteFailed?.Invoke(key.Mon, key.What);
+                    return;
+                }
+
+                if (!verify) return;
+
+                // During a drag, the newer pending value is the verification:
+                // do not spend another DDC round trip confirming an intermediate
+                // pixel that is already obsolete.
+                if (_pending.ContainsKey(key)) return;
+                Thread.Sleep(VerifySettleMs);
+                if (_pending.ContainsKey(key)) return;
+
+                bool read = ReadBack(key, out int actual);
+                if (_pending.ContainsKey(key)) return;
+
+                if (read && actual == value)
+                {
+                    StoreActual(key, actual);
+                    return;
+                }
+
+                // A true SetMonitorBrightness return only means the command was
+                // handed to the driver. Firmware commonly drops it while still
+                // reporting success. Retry the final value, then make the UI
+                // honest if the panel continues to report something else.
+                if (attempt + 1 == VerifyAttempts)
+                {
+                    if (read) StoreActual(key, actual);
+                    WriteFailed?.Invoke(key.Mon, key.What);
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // A monitor unplugged mid-request can throw through P/Invoke. Its
+            // display-change rebuild will dispose this Monitor object and drop
+            // the stale queue entry. Surface the failed request in the meantime
+            // rather than leaving an optimistic slider value unchallenged.
+            WriteFailed?.Invoke(key.Mon, key.What);
+        }
+    }
+
+    private static bool Write(Target key, int value)
+    {
+        if (key.Mon.IsInternalPanel)
+        {
+            // WMI, and only brightness: a laptop panel has no contrast or DDC
+            // power mode to speak to.
+            return key.What == Feature.Brightness &&
+                   WmiBrightness.Set(key.Mon.WmiInstanceName, value);
+        }
+
+        return key.What switch
+        {
+            Feature.Brightness => key.Mon.UseDdc(
+                h => Native.SetMonitorBrightness(h, (uint)value), false),
+            Feature.Contrast => key.Mon.UseDdc(
+                h => Native.SetMonitorContrast(h, (uint)value), false),
+            Feature.Vcp => key.Mon.UseDdc(
+                h => Native.SetVCPFeature(h, key.Code, (uint)value), false),
+            Feature.Power => MonitorPower.Set(key.Mon, value),
+            _ => true,
+        };
+    }
+
+    private static bool ReadBack(Target key, out int actual)
+    {
+        int observed = 0;
+        bool ok = key.Mon.UseDdc(h =>
+        {
+            uint min = 0, current = 0, max = 0;
+            bool read = key.What switch
+            {
+                Feature.Brightness => Native.GetMonitorBrightness(h, ref min, ref current, ref max),
+                Feature.Contrast => Native.GetMonitorContrast(h, ref min, ref current, ref max),
+                _ => false,
+            };
+            if (read) observed = (int)current;
+            return read;
+        }, false);
+        actual = observed;
+        return ok;
+    }
+
+    private static void StoreActual(Target key, int actual)
+    {
+        if (key.What == Feature.Brightness) key.Mon.Brightness = actual;
+        else if (key.What == Feature.Contrast) key.Mon.Contrast = actual;
     }
 
     public void Dispose()

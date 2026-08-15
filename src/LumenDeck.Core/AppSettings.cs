@@ -17,7 +17,40 @@ internal sealed class AppSettings
     {
         public string Key { get; set; } = "";
         public string LastSeenName { get; set; } = "";
+
+        /// <summary>Warmth currently applied to this monitor, whatever put it there.</summary>
         public int Kelvin { get; set; } = GammaControl.NeutralKelvin;
+
+        // The person's own levels for this monitor, which is what makes the Day
+        // / Evening / Night buttons reversible. Written when a slider is moved
+        // by hand and never by a preset, so a preset cannot destroy them. Null
+        // means "never set", which is different from zero.
+        //
+        // Brightness and contrast are stored as a percentage of the monitor's
+        // own range rather than as the raw DDC number: the raw number means
+        // nothing on a panel that reports 0-255 instead of 0-100.
+
+        public double? CustomBrightnessPercent { get; set; }
+        public double? CustomContrastPercent { get; set; }
+        public int? CustomKelvin { get; set; }
+
+        /// <summary>
+        /// Optional global shortcut that toggles this monitor between on and
+        /// DPMS-off. Stored as readable text so settings.json remains editable.
+        /// </summary>
+        public string PowerHotkey { get; set; } = "";
+
+        /// <summary>
+        /// Derived, so it must not be written. A get-only property is still
+        /// serialised by System.Text.Json, and it was landing in settings.json as
+        /// a plain `"HasCustom": true` - which reads like a switch somebody could
+        /// turn off, in a file this class deliberately keeps hand-editable. It is
+        /// ignored on the way back in, so setting it does nothing at all: the
+        /// worst kind of knob.
+        /// </summary>
+        [JsonIgnore]
+        public bool HasCustom =>
+            CustomBrightnessPercent.HasValue || CustomContrastPercent.HasValue || CustomKelvin.HasValue;
     }
 
     public List<MonitorSetting> Monitors { get; set; } = new();
@@ -39,22 +72,65 @@ internal sealed class AppSettings
     [JsonIgnore]
     public static string FilePath => Path.Combine(Directory, "settings.json");
 
-    public int KelvinFor(string key)
-    {
-        var e = Monitors.FirstOrDefault(m => m.Key == key);
-        return e?.Kelvin ?? GammaControl.NeutralKelvin;
-    }
+    public MonitorSetting Find(string key) =>
+        string.IsNullOrEmpty(key) ? null : Monitors.FirstOrDefault(m => m.Key == key);
 
-    public void SetKelvin(string key, string name, int kelvin)
+    private MonitorSetting Entry(string key, string name)
     {
-        var e = Monitors.FirstOrDefault(m => m.Key == key);
+        var e = Find(key);
         if (e == null)
         {
             e = new MonitorSetting { Key = key };
             Monitors.Add(e);
         }
-        e.LastSeenName = name;
-        e.Kelvin = kelvin;
+        if (!string.IsNullOrEmpty(name)) e.LastSeenName = name;
+        return e;
+    }
+
+    public int KelvinFor(string key) => Find(key)?.Kelvin ?? GammaControl.NeutralKelvin;
+
+    public string PowerHotkeyFor(string key) => Find(key)?.PowerHotkey ?? "";
+
+    public void SetPowerHotkey(string key, string name, string hotkey)
+    {
+        if (string.IsNullOrEmpty(key)) return;
+        Entry(key, name).PowerHotkey = hotkey?.Trim() ?? "";
+    }
+
+    public void SetKelvin(string key, string name, int kelvin)
+    {
+        if (string.IsNullOrEmpty(key)) return;
+        Entry(key, name).Kelvin = kelvin;
+    }
+
+    /// <summary>
+    /// Record this monitor's live values as the person's own. Called when a
+    /// slider is moved by hand, never by a preset - that separation is the
+    /// entire reason Custom can bring a desk back.
+    /// </summary>
+    public void CaptureCustom(Monitor m)
+    {
+        if (m == null || string.IsNullOrEmpty(m.StableKey)) return;
+
+        var e = Entry(m.StableKey, m.DisplayName);
+        if (m.SupportsBrightness) e.CustomBrightnessPercent = Presets.RawToPercent(m, m.Brightness);
+        if (m.SupportsContrast) e.CustomContrastPercent = Presets.ToPercent(m.Contrast, m.ContrastMin, m.ContrastMax);
+        e.CustomKelvin = m.Kelvin;
+    }
+
+    /// <summary>
+    /// Give a monitor a Custom position the first time it is seen, taken from
+    /// whatever it was already set to.
+    ///
+    /// Without this, Custom would be empty until somebody happened to move a
+    /// slider - so the first press of Day on a fresh install would still be
+    /// unrecoverable, which is the complaint this feature answers.
+    /// </summary>
+    public void SeedCustom(Monitor m)
+    {
+        if (m == null || string.IsNullOrEmpty(m.StableKey)) return;
+        if (Find(m.StableKey) is { HasCustom: true }) return;
+        CaptureCustom(m);
     }
 
     public static AppSettings Load()
@@ -77,7 +153,17 @@ internal sealed class AppSettings
                     foreach (var m in s.Monitors)
                     {
                         m.LastSeenName ??= "";
+                        m.PowerHotkey ??= "";
                         m.Kelvin = Math.Clamp(m.Kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin);
+
+                        // A hand-edited or half-written custom value must not be
+                        // able to drive a monitor somewhere it cannot go. NaN
+                        // survives Math.Clamp, so it is discarded rather than
+                        // clamped - it would reach the slider as a silent zero.
+                        m.CustomBrightnessPercent = Sane(m.CustomBrightnessPercent);
+                        m.CustomContrastPercent = Sane(m.CustomContrastPercent);
+                        if (m.CustomKelvin is int k)
+                            m.CustomKelvin = Math.Clamp(k, GammaControl.MinKelvin, GammaControl.MaxKelvin);
                     }
                     return s;
                 }
@@ -90,6 +176,9 @@ internal sealed class AppSettings
         }
         return new AppSettings();
     }
+
+    private static double? Sane(double? percent) =>
+        percent is double p && double.IsFinite(p) ? Math.Clamp(p, 0, 100) : null;
 
     public void Save()
     {

@@ -17,7 +17,8 @@
          "LumenDeck.exe" are the same file, so shipping both in one folder
          silently kept only whichever was written last. -->
     <AssemblyName>lumendeck-cli</AssemblyName>
-    <Version>1.0.0</Version>
+    <!-- Version comes from Directory.Build.props. It used to be set here and
+         was a release behind the window's. -->
     <Product>LumenDeck CLI</Product>
     <Description>Command line for LumenDeck: list monitors, set brightness, contrast and colour temperature.</Description>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>

@@ -15,6 +15,20 @@ internal static class Presets
         new("Night",   110, 4600, "Long reading after dark"),
     };
 
+    /// <summary>
+    /// The fourth mode, which is not a level: it is whatever the person set
+    /// themselves. Not in <see cref="Levels"/> because it has no nits and no
+    /// kelvin of its own - it restores per-monitor values from settings.
+    ///
+    /// It exists because the three above were a one-way door. Pressing one
+    /// overwrote brightness and warmth on every monitor with nothing to go back
+    /// to, so a stray click cost you a desk you had spent time tuning.
+    /// </summary>
+    public const string CustomName = "Custom";
+
+    public static bool IsCustom(string name) =>
+        string.Equals(name, CustomName, StringComparison.OrdinalIgnoreCase);
+
     public static Level ByName(string name) =>
         Levels.FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase));
 
@@ -44,6 +58,26 @@ internal static class Presets
     {
         if (!m.SupportsBrightness) return Math.Clamp(raw, 0, 100);
         return Math.Clamp((raw - m.BrightnessMin) * 100.0 / RawSpan(m), 0, 100);
+    }
+
+    // Contrast has the same problem and no luminance model to go with it: the
+    // range a monitor reports is its own business. Storing a percentage rather
+    // than the raw number means a saved value still means the same thing after a
+    // cable swap onto a panel that reports a different range.
+
+    public static double ToPercent(int value, int min, int max)
+    {
+        double span = max - min;
+        if (span <= 0) return Math.Clamp(value, 0, 100);
+        return Math.Clamp((value - min) * 100.0 / span, 0, 100);
+    }
+
+    public static int FromPercent(double percent, int min, int max)
+    {
+        percent = Math.Clamp(percent, 0, 100);
+        double span = max - min;
+        if (span <= 0) return (int)Math.Round(percent);
+        return Math.Clamp(min + (int)Math.Round(span * percent / 100.0), min, max);
     }
 
     /// <summary>Raw brightness value that puts this panel at the requested luminance.</summary>

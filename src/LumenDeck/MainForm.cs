@@ -3,6 +3,8 @@ namespace LumenDeck;
 internal sealed class MainForm : Form
 {
     private const int WM_DISPLAYCHANGE = 0x007E;
+    private const int WM_HOTKEY = 0x0312;
+    private const int FirstPowerHotkeyId = 0x4C00;
 
     private readonly DdcWorker _worker = new();
     private readonly AppSettings _settings = AppSettings.Load();
@@ -20,10 +22,25 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _displayChangeTimer;
     private readonly FlatButton _refreshButton;
     private readonly ToolTip _tips = new();
+    private readonly Panel _bar;
+    private readonly FlowLayoutPanel _toolRow;
+
+    /// <summary>Mode buttons by name, so the one in force can be shown as such.</summary>
+    private readonly Dictionary<string, FlatButton> _modeButtons = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Registered global-hotkey id to the card it controls.</summary>
+    private readonly Dictionary<int, MonitorCard> _powerHotkeys = new();
 
     /// <summary>Bumped per rebuild so a slow enumeration cannot overwrite a newer one.</summary>
     private int _generation;
     private bool _reallyClosing;
+
+    /// <summary>
+    /// Set once the window has actually been shown. Guards the minimise-to-tray
+    /// path in <see cref="OnResize"/>, which must not run before then - see the
+    /// comment on that guard.
+    /// </summary>
+    private bool _shown;
 
     public MainForm()
     {
@@ -35,11 +52,13 @@ internal sealed class MainForm : Form
         // device pixels under PerMonitorV2. Dpi is what the DPI-aware path wants.
         AutoScaleMode = AutoScaleMode.Dpi;
 
-        // 620 was too narrow for its own toolbar: the buttons and margins need
-        // ~590px inside the bar's padding, and the row does not wrap, so
-        // "Warmth off" was clipped at the minimum size with no affordance.
+        // A hard-coded minimum width was wrong twice: 620 clipped "Warmth off",
+        // and 720 was about to clip the Custom button. The toolbar does not
+        // wrap, so its minimum is a fact about its contents and the DPI it is
+        // drawn at - measured in OnShown rather than guessed here. This is only
+        // the floor for a window with nothing in the bar at all.
         MinimumSize = new Size(720, 480);
-        Size = new Size(720, 820);
+        Size = new Size(780, 820);
         StartPosition = FormStartPosition.CenterScreen;
 
         // Two instances, because they are different frames: the window wants
@@ -51,9 +70,9 @@ internal sealed class MainForm : Form
         Icon = _appIcon;
 
         // ---- toolbar ------------------------------------------------------
-        var bar = new Panel { Dock = DockStyle.Top, Height = 58, BackColor = Theme.Bar, Padding = new Padding(14, 0, 14, 0) };
+        _bar = new Panel { Dock = DockStyle.Top, Height = 58, BackColor = Theme.Bar, Padding = new Padding(14, 0, 14, 0) };
 
-        var toolRow = new FlowLayoutPanel
+        _toolRow = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             WrapContents = false,
@@ -61,7 +80,7 @@ internal sealed class MainForm : Form
             Padding = new Padding(0, 14, 0, 0),
         };
 
-        toolRow.Controls.Add(new Label
+        _toolRow.Controls.Add(new Label
         {
             Text = "All monitors",
             Font = Theme.Small,
@@ -78,26 +97,37 @@ internal sealed class MainForm : Form
             b.Click += (_, _) => ApplyLevel(captured);
             _tips.SetToolTip(b,
                 $"{captured.Description}\nAims every panel at about {captured.Nits} nits, {captured.Kelvin}K.");
-            toolRow.Controls.Add(b);
+            _modeButtons[captured.Name] = b;
+            _toolRow.Controls.Add(b);
         }
+
+        // The way back. Separated from the three levels by a gap because it is
+        // not one of them: it restores what each monitor was set to by hand.
+        var customButton = new FlatButton(Presets.CustomName) { Width = 82, Margin = new Padding(10, 0, 0, 0) };
+        customButton.Click += (_, _) => ApplyCustom();
+        _tips.SetToolTip(customButton,
+            "Your own brightness, contrast and warmth, per monitor.\n" +
+            "Saved whenever you move a slider, and never overwritten by a preset.");
+        _modeButtons[Presets.CustomName] = customButton;
+        _toolRow.Controls.Add(customButton);
 
         var identify = new FlatButton("Identify") { Width = 84, Margin = new Padding(16, 0, 6, 0) };
         identify.Click += (_, _) => IdentifyOverlay.Show(_monitors);
         _tips.SetToolTip(identify, "Show each monitor's name on its own screen");
-        toolRow.Controls.Add(identify);
+        _toolRow.Controls.Add(identify);
 
         _refreshButton = new FlatButton("Refresh") { Width = 82, Margin = new Padding(0, 0, 6, 0) };
         _refreshButton.Click += (_, _) => _ = RebuildAsync();
         _tips.SetToolTip(_refreshButton, "Re-read every monitor");
-        toolRow.Controls.Add(_refreshButton);
+        _toolRow.Controls.Add(_refreshButton);
 
         var warmOff = new FlatButton("Warmth off") { Width = 100 };
         warmOff.Click += (_, _) => WarmthOff();
         _tips.SetToolTip(warmOff,
             "Restore each display's original gamma, including any ICC or colorimeter profile");
-        toolRow.Controls.Add(warmOff);
+        _toolRow.Controls.Add(warmOff);
 
-        bar.Controls.Add(toolRow);
+        _bar.Controls.Add(_toolRow);
 
         // ---- desk map ------------------------------------------------------
         _map = new LayoutMap { Dock = DockStyle.Top };
@@ -134,7 +164,7 @@ internal sealed class MainForm : Form
         Controls.Add(_list);
         Controls.Add(_status);
         Controls.Add(_map);
-        Controls.Add(bar);
+        Controls.Add(_bar);
 
         // ---- tray ----------------------------------------------------------
         var menu = new ContextMenuStrip { ShowImageMargin = false };
@@ -145,6 +175,9 @@ internal sealed class MainForm : Form
             var captured = level;
             menu.Items.Add(captured.Name, null, (_, _) => ApplyLevel(captured));
         }
+        // The tray is where a preset is most likely to be hit by accident, so
+        // the way back has to be here too.
+        menu.Items.Add(Presets.CustomName, null, (_, _) => ApplyCustom());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Warmth off", null, (_, _) => WarmthOff());
 
@@ -179,6 +212,27 @@ internal sealed class MainForm : Form
         };
         menu.Items.Add(startWithWindows);
 
+        // Its partner. StartMinimised has existed in settings.json from the
+        // start with nothing in the product to set it, which meant the only
+        // people who could reach it were people editing JSON by hand - and it
+        // crashed the app when they did. A setting worth having is worth
+        // offering next to the one it pairs with.
+        var startMinimised = new ToolStripMenuItem("Start minimised")
+        {
+            CheckOnClick = true,
+            Checked = _settings.StartMinimised,
+            ToolTipText = "Go straight to the notification area at launch, with no window.",
+        };
+        startMinimised.CheckedChanged += (_, _) =>
+        {
+            _settings.StartMinimised = startMinimised.Checked;
+            _settings.Save();
+            SetStatus(startMinimised.Checked
+                ? "LumenDeck will start in the notification area."
+                : "LumenDeck will show its window at launch.");
+        };
+        menu.Items.Add(startMinimised);
+
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => { _reallyClosing = true; Close(); });
 
@@ -194,7 +248,17 @@ internal sealed class MainForm : Form
         // Settings are written on a delay so dragging a slider does not hammer
         // the disk with a write per pixel.
         _saveTimer = new System.Windows.Forms.Timer { Interval = 1200 };
-        _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); _settings.Save(); };
+        _saveTimer.Tick += (_, _) =>
+        {
+            _saveTimer.Stop();
+            _settings.Save();
+
+            // The gamma baselines ride the same timer. They only have to be
+            // current before the process ends - but if it ends unexpectedly, a
+            // stale record is what makes the next session unable to tell its own
+            // ramp from the display's.
+            DisplayGamma.Save();
+        };
 
         // Windows sends WM_DISPLAYCHANGE several times for one physical change,
         // and a rebuild costs a full DDC enumeration, so they are coalesced.
@@ -208,7 +272,8 @@ internal sealed class MainForm : Form
         _worker.WriteFailed += OnWriteFailed;
 
         SetStatus("Reading monitors over DDC/CI...");
-        if (_settings.StartMinimised) WindowState = FormWindowState.Minimized;
+        // StartMinimised is applied in OnShown, not here. Setting WindowState in
+        // the constructor is what made the option crash the process - see there.
     }
 
     /// <summary>
@@ -221,7 +286,52 @@ internal sealed class MainForm : Form
     protected override async void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        _shown = true;
+        FitMinimumWidthToToolbar();
+
+        // "Start minimised" happens here rather than in the constructor, and the
+        // difference is not cosmetic: it used to kill the process outright.
+        //
+        // Assigning WindowState before the window has ever been shown means the
+        // first WM_SIZE arrives already minimised. OnResize reacts by hiding to
+        // the tray, and part of that is assigning ShowInTaskbar - which forces
+        // WinForms to recreate the window handle, which resizes the form, which
+        // re-enters OnResize with the state still Minimized. Round it goes until
+        // the stack is gone: exit code 0xC00000FD, STACK_OVERFLOW. There is no
+        // window, no tray icon and no error.log, because a StackOverflowException
+        // cannot be caught - the app simply is not there after login, which is
+        // the one moment nobody is watching it start.
+        //
+        // Minimising from here takes the ordinary path, the same one a click on
+        // the minimise box has always taken. The window is briefly visible; that
+        // is the honest price and it beats not starting.
+        if (_settings.StartMinimised) WindowState = FormWindowState.Minimized;
+
         await RebuildAsync();
+    }
+
+    /// <summary>
+    /// Make the window's minimum width whatever the toolbar actually needs.
+    ///
+    /// The row does not wrap, so a button added later - or the same buttons
+    /// drawn at 150% DPI - silently falls off the right-hand edge with no
+    /// scrollbar and no affordance. Twice now that has been fixed by raising a
+    /// constant, which fixes the instance and not the bug. Measured after the
+    /// window is shown, because that is the first moment the controls have been
+    /// scaled for the monitor they are on.
+    /// </summary>
+    private void FitMinimumWidthToToolbar()
+    {
+        int content = _bar.Padding.Horizontal + _toolRow.Padding.Horizontal;
+        foreach (Control c in _toolRow.Controls)
+            content += c.Width + c.Margin.Horizontal;
+
+        int chrome = Width - ClientSize.Width;
+        int need = content + chrome + LogicalToDeviceUnits(8);
+        if (need <= MinimumSize.Width) return;
+
+        MinimumSize = new Size(need, MinimumSize.Height);
+        if (Width < need) Width = need;
     }
 
     // ---------------------------------------------------------------- rebuild
@@ -236,14 +346,13 @@ internal sealed class MainForm : Form
 
         try
         {
-            // Order matters. Drop queued writes, then take the lock the writer
-            // holds around every native call, so no handle is freed while the
-            // background thread is inside a write to it.
+            // Order matters. Drop queued writes before disposing monitor
+            // handles. Monitor.Dispose shares that monitor's own I/O lock with
+            // the writer, so it waits for an in-flight request without making a
+            // slow display block every other display.
             _worker.ClearPending();
-            lock (_worker.HandleLock)
-            {
-                foreach (var m in _monitors) m.Dispose();
-            }
+            UnregisterPowerHotkeys();
+            foreach (var m in _monitors) m.Dispose();
             _monitors.Clear();
 
             // Controls.Clear() removes without disposing, so every font, label
@@ -257,10 +366,7 @@ internal sealed class MainForm : Form
 
             if (IsDisposed || gen != _generation)
             {
-                lock (_worker.HandleLock)
-                {
-                    foreach (var m in found) m.Dispose();
-                }
+                foreach (var m in found) m.Dispose();
                 return;
             }
 
@@ -270,25 +376,53 @@ internal sealed class MainForm : Form
             {
                 m.Kelvin = _settings.KelvinFor(m.StableKey);
 
-                // Reapply on every rebuild, not only at startup: a display
-                // change resets the GPU gamma ramp, so without this the warmth
-                // silently vanishes whenever a mode changes.
-                if (_settings.ReapplyColourOnStart && m.Kelvin != GammaControl.NeutralKelvin)
-                    GammaControl.Apply(m.DeviceName, m.Kelvin, m.BaselineRamp);
+                if (_settings.ReapplyColourOnStart)
+                {
+                    // Reapply on every rebuild, not only at startup: a display
+                    // change resets the GPU gamma ramp, so without this the
+                    // warmth silently vanishes whenever a mode changes.
+                    //
+                    // Also written when the saved warmth is neutral but the ramp
+                    // on the display is still one of ours - after a crash, say.
+                    // That case needs the baseline putting back, and skipping it
+                    // is how a display stays tinted with the slider reading off.
+                    if (m.Kelvin != GammaControl.NeutralKelvin || m.GammaIsOurs)
+                        DisplayGamma.Apply(m);
+                }
+                else if (!m.GammaIsOurs)
+                {
+                    // Not reapplying, and the ramp on the display is not ours -
+                    // a reboot or a driver restart cleared it. The saved number
+                    // is now a claim about nothing, so show what is true.
+                    m.Kelvin = GammaControl.NeutralKelvin;
+                }
 
-                var card = new MonitorCard(m, _worker, SaveSoon, s => SetStatus(s));
+                // Give this monitor a Custom position from whatever it is
+                // already set to, so the very first press of a preset is
+                // reversible rather than one-way.
+                _settings.SeedCustom(m);
+
+                var card = new MonitorCard(
+                    m, _settings, _worker, OnCardChanged, s => SetStatus(s),
+                    TogglePower, ConfigurePowerHotkey, LoadFeaturesForCard);
                 card.SetWidth(CardWidth);
                 _cards.Add(card);
                 _list.Controls.Add(card);
             }
 
             _map.SetMonitors(_monitors);
-            ReportInventory(reason);
 
-            // Capability strings are the slowest DDC request there is, so they
-            // are read after the window is already usable, one monitor at a
-            // time, and each card grows its controls as its answer arrives.
-            _ = LoadFeaturesAsync(gen);
+            // Seeded Custom positions and resolved baselines are both new facts
+            // about this desk. Persist them rather than waiting for the next
+            // slider move, or a crash before then loses the way back.
+            SaveSoon();
+            ReportInventory(reason);
+            RegisterPowerHotkeys();
+
+            // Capability strings are loaded only when their disclosure is
+            // opened. They are the slowest DDC request available; probing all
+            // monitors immediately was enough to make early slider writes wait
+            // seconds behind information the person had not asked to see.
 
             Diagnostics.Log(() =>
                 $"rebuild {gen}  monitors={_monitors.Count}  cards={_cards.Count}  " +
@@ -311,30 +445,18 @@ internal sealed class MainForm : Form
         return n;
     }
 
-    /// <summary>
-    /// Probe each monitor's extra controls in the background and hand them to
-    /// its card as they arrive. Per monitor rather than all at once, so a slow
-    /// panel delays only its own controls.
-    /// </summary>
-    private async Task LoadFeaturesAsync(int gen)
+    /// <summary>Load one card's optional controls on demand.</summary>
+    private async void LoadFeaturesForCard(MonitorCard card)
     {
-        var cards = _cards.ToList();
-        foreach (var card in cards)
-        {
-            if (IsDisposed || gen != _generation) return;
+        if (card == null || card.IsDisposed || card.Monitor.FeaturesLoaded) return;
+        int gen = _generation;
+        var monitor = card.Monitor;
+        card.BeginFeatureLoad();
 
-            var monitor = card.Monitor;
-            await Task.Run(() =>
-            {
-                lock (_worker.HandleLock)
-                {
-                    if (gen == _generation) MonitorService.LoadFeatures(monitor);
-                }
-            });
+        await Task.Run(() => MonitorService.LoadFeatures(monitor));
 
-            if (IsDisposed || gen != _generation || card.IsDisposed) return;
-            card.PopulateFeatures();
-        }
+        if (IsDisposed || gen != _generation || card.IsDisposed) return;
+        card.PopulateFeatures(expand: true);
     }
 
     private void ReportInventory(string reason)
@@ -360,7 +482,10 @@ internal sealed class MainForm : Form
             kind = StatusKind.Warn;
         }
 
-        if (_monitors.Any(m => m.Kelvin != GammaControl.NeutralKelvin))
+        // Only claim this when it actually happened. The old wording appeared
+        // whenever a saved kelvin existed, including with reapply switched off,
+        // where nothing had been written to any display.
+        if (_settings.ReapplyColourOnStart && _monitors.Any(m => m.Kelvin != GammaControl.NeutralKelvin))
             s += "  Saved warmth reapplied.";
 
         if (reason != null) s = reason + "  " + s;
@@ -377,9 +502,125 @@ internal sealed class MainForm : Form
     /// <summary>Raised on the worker thread when a write is refused.</summary>
     private void OnWriteFailed(Monitor m, DdcWorker.Feature what)
     {
+        if (IsDisposed) return;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnWriteFailed(m, what)));
+            return;
+        }
+
         string name = m?.FriendlyName ?? "A monitor";
-        SetStatus($"{name} refused the {what.ToString().ToLowerInvariant()} change - " +
-                  "it may be asleep or on another input. Press Refresh to re-read it.", StatusKind.Warn);
+        if (what is DdcWorker.Feature.Brightness or DdcWorker.Feature.Contrast)
+        {
+            var card = _cards.FirstOrDefault(c => c.Monitor == m);
+            if (card is { IsDisposed: false }) card.SyncFromMonitor();
+            _map.Refresh(null);
+        }
+
+        string detail = what == DdcWorker.Feature.Power
+            ? "power command"
+            : what.ToString().ToLowerInvariant() + " change";
+        SetStatus($"{name} refused the {detail} - it may be asleep, on another input, " +
+                  "or have DDC/CI disabled.", StatusKind.Warn);
+    }
+
+    private void TogglePower(MonitorCard card)
+    {
+        if (card == null || card.IsDisposed || !card.Monitor.HasPhysicalHandle)
+        {
+            SetStatus("That display has no DDC/CI power control.", StatusKind.Warn);
+            return;
+        }
+
+        bool turningOff = _worker.TogglePower(card.Monitor);
+        SetStatus($"{card.Monitor.DisplayName}: " +
+                  (turningOff
+                      ? "entering DPMS-off, the monitor's lowest normal power state."
+                      : "wake command sent."));
+    }
+
+    private void ConfigurePowerHotkey(MonitorCard card)
+    {
+        if (card == null || card.IsDisposed) return;
+        string current = _settings.PowerHotkeyFor(card.Monitor.StableKey);
+        using var dialog = new PowerHotkeyDialog(card.Monitor.DisplayName, current);
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        string selected = dialog.SelectedShortcut ?? current;
+        PowerHotkey.TryParse(selected, out var selectedHotkey);
+        if (!string.IsNullOrEmpty(selected) &&
+            _cards.Any(c => c != card &&
+                PowerHotkey.TryParse(_settings.PowerHotkeyFor(c.Monitor.StableKey), out var other) &&
+                other.Modifiers == selectedHotkey.Modifiers &&
+                other.VirtualKey == selectedHotkey.VirtualKey))
+        {
+            SetStatus($"{selected} is already assigned to another monitor.", StatusKind.Warn);
+            return;
+        }
+
+        _settings.SetPowerHotkey(card.Monitor.StableKey, card.Monitor.DisplayName, selected);
+        _settings.Save();
+        card.SetPowerShortcutText(selected);
+        RegisterPowerHotkeys();
+        bool active = string.IsNullOrEmpty(selected) || _powerHotkeys.Values.Contains(card);
+        SetStatus(string.IsNullOrEmpty(selected)
+            ? $"{card.Monitor.DisplayName}: power shortcut cleared."
+            : active
+                ? $"{card.Monitor.DisplayName}: {selected} now toggles screen power."
+                : $"{selected} was saved for {card.Monitor.DisplayName}, but Windows refused to register it; " +
+                  "another app may already use it.",
+            active ? StatusKind.Info : StatusKind.Warn);
+    }
+
+    private void RegisterPowerHotkeys()
+    {
+        if (!IsHandleCreated || IsDisposed) return;
+        UnregisterPowerHotkeys();
+
+        int id = FirstPowerHotkeyId;
+        foreach (var card in _cards)
+        {
+            string text = _settings.PowerHotkeyFor(card.Monitor.StableKey);
+            if (!PowerHotkey.TryParse(text, out var hotkey)) continue;
+
+            int candidate = id++;
+            if (Native.RegisterHotKey(Handle, candidate,
+                    hotkey.Modifiers | Native.MOD_NOREPEAT, hotkey.VirtualKey))
+            {
+                _powerHotkeys[candidate] = card;
+            }
+            else
+            {
+                SetStatus($"Could not register {hotkey.Text} for {card.Monitor.DisplayName}; " +
+                          "another app may already use it.", StatusKind.Warn);
+            }
+        }
+    }
+
+    private void UnregisterPowerHotkeys()
+    {
+        if (IsHandleCreated)
+            foreach (int id in _powerHotkeys.Keys)
+                Native.UnregisterHotKey(Handle, id);
+        _powerHotkeys.Clear();
+    }
+
+    /// <summary>
+    /// ShowInTaskbar recreates a WinForms window handle when the form moves to
+    /// or from the notification area. RegisterHotKey belongs to that handle, so
+    /// re-register here or every shortcut would stop working at exactly the
+    /// moment the window was minimised.
+    /// </summary>
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        if (_cards.Count > 0) RegisterPowerHotkeys();
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        UnregisterPowerHotkeys();
+        base.OnHandleDestroyed(e);
     }
 
     // ----------------------------------------------------------------- levels
@@ -392,20 +633,64 @@ internal sealed class MainForm : Form
             c.ApplyWarmth(level.Kelvin);
         }
         SaveSoon();
-        _map.Refresh(null);
+        SetMode(level.Name);
 
         int unknown = _monitors.Count(m => !Presets.IsKnown(m));
         string caveat = unknown > 0
             ? $"  {unknown} panel{(unknown == 1 ? " is" : "s are")} not in the luminance table, so those values are estimates."
             : "";
-        SetStatus($"{level.Name}: every panel aimed at about {level.Nits} nits, {level.Kelvin}K.{caveat}");
+        SetStatus($"{level.Name}: every panel aimed at about {level.Nits} nits, {level.Kelvin}K." +
+                  $"{caveat}  Press {Presets.CustomName} to go back.");
+    }
+
+    /// <summary>
+    /// Put every monitor back to the levels its owner chose. This is the way out
+    /// of a preset pressed by accident, which used to be a one-way door.
+    /// </summary>
+    private void ApplyCustom()
+    {
+        int restored = _cards.Count(c => c.RestoreCustom());
+        SaveSoon();
+        SetMode(restored == 0 ? null : Presets.CustomName);
+
+        SetStatus(restored == 0
+            ? "No monitor has settings of its own saved yet - move a slider and they are remembered."
+            : $"Your own settings restored on {restored} monitor{(restored == 1 ? "" : "s")}.");
     }
 
     private void WarmthOff()
     {
         foreach (var c in _cards) c.ApplyWarmth(GammaControl.NeutralKelvin);
         SaveSoon();
+        SetMode(null);
         SetStatus("All monitors restored to their original colour.");
+    }
+
+    /// <summary>
+    /// Show which mode is in force. Null means the desk is mixed - a per-monitor
+    /// change, or warmth switched off under a preset - and no button lights up,
+    /// which is more honest than picking one.
+    /// </summary>
+    private void SetMode(string name)
+    {
+        foreach (var (key, button) in _modeButtons)
+        {
+            bool on = name != null && string.Equals(key, name, StringComparison.OrdinalIgnoreCase);
+            if (button.Primary == on) continue;
+            button.Primary = on;
+            button.Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// A card changed. <paramref name="manual"/> distinguishes a slider somebody
+    /// moved - which becomes their Custom position - from a preset being applied
+    /// to one monitor, which must not.
+    /// </summary>
+    private void OnCardChanged(MonitorCard card, bool manual)
+    {
+        SetMode(manual ? Presets.CustomName : null);
+        SaveSoon();
     }
 
     private void SaveSoon()
@@ -420,6 +705,12 @@ internal sealed class MainForm : Form
 
     protected override void WndProc(ref Message msg)
     {
+        if (msg.Msg == WM_HOTKEY && _powerHotkeys.TryGetValue(msg.WParam.ToInt32(), out var card))
+        {
+            TogglePower(card);
+            return;
+        }
+
         if (msg.Msg == WM_DISPLAYCHANGE && IsHandleCreated && !IsDisposed)
         {
             _displayChangeTimer.Stop();
@@ -435,7 +726,11 @@ internal sealed class MainForm : Form
         if (_list != null)
             foreach (var c in _cards) c.SetWidth(CardWidth);
 
-        if (_settings.MinimiseToTray && WindowState == FormWindowState.Minimized)
+        // _shown is the guard that keeps this off the pre-show resize. Hiding to
+        // the tray assigns ShowInTaskbar, which recreates the window handle and
+        // resizes the form again; before the window exists that recursion has no
+        // floor and overflows the stack. After it exists, it settles.
+        if (_shown && _settings.MinimiseToTray && WindowState == FormWindowState.Minimized)
         {
             Hide();
             ShowInTaskbar = false;
@@ -455,10 +750,7 @@ internal sealed class MainForm : Form
         var snapshot = _cards.ToList();
         await Task.Run(() =>
         {
-            lock (_worker.HandleLock)
-            {
-                foreach (var c in snapshot) MonitorService.ReadCurrent(c.Monitor);
-            }
+            foreach (var c in snapshot) MonitorService.ReadCurrent(c.Monitor);
         });
         if (IsDisposed) return;
         foreach (var c in snapshot) if (!c.IsDisposed) c.SyncFromMonitor();
@@ -475,20 +767,19 @@ internal sealed class MainForm : Form
         }
 
         _generation++;              // invalidate any rebuild still in flight
+        UnregisterPowerHotkeys();
         _saveTimer.Stop();
         _displayChangeTimer.Stop();
         _worker.WriteFailed -= OnWriteFailed;
         _settings.Save();
+        DisplayGamma.Save();
 
         _tray.Visible = false;
         _tray.Dispose();
 
         // Stop the writer before freeing what it writes to.
         _worker.Dispose();
-        lock (_worker.HandleLock)
-        {
-            foreach (var m in _monitors) m.Dispose();
-        }
+        foreach (var m in _monitors) m.Dispose();
         _monitors.Clear();
 
         _appIcon.Dispose();

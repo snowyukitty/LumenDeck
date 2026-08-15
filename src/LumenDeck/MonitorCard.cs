@@ -20,7 +20,14 @@ internal sealed class MonitorCard : Panel
     public Monitor Monitor { get; }
 
     private readonly DdcWorker _worker;
-    private readonly Action _onChanged;
+    private readonly AppSettings _settings;
+
+    /// <summary>Raised after any change. The flag says whether a person moved a control by hand.</summary>
+    private readonly Action<MonitorCard, bool> _onChanged;
+    private readonly Action<MonitorCard> _onPowerToggle;
+    private readonly Action<MonitorCard> _onConfigurePowerHotkey;
+    private readonly Action<MonitorCard> _onFeaturesRequested;
+
     private readonly Action<string> _report;
 
     private readonly Slider _brightness;
@@ -31,10 +38,12 @@ internal sealed class MonitorCard : Panel
     private readonly TableLayoutPanel _grid;
     private readonly Panel _extras;
     private readonly LinkLabel _disclosure;
+    private readonly LinkLabel _powerShortcut;
 
     private bool _suppress;
     private bool _highlighted;
     private bool _extrasBuilt;
+    private bool _featuresLoading;
 
     // One ToolTip for the whole card, disposed with it. A `new ToolTip()` per
     // button looks harmless and is not: cards are rebuilt on every display
@@ -47,12 +56,20 @@ internal sealed class MonitorCard : Panel
     // is being disposed.
     private System.Windows.Forms.Timer _highlightTimer;
 
-    public MonitorCard(Monitor m, DdcWorker worker, Action onChanged, Action<string> report)
+    public MonitorCard(Monitor m, AppSettings settings, DdcWorker worker,
+                       Action<MonitorCard, bool> onChanged, Action<string> report,
+                       Action<MonitorCard> onPowerToggle,
+                       Action<MonitorCard> onConfigurePowerHotkey,
+                       Action<MonitorCard> onFeaturesRequested)
     {
         Monitor = m;
+        _settings = settings;
         _worker = worker;
-        _onChanged = onChanged;
+        _onChanged = onChanged ?? ((_, _) => { });
         _report = report ?? (_ => { });
+        _onPowerToggle = onPowerToggle ?? (_ => { });
+        _onConfigurePowerHotkey = onConfigurePowerHotkey ?? (_ => { });
+        _onFeaturesRequested = onFeaturesRequested ?? (_ => { });
 
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -75,7 +92,10 @@ internal sealed class MonitorCard : Panel
             ColumnCount = 2,
             BackColor = Color.Transparent,
         };
-        _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84f));
+        // Leave enough room for "Brightness" at 100%-plus Windows DPI.
+        // TableLayoutPanel counts the label's horizontal margins inside this
+        // column, so the previous 84px could wrap the final character.
+        _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96f));
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
         // ---- header ------------------------------------------------------
@@ -121,6 +141,46 @@ internal sealed class MonitorCard : Panel
         _warmth.ValueChanged += (_, _) => OnWarmth();
         AddRow(row++, "Warmth", _warmth, null);
 
+        // DPMS-off is a real low-power state, not brightness zero. Keeping the
+        // action on every card makes it unambiguous which physical display will
+        // go dark; the adjacent link gives that same action a global shortcut.
+        var powerRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            Margin = new Padding(0, 5, 0, 3),
+            BackColor = Color.Transparent,
+        };
+        var powerButton = new FlatButton("Screen off / on")
+        {
+            Width = 126,
+            Enabled = m.HasPhysicalHandle && !m.IsInternalPanel,
+            Margin = new Padding(0, 0, 12, 0),
+        };
+        powerButton.Click += (_, _) => _onPowerToggle(this);
+        _tips.SetToolTip(powerButton,
+            "Toggle this monitor between on and MCCS DPMS-off, its lowest normal power state");
+        powerRow.Controls.Add(powerButton);
+
+        _powerShortcut = new LinkLabel
+        {
+            Font = Theme.Small,
+            LinkColor = Theme.Info,
+            ActiveLinkColor = Theme.AmberLight,
+            VisitedLinkColor = Theme.Info,
+            LinkBehavior = LinkBehavior.NeverUnderline,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Enabled = powerButton.Enabled,
+            Margin = new Padding(0, 8, 0, 0),
+            BackColor = Color.Transparent,
+        };
+        _powerShortcut.LinkClicked += (_, _) => _onConfigurePowerHotkey(this);
+        SetPowerShortcutText(_settings?.PowerHotkeyFor(m.StableKey));
+        powerRow.Controls.Add(_powerShortcut);
+        AddRow(row++, "Power", powerRow, powerButton.Enabled ? null : "no DDC");
+
         // ---- per-monitor presets ------------------------------------------
         var presets = new FlowLayoutPanel
         {
@@ -138,18 +198,40 @@ internal sealed class MonitorCard : Panel
             {
                 ApplyBrightness(Presets.BrightnessFor(Monitor, captured.Nits));
                 ApplyWarmth(captured.Kelvin);
-                _onChanged();
+                _onChanged(this, false);
                 _report($"{Monitor.DisplayName}: {captured.Name} - about {captured.Nits} nits, {captured.Kelvin}K.");
             };
             _tips.SetToolTip(b, $"{captured.Description}\nThis monitor only.");
             presets.Controls.Add(b);
         }
+
+        // Set apart from the three above, because it is not a fourth level: it
+        // is the way back from them.
+        var custom = new FlatButton(Presets.CustomName) { Width = 78, Margin = new Padding(10, 0, 0, 0) };
+        custom.Click += (_, _) =>
+        {
+            if (RestoreCustom())
+            {
+                _onChanged(this, false);
+                _report($"{Monitor.DisplayName}: back to your own settings.");
+            }
+            else
+            {
+                _report($"{Monitor.DisplayName} has no saved settings of its own yet - " +
+                        "move a slider and they are remembered.");
+            }
+        };
+        _tips.SetToolTip(custom,
+            "Your own brightness, contrast and warmth for this monitor.\n" +
+            "Saved whenever you move one of its sliders, and never touched by a preset.");
+        presets.Controls.Add(custom);
+
         _grid.Controls.Add(presets, 1, row++);
 
         // ---- extras, collapsed --------------------------------------------
         _disclosure = new LinkLabel
         {
-            Text = "Reading this monitor's other controls...",
+            Text = m.HasPhysicalHandle ? "Show this monitor's other controls" : "",
             Font = Theme.Small,
             LinkColor = Theme.Info,
             ActiveLinkColor = Theme.AmberLight,
@@ -157,11 +239,17 @@ internal sealed class MonitorCard : Panel
             LinkBehavior = LinkBehavior.NeverUnderline,
             ForeColor = Theme.InkFaint,
             AutoSize = true,
-            Enabled = false,
+            Enabled = m.HasPhysicalHandle,
             Margin = new Padding(2, 10, 0, 0),
             BackColor = Color.Transparent,
         };
-        _disclosure.LinkClicked += (_, _) => ToggleExtras();
+        if (m.HasPhysicalHandle)
+            _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
+        _disclosure.LinkClicked += (_, _) =>
+        {
+            if (Monitor.FeaturesLoaded) ToggleExtras();
+            else if (!_featuresLoading) _onFeaturesRequested(this);
+        };
         _grid.Controls.Add(_disclosure, 1, row++);
 
         _extras = new Panel
@@ -286,7 +374,7 @@ internal sealed class MonitorCard : Panel
         Monitor.Brightness = _brightness.Value;
         _worker.Set(Monitor, DdcWorker.Feature.Brightness, _brightness.Value);
         RefreshLabels();
-        _onChanged();
+        ManualEdit();
     }
 
     private void OnContrast()
@@ -294,7 +382,18 @@ internal sealed class MonitorCard : Panel
         if (_suppress || !Monitor.SupportsContrast) return;
         Monitor.Contrast = _contrast.Value;
         _worker.Set(Monitor, DdcWorker.Feature.Contrast, _contrast.Value);
-        _onChanged();
+        ManualEdit();
+    }
+
+    /// <summary>
+    /// A person moved a control on this card. That is the only thing that
+    /// rewrites their Custom position - the presets deliberately do not, which
+    /// is what makes them reversible.
+    /// </summary>
+    private void ManualEdit()
+    {
+        _settings?.CaptureCustom(Monitor);
+        _onChanged(this, true);
     }
 
     private static int WarmthFromKelvin(int kelvin) =>
@@ -308,17 +407,18 @@ internal sealed class MonitorCard : Panel
         if (_suppress) return;
         Monitor.Kelvin = KelvinFromWarmth(_warmth.Value);
         ApplyGamma();
-        _onChanged();
+        ManualEdit();
     }
 
     /// <summary>
-    /// Composed onto the baseline captured before the app touched this display,
-    /// so 6500K restores whatever ICC or colorimeter LUT was already loaded
-    /// instead of flattening it to identity.
+    /// Composed onto the baseline this display owns, so 6500K restores whatever
+    /// ICC or colorimeter LUT was already loaded instead of flattening it to
+    /// identity - and onto the baseline rather than onto the ramp that happens
+    /// to be loaded, which is what stops warmth stacking on warmth.
     /// </summary>
     private void ApplyGamma()
     {
-        if (!GammaControl.Apply(Monitor.DeviceName, Monitor.Kelvin, Monitor.BaselineRamp))
+        if (!DisplayGamma.Apply(Monitor))
             _report($"{Monitor.DisplayName}: the graphics driver refused the colour change.");
     }
 
@@ -334,6 +434,17 @@ internal sealed class MonitorCard : Panel
         RefreshLabels();
     }
 
+    public void ApplyContrast(int raw)
+    {
+        if (!Monitor.SupportsContrast) return;
+        int v = Math.Clamp(raw, _contrast.Minimum, _contrast.Maximum);
+        _suppress = true;
+        _contrast.SetValueSilently(v);
+        _suppress = false;
+        Monitor.Contrast = v;
+        _worker.Set(Monitor, DdcWorker.Feature.Contrast, v);
+    }
+
     public void ApplyWarmth(int kelvin)
     {
         int k = Math.Clamp(kelvin, GammaControl.MinKelvin, GammaControl.NeutralKelvin);
@@ -342,6 +453,27 @@ internal sealed class MonitorCard : Panel
         _suppress = false;
         Monitor.Kelvin = k;
         ApplyGamma();
+    }
+
+    /// <summary>
+    /// Put this monitor back to the values its owner chose. False if none were
+    /// ever saved, so the caller can say so rather than appear to do nothing.
+    /// </summary>
+    public bool RestoreCustom()
+    {
+        var e = _settings?.Find(Monitor.StableKey);
+        if (e is not { HasCustom: true }) return false;
+
+        if (e.CustomBrightnessPercent is double bp)
+            ApplyBrightness(Presets.PercentToRaw(Monitor, bp));
+
+        if (e.CustomContrastPercent is double cp)
+            ApplyContrast(Presets.FromPercent(cp, Monitor.ContrastMin, Monitor.ContrastMax));
+
+        if (e.CustomKelvin is int k)
+            ApplyWarmth(k);
+
+        return true;
     }
 
     /// <summary>Pull live values back off the monitor into the controls.</summary>
@@ -372,10 +504,30 @@ internal sealed class MonitorCard : Panel
 
     // ---------------------------------------------------------------- extras
 
+    public void SetPowerShortcutText(string shortcut)
+    {
+        if (_powerShortcut == null) return;
+        _powerShortcut.Text = string.IsNullOrWhiteSpace(shortcut)
+            ? "Set shortcut"
+            : shortcut.Trim();
+        _powerShortcut.Links.Clear();
+        _powerShortcut.LinkArea = new LinkArea(0, _powerShortcut.Text.Length);
+    }
+
+    public void BeginFeatureLoad()
+    {
+        if (_featuresLoading || Monitor.FeaturesLoaded) return;
+        _featuresLoading = true;
+        _disclosure.Enabled = false;
+        _disclosure.Text = "Reading this monitor's other controls...";
+    }
+
     /// <summary>Called once the background capability probe finishes for this monitor.</summary>
-    public void PopulateFeatures()
+    public void PopulateFeatures(bool expand = false)
     {
         if (IsDisposed || _grid.IsDisposed) return;
+
+        _featuresLoading = false;
 
         int n = Monitor.Features.Count;
         if (n == 0)
@@ -393,6 +545,8 @@ internal sealed class MonitorCard : Panel
         _disclosure.Text = $"Show {n} more control{(n == 1 ? "" : "s")} on this monitor";
         _disclosure.LinkColor = Theme.Info;
         _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
+
+        if (expand) ToggleExtras();
     }
 
     private void ToggleExtras()

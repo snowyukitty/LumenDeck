@@ -17,7 +17,12 @@
 
 param(
     [int]$Cycles = 8,
-    [int]$SettleMs = 1600
+    # WM_DISPLAYCHANGE is debounced for 900 ms before enumeration even starts.
+    # Four real DDC monitors take several seconds after that; sampling sooner
+    # measures alternating empty/half-built/full UI states and reports the
+    # oscillation as a leak. 6500 ms is the measured complete-rebuild interval
+    # on the four-monitor development desk.
+    [int]$SettleMs = 6500
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,10 +46,8 @@ public class Gui {
 Get-Process LumenDeck -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 600
 
-# Poll for the window rather than sleeping a guessed interval. A fixed 4 s wait
-# failed here even though the app was perfectly healthy: startup blocks on a full
-# DDC enumeration, and reading four capability strings is slow. Sleeping a guess
-# turns a slow start into a false failure.
+# Poll for the window rather than sleeping a guessed startup interval. The form
+# appears before its background DDC enumeration finishes, which is intentional.
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $p = Start-Process $exe -PassThru
 $hwnd = 0

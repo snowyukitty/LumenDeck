@@ -5,9 +5,13 @@ namespace LumenDeck;
 /// <summary>
 /// Reads the monitor's own EDID block straight out of the PnP registry key.
 ///
-/// Deliberately not WMI: WmiMonitorID would mean taking a dependency on the
-/// System.Management NuGet package, which turns this into a project that needs a
-/// restore with network access. The registry route ships in the framework.
+/// Deliberately not WMI. `WmiMonitorID` would put every monitor's identity
+/// behind a WMI query, and a WMI query initialises COM on the calling thread -
+/// which is the thing that reproducibly broke the first DDC read afterwards (see
+/// MonitorService.AttachInternalPanels). The registry route touches none of
+/// that, works before any COM apartment exists, and is faster. The project does
+/// carry System.Management, but only for laptop internal-panel brightness, where
+/// there is no alternative.
 ///
 /// EDID is also the identity to trust. A monitor's MCCS capability string can
 /// carry the wrong model outright: firmware gets copy-pasted across a product

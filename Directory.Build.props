@@ -1,0 +1,27 @@
+<Project>
+
+  <!--
+    One version for the whole product.
+
+    Before this file the three projects carried their own <Version>, and they
+    disagreed: the window said 1.1.0 while the engine and the command line said
+    1.0.0. Nothing enforced agreement, so the numbers drifted apart silently and
+    the only place the difference surfaced was the version the command line
+    prints, which is exactly what a bug report is asked to quote. A version
+    people are told to paste into an issue has to be the version of the thing
+    they actually ran.
+
+    The two executables ship together and are only ever released together, so
+    there is no case for versioning them apart. Set it here, once.
+  -->
+  <PropertyGroup>
+    <Version>1.1.0</Version>
+    <Company>LumenDeck</Company>
+    <Authors>LumenDeck contributors</Authors>
+    <Copyright>Copyright (c) LumenDeck contributors</Copyright>
+    <RepositoryUrl>https://github.com/snowyukitty/LumenDeck</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

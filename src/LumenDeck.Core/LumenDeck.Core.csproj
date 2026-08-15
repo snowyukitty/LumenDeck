@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>LumenDeck</RootNamespace>
     <AssemblyName>LumenDeck.Core</AssemblyName>
-    <Version>1.0.0</Version>
+    <!-- Version comes from Directory.Build.props. -->
     <!-- No WinForms here on purpose: the monitor engine must be usable from a
          plain console process, a service, or a test host. Only the GUI project
          pulls in WinForms. -->
