@@ -27,10 +27,11 @@ Runs as an ordinary user. No administrator rights, no drivers, no service.
 lumendeck-cli --list            # every monitor and what it will accept
 lumendeck-cli --preset Night    # level the whole desk for the evening
 lumendeck-cli -m "left" -b 55 -w 5000
+lumendeck-cli -m "left" --power toggle
 ```
 
 <p align="center">
-  <img src="docs/assets/screenshot.png" alt="LumenDeck: a scale drawing of the desk layout above one card per monitor, each with brightness, contrast and warmth sliders" width="620">
+  <img src="docs/assets/screenshot.png" alt="LumenDeck: a scale drawing of the desk layout above one card per monitor, each with brightness, contrast and warmth sliders plus a screen power toggle and shortcut" width="620">
 </p>
 
 <p align="center"><sub>Three different sliders — 76%, 43%, 56% — and all three read
@@ -48,6 +49,7 @@ your own screenshots can be too.</sub></p>
 | **Colour temperature** | Per monitor, 3000K–6500K, as a blue light filter |
 | **Luminance-matched presets** | Day / Evening / Night — aims every panel at the *same light*, not the same number |
 | **Custom** | Your own levels per monitor, remembered as you set them. Every preset is reversible |
+| **Lowest-power screen off** | DPMS-off per external monitor, with an optional global shortcut that wakes it again |
 | **Everything else your monitor offers** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, power, factory reset — discovered from each monitor, not assumed |
 | **Desk map** | A scale drawing of your actual monitor layout; click a screen to jump to it |
 | **Identify** | Puts each monitor's name on its own glass |
@@ -161,6 +163,7 @@ Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). `install.ps1
 -b, --brightness <n>    0-100, or a relative step: +10, -10
 -c, --contrast <n>      0-100, or a relative step: +10, -10
 -w, --warmth <kelvin>   3000-6500, or "off"
+    --power <mode>       toggle | off | on; per-monitor DPMS power
 -v, --version           Version
 ```
 
@@ -168,12 +171,21 @@ Exit codes: `0` done, `1` nothing matched, `2` a monitor refused the change — 
 it can be used in a scheduled task or bound to a hotkey by whatever launcher you
 already use.
 
+Each external-monitor card also has **Screen off / on** and **Set shortcut**.
+The shortcut is global: it works while LumenDeck is in the notification area.
+Off sends MCCS VCP `D6=04` (DPMS-off), which powers down the panel and backlight
+instead of merely setting brightness to zero; the next press sends `D6=01` to
+wake that same monitor. Laptop internal panels do not expose this DDC command.
+
 ```powershell
 # dim everything a notch
 lumendeck-cli --brightness -10
 
 # warm only the screen on the left
 lumendeck-cli -m left --warmth 4600
+
+# toggle one external monitor's lowest-power screen-off state
+lumendeck-cli -m left --power toggle
 
 # -m narrows what is shown, too
 lumendeck-cli --list -m left

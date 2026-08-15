@@ -35,6 +35,12 @@ internal sealed class AppSettings
         public int? CustomKelvin { get; set; }
 
         /// <summary>
+        /// Optional global shortcut that toggles this monitor between on and
+        /// DPMS-off. Stored as readable text so settings.json remains editable.
+        /// </summary>
+        public string PowerHotkey { get; set; } = "";
+
+        /// <summary>
         /// Derived, so it must not be written. A get-only property is still
         /// serialised by System.Text.Json, and it was landing in settings.json as
         /// a plain `"HasCustom": true` - which reads like a switch somebody could
@@ -82,6 +88,14 @@ internal sealed class AppSettings
     }
 
     public int KelvinFor(string key) => Find(key)?.Kelvin ?? GammaControl.NeutralKelvin;
+
+    public string PowerHotkeyFor(string key) => Find(key)?.PowerHotkey ?? "";
+
+    public void SetPowerHotkey(string key, string name, string hotkey)
+    {
+        if (string.IsNullOrEmpty(key)) return;
+        Entry(key, name).PowerHotkey = hotkey?.Trim() ?? "";
+    }
 
     public void SetKelvin(string key, string name, int kelvin)
     {
@@ -139,6 +153,7 @@ internal sealed class AppSettings
                     foreach (var m in s.Monitors)
                     {
                         m.LastSeenName ??= "";
+                        m.PowerHotkey ??= "";
                         m.Kelvin = Math.Clamp(m.Kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin);
 
                         // A hand-edited or half-written custom value must not be

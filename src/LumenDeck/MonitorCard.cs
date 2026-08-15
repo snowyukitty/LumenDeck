@@ -24,6 +24,9 @@ internal sealed class MonitorCard : Panel
 
     /// <summary>Raised after any change. The flag says whether a person moved a control by hand.</summary>
     private readonly Action<MonitorCard, bool> _onChanged;
+    private readonly Action<MonitorCard> _onPowerToggle;
+    private readonly Action<MonitorCard> _onConfigurePowerHotkey;
+    private readonly Action<MonitorCard> _onFeaturesRequested;
 
     private readonly Action<string> _report;
 
@@ -35,10 +38,12 @@ internal sealed class MonitorCard : Panel
     private readonly TableLayoutPanel _grid;
     private readonly Panel _extras;
     private readonly LinkLabel _disclosure;
+    private readonly LinkLabel _powerShortcut;
 
     private bool _suppress;
     private bool _highlighted;
     private bool _extrasBuilt;
+    private bool _featuresLoading;
 
     // One ToolTip for the whole card, disposed with it. A `new ToolTip()` per
     // button looks harmless and is not: cards are rebuilt on every display
@@ -52,13 +57,19 @@ internal sealed class MonitorCard : Panel
     private System.Windows.Forms.Timer _highlightTimer;
 
     public MonitorCard(Monitor m, AppSettings settings, DdcWorker worker,
-                       Action<MonitorCard, bool> onChanged, Action<string> report)
+                       Action<MonitorCard, bool> onChanged, Action<string> report,
+                       Action<MonitorCard> onPowerToggle,
+                       Action<MonitorCard> onConfigurePowerHotkey,
+                       Action<MonitorCard> onFeaturesRequested)
     {
         Monitor = m;
         _settings = settings;
         _worker = worker;
         _onChanged = onChanged ?? ((_, _) => { });
         _report = report ?? (_ => { });
+        _onPowerToggle = onPowerToggle ?? (_ => { });
+        _onConfigurePowerHotkey = onConfigurePowerHotkey ?? (_ => { });
+        _onFeaturesRequested = onFeaturesRequested ?? (_ => { });
 
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -81,7 +92,10 @@ internal sealed class MonitorCard : Panel
             ColumnCount = 2,
             BackColor = Color.Transparent,
         };
-        _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84f));
+        // Leave enough room for "Brightness" at 100%-plus Windows DPI.
+        // TableLayoutPanel counts the label's horizontal margins inside this
+        // column, so the previous 84px could wrap the final character.
+        _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96f));
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
         // ---- header ------------------------------------------------------
@@ -126,6 +140,46 @@ internal sealed class MonitorCard : Panel
         _warmth.Format = v => v <= 0 ? "off" : KelvinFromWarmth(v) + "K";
         _warmth.ValueChanged += (_, _) => OnWarmth();
         AddRow(row++, "Warmth", _warmth, null);
+
+        // DPMS-off is a real low-power state, not brightness zero. Keeping the
+        // action on every card makes it unambiguous which physical display will
+        // go dark; the adjacent link gives that same action a global shortcut.
+        var powerRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            Margin = new Padding(0, 5, 0, 3),
+            BackColor = Color.Transparent,
+        };
+        var powerButton = new FlatButton("Screen off / on")
+        {
+            Width = 126,
+            Enabled = m.HasPhysicalHandle && !m.IsInternalPanel,
+            Margin = new Padding(0, 0, 12, 0),
+        };
+        powerButton.Click += (_, _) => _onPowerToggle(this);
+        _tips.SetToolTip(powerButton,
+            "Toggle this monitor between on and MCCS DPMS-off, its lowest normal power state");
+        powerRow.Controls.Add(powerButton);
+
+        _powerShortcut = new LinkLabel
+        {
+            Font = Theme.Small,
+            LinkColor = Theme.Info,
+            ActiveLinkColor = Theme.AmberLight,
+            VisitedLinkColor = Theme.Info,
+            LinkBehavior = LinkBehavior.NeverUnderline,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Enabled = powerButton.Enabled,
+            Margin = new Padding(0, 8, 0, 0),
+            BackColor = Color.Transparent,
+        };
+        _powerShortcut.LinkClicked += (_, _) => _onConfigurePowerHotkey(this);
+        SetPowerShortcutText(_settings?.PowerHotkeyFor(m.StableKey));
+        powerRow.Controls.Add(_powerShortcut);
+        AddRow(row++, "Power", powerRow, powerButton.Enabled ? null : "no DDC");
 
         // ---- per-monitor presets ------------------------------------------
         var presets = new FlowLayoutPanel
@@ -177,7 +231,7 @@ internal sealed class MonitorCard : Panel
         // ---- extras, collapsed --------------------------------------------
         _disclosure = new LinkLabel
         {
-            Text = "Reading this monitor's other controls...",
+            Text = m.HasPhysicalHandle ? "Show this monitor's other controls" : "",
             Font = Theme.Small,
             LinkColor = Theme.Info,
             ActiveLinkColor = Theme.AmberLight,
@@ -185,11 +239,17 @@ internal sealed class MonitorCard : Panel
             LinkBehavior = LinkBehavior.NeverUnderline,
             ForeColor = Theme.InkFaint,
             AutoSize = true,
-            Enabled = false,
+            Enabled = m.HasPhysicalHandle,
             Margin = new Padding(2, 10, 0, 0),
             BackColor = Color.Transparent,
         };
-        _disclosure.LinkClicked += (_, _) => ToggleExtras();
+        if (m.HasPhysicalHandle)
+            _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
+        _disclosure.LinkClicked += (_, _) =>
+        {
+            if (Monitor.FeaturesLoaded) ToggleExtras();
+            else if (!_featuresLoading) _onFeaturesRequested(this);
+        };
         _grid.Controls.Add(_disclosure, 1, row++);
 
         _extras = new Panel
@@ -444,10 +504,30 @@ internal sealed class MonitorCard : Panel
 
     // ---------------------------------------------------------------- extras
 
+    public void SetPowerShortcutText(string shortcut)
+    {
+        if (_powerShortcut == null) return;
+        _powerShortcut.Text = string.IsNullOrWhiteSpace(shortcut)
+            ? "Set shortcut"
+            : shortcut.Trim();
+        _powerShortcut.Links.Clear();
+        _powerShortcut.LinkArea = new LinkArea(0, _powerShortcut.Text.Length);
+    }
+
+    public void BeginFeatureLoad()
+    {
+        if (_featuresLoading || Monitor.FeaturesLoaded) return;
+        _featuresLoading = true;
+        _disclosure.Enabled = false;
+        _disclosure.Text = "Reading this monitor's other controls...";
+    }
+
     /// <summary>Called once the background capability probe finishes for this monitor.</summary>
-    public void PopulateFeatures()
+    public void PopulateFeatures(bool expand = false)
     {
         if (IsDisposed || _grid.IsDisposed) return;
+
+        _featuresLoading = false;
 
         int n = Monitor.Features.Count;
         if (n == 0)
@@ -465,6 +545,8 @@ internal sealed class MonitorCard : Panel
         _disclosure.Text = $"Show {n} more control{(n == 1 ? "" : "s")} on this monitor";
         _disclosure.LinkColor = Theme.Info;
         _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
+
+        if (expand) ToggleExtras();
     }
 
     private void ToggleExtras()

@@ -3,6 +3,8 @@ namespace LumenDeck;
 internal sealed class MainForm : Form
 {
     private const int WM_DISPLAYCHANGE = 0x007E;
+    private const int WM_HOTKEY = 0x0312;
+    private const int FirstPowerHotkeyId = 0x4C00;
 
     private readonly DdcWorker _worker = new();
     private readonly AppSettings _settings = AppSettings.Load();
@@ -25,6 +27,9 @@ internal sealed class MainForm : Form
 
     /// <summary>Mode buttons by name, so the one in force can be shown as such.</summary>
     private readonly Dictionary<string, FlatButton> _modeButtons = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Registered global-hotkey id to the card it controls.</summary>
+    private readonly Dictionary<int, MonitorCard> _powerHotkeys = new();
 
     /// <summary>Bumped per rebuild so a slow enumeration cannot overwrite a newer one.</summary>
     private int _generation;
@@ -341,14 +346,13 @@ internal sealed class MainForm : Form
 
         try
         {
-            // Order matters. Drop queued writes, then take the lock the writer
-            // holds around every native call, so no handle is freed while the
-            // background thread is inside a write to it.
+            // Order matters. Drop queued writes before disposing monitor
+            // handles. Monitor.Dispose shares that monitor's own I/O lock with
+            // the writer, so it waits for an in-flight request without making a
+            // slow display block every other display.
             _worker.ClearPending();
-            lock (_worker.HandleLock)
-            {
-                foreach (var m in _monitors) m.Dispose();
-            }
+            UnregisterPowerHotkeys();
+            foreach (var m in _monitors) m.Dispose();
             _monitors.Clear();
 
             // Controls.Clear() removes without disposing, so every font, label
@@ -362,10 +366,7 @@ internal sealed class MainForm : Form
 
             if (IsDisposed || gen != _generation)
             {
-                lock (_worker.HandleLock)
-                {
-                    foreach (var m in found) m.Dispose();
-                }
+                foreach (var m in found) m.Dispose();
                 return;
             }
 
@@ -401,7 +402,9 @@ internal sealed class MainForm : Form
                 // reversible rather than one-way.
                 _settings.SeedCustom(m);
 
-                var card = new MonitorCard(m, _settings, _worker, OnCardChanged, s => SetStatus(s));
+                var card = new MonitorCard(
+                    m, _settings, _worker, OnCardChanged, s => SetStatus(s),
+                    TogglePower, ConfigurePowerHotkey, LoadFeaturesForCard);
                 card.SetWidth(CardWidth);
                 _cards.Add(card);
                 _list.Controls.Add(card);
@@ -414,11 +417,12 @@ internal sealed class MainForm : Form
             // slider move, or a crash before then loses the way back.
             SaveSoon();
             ReportInventory(reason);
+            RegisterPowerHotkeys();
 
-            // Capability strings are the slowest DDC request there is, so they
-            // are read after the window is already usable, one monitor at a
-            // time, and each card grows its controls as its answer arrives.
-            _ = LoadFeaturesAsync(gen);
+            // Capability strings are loaded only when their disclosure is
+            // opened. They are the slowest DDC request available; probing all
+            // monitors immediately was enough to make early slider writes wait
+            // seconds behind information the person had not asked to see.
 
             Diagnostics.Log(() =>
                 $"rebuild {gen}  monitors={_monitors.Count}  cards={_cards.Count}  " +
@@ -441,30 +445,18 @@ internal sealed class MainForm : Form
         return n;
     }
 
-    /// <summary>
-    /// Probe each monitor's extra controls in the background and hand them to
-    /// its card as they arrive. Per monitor rather than all at once, so a slow
-    /// panel delays only its own controls.
-    /// </summary>
-    private async Task LoadFeaturesAsync(int gen)
+    /// <summary>Load one card's optional controls on demand.</summary>
+    private async void LoadFeaturesForCard(MonitorCard card)
     {
-        var cards = _cards.ToList();
-        foreach (var card in cards)
-        {
-            if (IsDisposed || gen != _generation) return;
+        if (card == null || card.IsDisposed || card.Monitor.FeaturesLoaded) return;
+        int gen = _generation;
+        var monitor = card.Monitor;
+        card.BeginFeatureLoad();
 
-            var monitor = card.Monitor;
-            await Task.Run(() =>
-            {
-                lock (_worker.HandleLock)
-                {
-                    if (gen == _generation) MonitorService.LoadFeatures(monitor);
-                }
-            });
+        await Task.Run(() => MonitorService.LoadFeatures(monitor));
 
-            if (IsDisposed || gen != _generation || card.IsDisposed) return;
-            card.PopulateFeatures();
-        }
+        if (IsDisposed || gen != _generation || card.IsDisposed) return;
+        card.PopulateFeatures(expand: true);
     }
 
     private void ReportInventory(string reason)
@@ -510,9 +502,125 @@ internal sealed class MainForm : Form
     /// <summary>Raised on the worker thread when a write is refused.</summary>
     private void OnWriteFailed(Monitor m, DdcWorker.Feature what)
     {
+        if (IsDisposed) return;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnWriteFailed(m, what)));
+            return;
+        }
+
         string name = m?.FriendlyName ?? "A monitor";
-        SetStatus($"{name} refused the {what.ToString().ToLowerInvariant()} change - " +
-                  "it may be asleep or on another input. Press Refresh to re-read it.", StatusKind.Warn);
+        if (what is DdcWorker.Feature.Brightness or DdcWorker.Feature.Contrast)
+        {
+            var card = _cards.FirstOrDefault(c => c.Monitor == m);
+            if (card is { IsDisposed: false }) card.SyncFromMonitor();
+            _map.Refresh(null);
+        }
+
+        string detail = what == DdcWorker.Feature.Power
+            ? "power command"
+            : what.ToString().ToLowerInvariant() + " change";
+        SetStatus($"{name} refused the {detail} - it may be asleep, on another input, " +
+                  "or have DDC/CI disabled.", StatusKind.Warn);
+    }
+
+    private void TogglePower(MonitorCard card)
+    {
+        if (card == null || card.IsDisposed || !card.Monitor.HasPhysicalHandle)
+        {
+            SetStatus("That display has no DDC/CI power control.", StatusKind.Warn);
+            return;
+        }
+
+        bool turningOff = _worker.TogglePower(card.Monitor);
+        SetStatus($"{card.Monitor.DisplayName}: " +
+                  (turningOff
+                      ? "entering DPMS-off, the monitor's lowest normal power state."
+                      : "wake command sent."));
+    }
+
+    private void ConfigurePowerHotkey(MonitorCard card)
+    {
+        if (card == null || card.IsDisposed) return;
+        string current = _settings.PowerHotkeyFor(card.Monitor.StableKey);
+        using var dialog = new PowerHotkeyDialog(card.Monitor.DisplayName, current);
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        string selected = dialog.SelectedShortcut ?? current;
+        PowerHotkey.TryParse(selected, out var selectedHotkey);
+        if (!string.IsNullOrEmpty(selected) &&
+            _cards.Any(c => c != card &&
+                PowerHotkey.TryParse(_settings.PowerHotkeyFor(c.Monitor.StableKey), out var other) &&
+                other.Modifiers == selectedHotkey.Modifiers &&
+                other.VirtualKey == selectedHotkey.VirtualKey))
+        {
+            SetStatus($"{selected} is already assigned to another monitor.", StatusKind.Warn);
+            return;
+        }
+
+        _settings.SetPowerHotkey(card.Monitor.StableKey, card.Monitor.DisplayName, selected);
+        _settings.Save();
+        card.SetPowerShortcutText(selected);
+        RegisterPowerHotkeys();
+        bool active = string.IsNullOrEmpty(selected) || _powerHotkeys.Values.Contains(card);
+        SetStatus(string.IsNullOrEmpty(selected)
+            ? $"{card.Monitor.DisplayName}: power shortcut cleared."
+            : active
+                ? $"{card.Monitor.DisplayName}: {selected} now toggles screen power."
+                : $"{selected} was saved for {card.Monitor.DisplayName}, but Windows refused to register it; " +
+                  "another app may already use it.",
+            active ? StatusKind.Info : StatusKind.Warn);
+    }
+
+    private void RegisterPowerHotkeys()
+    {
+        if (!IsHandleCreated || IsDisposed) return;
+        UnregisterPowerHotkeys();
+
+        int id = FirstPowerHotkeyId;
+        foreach (var card in _cards)
+        {
+            string text = _settings.PowerHotkeyFor(card.Monitor.StableKey);
+            if (!PowerHotkey.TryParse(text, out var hotkey)) continue;
+
+            int candidate = id++;
+            if (Native.RegisterHotKey(Handle, candidate,
+                    hotkey.Modifiers | Native.MOD_NOREPEAT, hotkey.VirtualKey))
+            {
+                _powerHotkeys[candidate] = card;
+            }
+            else
+            {
+                SetStatus($"Could not register {hotkey.Text} for {card.Monitor.DisplayName}; " +
+                          "another app may already use it.", StatusKind.Warn);
+            }
+        }
+    }
+
+    private void UnregisterPowerHotkeys()
+    {
+        if (IsHandleCreated)
+            foreach (int id in _powerHotkeys.Keys)
+                Native.UnregisterHotKey(Handle, id);
+        _powerHotkeys.Clear();
+    }
+
+    /// <summary>
+    /// ShowInTaskbar recreates a WinForms window handle when the form moves to
+    /// or from the notification area. RegisterHotKey belongs to that handle, so
+    /// re-register here or every shortcut would stop working at exactly the
+    /// moment the window was minimised.
+    /// </summary>
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        if (_cards.Count > 0) RegisterPowerHotkeys();
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        UnregisterPowerHotkeys();
+        base.OnHandleDestroyed(e);
     }
 
     // ----------------------------------------------------------------- levels
@@ -597,6 +705,12 @@ internal sealed class MainForm : Form
 
     protected override void WndProc(ref Message msg)
     {
+        if (msg.Msg == WM_HOTKEY && _powerHotkeys.TryGetValue(msg.WParam.ToInt32(), out var card))
+        {
+            TogglePower(card);
+            return;
+        }
+
         if (msg.Msg == WM_DISPLAYCHANGE && IsHandleCreated && !IsDisposed)
         {
             _displayChangeTimer.Stop();
@@ -636,10 +750,7 @@ internal sealed class MainForm : Form
         var snapshot = _cards.ToList();
         await Task.Run(() =>
         {
-            lock (_worker.HandleLock)
-            {
-                foreach (var c in snapshot) MonitorService.ReadCurrent(c.Monitor);
-            }
+            foreach (var c in snapshot) MonitorService.ReadCurrent(c.Monitor);
         });
         if (IsDisposed) return;
         foreach (var c in snapshot) if (!c.IsDisposed) c.SyncFromMonitor();
@@ -656,6 +767,7 @@ internal sealed class MainForm : Form
         }
 
         _generation++;              // invalidate any rebuild still in flight
+        UnregisterPowerHotkeys();
         _saveTimer.Stop();
         _displayChangeTimer.Stop();
         _worker.WriteFailed -= OnWriteFailed;
@@ -667,10 +779,7 @@ internal sealed class MainForm : Form
 
         // Stop the writer before freeing what it writes to.
         _worker.Dispose();
-        lock (_worker.HandleLock)
-        {
-            foreach (var m in _monitors) m.Dispose();
-        }
+        foreach (var m in _monitors) m.Dispose();
         _monitors.Clear();
 
         _appIcon.Dispose();

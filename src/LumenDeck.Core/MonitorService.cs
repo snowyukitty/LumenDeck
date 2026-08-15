@@ -9,6 +9,20 @@ internal sealed class Monitor : IDisposable
     public IntPtr PhysicalHandle;
 
     /// <summary>
+    /// Serialises DDC/CI traffic for this physical monitor and protects its
+    /// native handle from being destroyed while a request is in flight.
+    ///
+    /// This is deliberately per monitor. A slow capability request on the left
+    /// display must not hold up a brightness write to the right display.
+    /// </summary>
+    private readonly object _ioLock = new();
+
+    /// <summary>The earliest tick at which this monitor may receive another DDC request.</summary>
+    private long _nextDdcTick;
+
+    private const int DdcGapMs = 60;
+
+    /// <summary>
     /// Whether <see cref="PhysicalHandle"/> is real.
     ///
     /// Do NOT infer this by comparing the handle to IntPtr.Zero. A physical
@@ -42,6 +56,12 @@ internal sealed class Monitor : IDisposable
 
     public bool SupportsContrast;
     public int ContrastMin, ContrastMax, Contrast;
+
+    /// <summary>
+    /// Last power mode requested or observed through VCP D6. Zero means unknown;
+    /// the useful MCCS values are defined by <see cref="MonitorPower"/>.
+    /// </summary>
+    public int PowerMode;
 
     public string CapabilityString = "";
 
@@ -144,10 +164,38 @@ internal sealed class Monitor : IDisposable
     /// <summary>Assigned by MonitorService from the desktop layout.</summary>
     public string PositionLabel = "";
 
+    /// <summary>
+    /// Run one logical DDC transaction with per-monitor pacing. A logical
+    /// transaction may contain the paired min/current/max reads performed by a
+    /// high-level DXVA2 call, but callers should not batch unrelated work here.
+    /// </summary>
+    public T UseDdc<T>(Func<IntPtr, T> operation, T unavailable = default)
+    {
+        if (operation == null) return unavailable;
+
+        lock (_ioLock)
+        {
+            if (!HasPhysicalHandle) return unavailable;
+
+            long wait = _nextDdcTick - Environment.TickCount64;
+            if (wait > 0) Thread.Sleep((int)Math.Min(wait, DdcGapMs));
+
+            try
+            {
+                return operation(PhysicalHandle);
+            }
+            finally
+            {
+                _nextDdcTick = Environment.TickCount64 + DdcGapMs;
+            }
+        }
+    }
+
     public void Dispose()
     {
-        if (HasPhysicalHandle)
+        lock (_ioLock)
         {
+            if (!HasPhysicalHandle) return;
             Native.DestroyPhysicalMonitor(PhysicalHandle);
             HasPhysicalHandle = false;
         }
@@ -216,7 +264,8 @@ internal static class MonitorService
                                    $"contrast={(m.SupportsContrast ? "ok" : "refused")} " +
                                    $"lastError={Marshal.GetLastWin32Error()}";
                     if (m.SupportsBrightness) m.BrightnessBackend = Monitor.Backend.Ddc;
-                    if (withCapabilities) m.CapabilityString = ReadCapabilities(m.PhysicalHandle);
+                    if (withCapabilities)
+                        m.CapabilityString = m.UseDdc(ReadCapabilities, "");
                 }
             }
 
@@ -252,10 +301,17 @@ internal static class MonitorService
         if (m.FeaturesLoaded) return;
         try
         {
-            if (m.HasPhysicalHandle && string.IsNullOrEmpty(m.CapabilityString))
-                m.CapabilityString = ReadCapabilities(m.PhysicalHandle);
+            m.UseDdc(h =>
+            {
+                if (string.IsNullOrEmpty(m.CapabilityString))
+                    m.CapabilityString = ReadCapabilities(h);
 
-            m.Features = Capabilities.Discover(m);
+                // Capabilities.Discover issues several related reads against
+                // the same handle. Keep them together so a slider write cannot
+                // split the capability response sequence in half.
+                m.Features = Capabilities.Discover(m);
+                return true;
+            }, false);
         }
         catch
         {
@@ -404,25 +460,40 @@ internal static class MonitorService
         //
         // Retrying a few times costs nothing on a healthy panel, since the first
         // attempt succeeds.
-        m.SupportsBrightness = ReadFeature(
-            (IntPtr h, ref uint a, ref uint b, ref uint c) => Native.GetMonitorBrightness(h, ref a, ref b, ref c),
-            m.PhysicalHandle, m.HasPhysicalHandle, out int bMin, out int bCur, out int bMax);
-        if (m.SupportsBrightness)
+        // Assign these unconditionally. If the handle is disposed between the
+        // pre-check above and UseDdc taking its lock, stale true values must not
+        // survive and leave enabled sliders for a dead monitor.
+        m.SupportsBrightness = m.SupportsContrast = false;
+        bool accessed = m.UseDdc(h =>
         {
-            m.BrightnessMin = bMin;
-            m.BrightnessMax = bMax;
-            m.Brightness = bCur;
-        }
+            m.SupportsBrightness = ReadFeature(
+                (IntPtr handle, ref uint a, ref uint b, ref uint c) => Native.GetMonitorBrightness(handle, ref a, ref b, ref c),
+                h, true, out int bMin, out int bCur, out int bMax);
+            if (m.SupportsBrightness)
+            {
+                m.BrightnessMin = bMin;
+                m.BrightnessMax = bMax;
+                m.Brightness = bCur;
+            }
 
-        m.SupportsContrast = ReadFeature(
-            (IntPtr h, ref uint a, ref uint b, ref uint c) => Native.GetMonitorContrast(h, ref a, ref b, ref c),
-            m.PhysicalHandle, m.HasPhysicalHandle, out int cMin, out int cCur, out int cMax);
-        if (m.SupportsContrast)
-        {
-            m.ContrastMin = cMin;
-            m.ContrastMax = cMax;
-            m.Contrast = cCur;
-        }
+            m.SupportsContrast = ReadFeature(
+                (IntPtr handle, ref uint a, ref uint b, ref uint c) => Native.GetMonitorContrast(handle, ref a, ref b, ref c),
+                h, true, out int cMin, out int cCur, out int cMax);
+            if (m.SupportsContrast)
+            {
+                m.ContrastMin = cMin;
+                m.ContrastMax = cMax;
+                m.Contrast = cCur;
+            }
+
+            if (m.SupportsBrightness || m.SupportsContrast)
+                m.PowerMode = MonitorPower.On;
+            else if (m.PowerMode != MonitorPower.Off)
+                m.PowerMode = MonitorPower.Unknown;
+            return true;
+        }, false);
+        if (!accessed && m.PowerMode != MonitorPower.Off)
+            m.PowerMode = MonitorPower.Unknown;
 
         // Note both flags are assigned unconditionally: a monitor that has gone
         // to sleep or switched input stops answering, and leaving a stale "true"

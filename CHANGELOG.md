@@ -4,6 +4,27 @@ Notable changes, newest first. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Every external-monitor card can toggle MCCS DPMS-off (`VCP D6=04`) and wake
+  the same display (`D6=01`). Each monitor can have its own configurable global
+  shortcut, which remains active while LumenDeck is in the notification area.
+- `lumendeck-cli --power toggle|off|on`, compatible with `--monitor`, provides
+  the same per-display power action to scripts and third-party launchers.
+
+### Fixed
+
+- Brightness writes no longer wait behind capability probes for unrelated
+  monitors. DDC traffic and handle lifetime are serialised per physical display
+  rather than behind one desk-wide lock, and optional controls are discovered
+  only when their disclosure is opened.
+- The final brightness or contrast value is now read back. A value silently
+  dropped by monitor firmware is retried twice; if it still does not stick, the
+  UI returns to the value the hardware actually reports instead of claiming the
+  requested value was applied.
+
 ## [1.1.0] — 2026-08-05
 
 **The first published release.** LumenDeck was source-only until this tag. The

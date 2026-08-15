@@ -265,6 +265,30 @@ internal static class Cli
                 actions.Add("warmth " + (kelvin >= GammaControl.NeutralKelvin ? "off" : kelvin + "K"));
             }
 
+            string power = Value("--power");
+            if (power != null)
+            {
+                string mode = power.Trim().ToLowerInvariant();
+                if (mode is not ("on" or "off" or "toggle"))
+                {
+                    Console.Error.WriteLine($"Unknown power mode \"{power}\". Available: on, off, toggle.");
+                    return ExitNoMatch;
+                }
+
+                foreach (var m in targets)
+                {
+                    int target = mode switch
+                    {
+                        "on" => MonitorPower.On,
+                        "off" => MonitorPower.Off,
+                        _ => MonitorPower.ToggleTarget(m),
+                    };
+
+                    if (!MonitorPower.Set(m, target)) exit = ExitWriteRefused;
+                }
+                actions.Add("power " + mode);
+            }
+
             if (actions.Count == 0)
             {
                 Console.Error.WriteLine("Nothing to do. Try --help.");
@@ -333,18 +357,16 @@ internal static class Cli
         if (!m.SupportsBrightness) return true;   // nothing to refuse
         bool ok = m.IsInternalPanel
             ? WmiBrightness.Set(m.WmiInstanceName, raw)
-            : m.HasPhysicalHandle && Native.SetMonitorBrightness(m.PhysicalHandle, (uint)raw);
+            : m.UseDdc(h => Native.SetMonitorBrightness(h, (uint)raw), false);
         if (ok) m.Brightness = raw;
-        Thread.Sleep(60);   // MCCS pacing, same as the GUI writer
         return ok;
     }
 
     private static bool ApplyContrast(Monitor m, int raw)
     {
         if (!m.SupportsContrast || !m.HasPhysicalHandle) return true;   // nothing to refuse
-        bool ok = Native.SetMonitorContrast(m.PhysicalHandle, (uint)raw);
+        bool ok = m.UseDdc(h => Native.SetMonitorContrast(h, (uint)raw), false);
         if (ok) m.Contrast = raw;
-        Thread.Sleep(60);
         return ok;
     }
 
@@ -453,6 +475,10 @@ internal static class Cli
 
           -w, --warmth <kelvin>   3000-6500, or "off" for neutral
 
+              --power <mode>     toggle | off | on
+                                  "off" uses MCCS DPMS-off (VCP D6 value 04),
+                                  the monitor's lowest normal power state.
+
         -b, -c and -w set your own levels for the monitors they touch, so
         --preset Custom comes back to them.
 
@@ -467,6 +493,7 @@ internal static class Cli
           LumenDeck --brightness -10
           LumenDeck -m "left" -b 55 -c 45 -w 5000
           LumenDeck --warmth off
+          LumenDeck -m "left" --power toggle
 
         Exit codes: 0 done, 1 nothing matched, 2 a monitor refused the change.
         """;
