@@ -95,15 +95,6 @@ internal static class VcpCatalog
         [0xF0] = "Dynamic contrast",
     };
 
-    private static readonly Dictionary<int, string> PowerModes = new()
-    {
-        [0x01] = "On",
-        [0x02] = "Standby",
-        [0x03] = "Suspend",
-        [0x04] = "Off, low power",
-        [0x05] = "Off",
-    };
-
     /// <summary>
     /// Ordered: this is the order controls appear under a monitor. Brightness,
     /// contrast and colour temperature are handled by dedicated UI and are not
@@ -141,10 +132,6 @@ internal static class VcpCatalog
         new(0x6C, "Red black level", Kind.Continuous),
         new(0x6E, "Green black level", Kind.Continuous),
         new(0x70, "Blue black level", Kind.Continuous),
-
-        new(0xD6, "Power mode", Kind.Select,
-            "Putting a monitor to sleep from here is recoverable, but you will need its own button or a mouse move to wake it.",
-            PowerModes, Risky: true),
 
         new(0x04, "Restore factory defaults", Kind.Action,
             "Resets everything the monitor stores, including brightness and contrast.",

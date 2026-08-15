@@ -54,7 +54,10 @@ internal sealed class DdcWorker : IDisposable
     /// Raised on the worker thread when a write reports failure.
     /// Subscribers must marshal to the UI thread themselves.
     /// </summary>
-    public event Action<Monitor, Feature> WriteFailed;
+    public event Action<Monitor, Feature, int> WriteFailed;
+
+    /// <summary>Raised after a power request has been verified or dispatched.</summary>
+    public event Action<Monitor, int> PowerCompleted;
 
     public DdcWorker()
     {
@@ -85,36 +88,28 @@ internal sealed class DdcWorker : IDisposable
     /// </summary>
     public void SetVcp(Monitor m, byte code, int value)
     {
-        if (m == null) return;
+        // D6 is intentionally not a generic extra control. It must pass through
+        // SetPower so wake verification, persisted intent, and model safety
+        // checks cannot be bypassed by a future caller.
+        if (m == null || code == MonitorPower.VcpCode) return;
         _pending[new Target(m, Feature.Vcp, code)] = value;
         _signal.Set();
     }
 
     /// <summary>
-    /// Queue a DPMS power toggle and return true when the queued target is the
-    /// lowest-power off state. Repeated key presses toggle the pending absolute
-    /// target rather than collapsing into one ambiguous "toggle" command.
+    /// Queue an absolute DPM power target. The UI persists that target before
+    /// calling this method, so a rebuild or restart can never turn a requested
+    /// Wake back into another Off.
     /// </summary>
-    public bool TogglePower(Monitor m)
+    public void SetPower(Monitor m, int target)
     {
-        if (m == null) return false;
+        if (m == null || target is not (MonitorPower.On or MonitorPower.Off)) return;
 
         var key = new Target(m, Feature.Power, MonitorPower.VcpCode);
-        int target = _pending.AddOrUpdate(
-            key,
-            _ => NextPowerMode(m.PowerMode),
-            (_, pending) => NextPowerMode(pending));
-
-        // Record the requested state at queue time. If a second key press lands
-        // after the first item has been removed but before its native call
-        // finishes, it still toggles the intent instead of sending Off twice.
-        m.PowerMode = target;
+        _pending[key] = target;
+        if (target == MonitorPower.Off) m.PowerMode = MonitorPower.Off;
         _signal.Set();
-        return target == MonitorPower.Off;
     }
-
-    private static int NextPowerMode(int mode) =>
-        mode == MonitorPower.On ? MonitorPower.Off : MonitorPower.On;
 
     public bool Idle => _pending.IsEmpty;
 
@@ -160,9 +155,6 @@ internal sealed class DdcWorker : IDisposable
                 bool ok = Write(key, value);
                 if (!ok)
                 {
-                    if (key.What == Feature.Power)
-                        key.Mon.PowerMode = MonitorPower.Unknown;
-
                     // A transient driver refusal is no more authoritative than
                     // a silently dropped write. Give a final slider value the
                     // same bounded retry treatment, then restore the value the
@@ -175,11 +167,15 @@ internal sealed class DdcWorker : IDisposable
                         ReadBack(key, out int reported))
                         StoreActual(key, reported);
 
-                    WriteFailed?.Invoke(key.Mon, key.What);
+                    WriteFailed?.Invoke(key.Mon, key.What, value);
                     return;
                 }
 
-                if (!verify) return;
+                if (!verify)
+                {
+                    if (key.What == Feature.Power) PowerCompleted?.Invoke(key.Mon, value);
+                    return;
+                }
 
                 // During a drag, the newer pending value is the verification:
                 // do not spend another DDC round trip confirming an intermediate
@@ -204,7 +200,7 @@ internal sealed class DdcWorker : IDisposable
                 if (attempt + 1 == VerifyAttempts)
                 {
                     if (read) StoreActual(key, actual);
-                    WriteFailed?.Invoke(key.Mon, key.What);
+                    WriteFailed?.Invoke(key.Mon, key.What, value);
                     return;
                 }
             }
@@ -215,7 +211,7 @@ internal sealed class DdcWorker : IDisposable
             // display-change rebuild will dispose this Monitor object and drop
             // the stale queue entry. Surface the failed request in the meantime
             // rather than leaving an optimistic slider value unchallenged.
-            WriteFailed?.Invoke(key.Mon, key.What);
+            WriteFailed?.Invoke(key.Mon, key.What, value);
         }
     }
 

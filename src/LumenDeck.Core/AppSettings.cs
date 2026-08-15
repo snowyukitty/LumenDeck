@@ -36,9 +36,25 @@ internal sealed class AppSettings
 
         /// <summary>
         /// Optional global shortcut that toggles this monitor between on and
-        /// DPMS-off. Stored as readable text so settings.json remains editable.
+        /// DPM-off. Stored as readable text so settings.json remains editable.
         /// </summary>
         public string PowerHotkey { get; set; } = "";
+
+        /// <summary>
+        /// DDC power control can switch off the receiver that must hear the wake
+        /// command. Risk acceptance is per monitor because firmware, not
+        /// Windows, decides whether this is reversible.
+        /// </summary>
+        public bool PowerRiskAccepted { get; set; }
+
+        /// <summary>Set after a software wake could not be verified.</summary>
+        public bool PowerWakeUnsafe { get; set; }
+
+        /// <summary>
+        /// The last requested power state. Persisted before sending Off so a
+        /// restart or display rebuild still knows the next action must be Wake.
+        /// </summary>
+        public bool PowerOffRequested { get; set; }
 
         /// <summary>
         /// Derived, so it must not be written. A get-only property is still
@@ -91,10 +107,34 @@ internal sealed class AppSettings
 
     public string PowerHotkeyFor(string key) => Find(key)?.PowerHotkey ?? "";
 
+    public bool PowerRiskAcceptedFor(string key) => Find(key)?.PowerRiskAccepted ?? false;
+
+    public bool PowerWakeUnsafeFor(string key) => Find(key)?.PowerWakeUnsafe ?? false;
+
+    public bool PowerOffRequestedFor(string key) => Find(key)?.PowerOffRequested ?? false;
+
     public void SetPowerHotkey(string key, string name, string hotkey)
     {
         if (string.IsNullOrEmpty(key)) return;
         Entry(key, name).PowerHotkey = hotkey?.Trim() ?? "";
+    }
+
+    public void SetPowerRiskAccepted(string key, string name, bool accepted)
+    {
+        if (string.IsNullOrEmpty(key)) return;
+        Entry(key, name).PowerRiskAccepted = accepted;
+    }
+
+    public void SetPowerWakeUnsafe(string key, string name, bool unsafeWake)
+    {
+        if (string.IsNullOrEmpty(key)) return;
+        Entry(key, name).PowerWakeUnsafe = unsafeWake;
+    }
+
+    public void SetPowerOffRequested(string key, string name, bool requested)
+    {
+        if (string.IsNullOrEmpty(key)) return;
+        Entry(key, name).PowerOffRequested = requested;
     }
 
     public void SetKelvin(string key, string name, int kelvin)

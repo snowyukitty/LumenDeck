@@ -39,6 +39,7 @@ internal sealed class MonitorCard : Panel
     private readonly Panel _extras;
     private readonly LinkLabel _disclosure;
     private readonly LinkLabel _powerShortcut;
+    private readonly FlatButton _powerButton;
 
     private bool _suppress;
     private bool _highlighted;
@@ -152,16 +153,14 @@ internal sealed class MonitorCard : Panel
             Margin = new Padding(0, 5, 0, 3),
             BackColor = Color.Transparent,
         };
-        var powerButton = new FlatButton("Screen off / on")
+        _powerButton = new FlatButton("Screen off")
         {
             Width = 126,
             Enabled = m.HasPhysicalHandle && !m.IsInternalPanel,
             Margin = new Padding(0, 0, 12, 0),
         };
-        powerButton.Click += (_, _) => _onPowerToggle(this);
-        _tips.SetToolTip(powerButton,
-            "Toggle this monitor between on and MCCS DPMS-off, its lowest normal power state");
-        powerRow.Controls.Add(powerButton);
+        _powerButton.Click += (_, _) => _onPowerToggle(this);
+        powerRow.Controls.Add(_powerButton);
 
         _powerShortcut = new LinkLabel
         {
@@ -172,14 +171,21 @@ internal sealed class MonitorCard : Panel
             LinkBehavior = LinkBehavior.NeverUnderline,
             AutoSize = true,
             Anchor = AnchorStyles.Left,
-            Enabled = powerButton.Enabled,
+            Enabled = _powerButton.Enabled,
             Margin = new Padding(0, 8, 0, 0),
             BackColor = Color.Transparent,
         };
         _powerShortcut.LinkClicked += (_, _) => _onConfigurePowerHotkey(this);
         SetPowerShortcutText(_settings?.PowerHotkeyFor(m.StableKey));
         powerRow.Controls.Add(_powerShortcut);
-        AddRow(row++, "Power", powerRow, powerButton.Enabled ? null : "no DDC");
+        bool knownUnsafe = MonitorPower.IsKnownWakeUnsafe(m) ||
+                           (_settings?.PowerWakeUnsafeFor(m.StableKey) ?? false);
+        bool offRequested = _settings?.PowerOffRequestedFor(m.StableKey) ?? false;
+        AddRow(row++, "Power", powerRow,
+            !m.HasPhysicalHandle || m.IsInternalPanel
+                ? "no DDC"
+                : knownUnsafe && !offRequested ? "unsafe wake" : null);
+        SetPowerState(offRequested, knownUnsafe);
 
         // ---- per-monitor presets ------------------------------------------
         var presets = new FlowLayoutPanel
@@ -512,6 +518,30 @@ internal sealed class MonitorCard : Panel
             : shortcut.Trim();
         _powerShortcut.Links.Clear();
         _powerShortcut.LinkArea = new LinkArea(0, _powerShortcut.Text.Length);
+    }
+
+    public void SetPowerState(bool offRequested, bool wakeUnsafe)
+    {
+        if (_powerButton == null || _powerShortcut == null) return;
+
+        bool hasDdc = Monitor.HasPhysicalHandle && !Monitor.IsInternalPanel;
+        if (offRequested)
+        {
+            // Wake must remain available even after a previous attempt failed.
+            _powerButton.Text = "Wake screen";
+            _powerButton.Enabled = hasDdc;
+            _powerShortcut.Enabled = hasDdc;
+            _tips.SetToolTip(_powerButton,
+                "Retry MCCS power-on. If this monitor cut its DDC receiver off, use its physical power button.");
+            return;
+        }
+
+        _powerButton.Text = wakeUnsafe ? "DDC off disabled" : "Screen off";
+        _powerButton.Enabled = hasDdc && !wakeUnsafe;
+        _powerShortcut.Enabled = hasDdc && !wakeUnsafe;
+        _tips.SetToolTip(_powerButton, wakeUnsafe
+            ? "This monitor did not wake from DDC power-off, so LumenDeck will not send it again."
+            : "Enter MCCS DPM-off. First use requires a hardware-specific safety confirmation.");
     }
 
     public void BeginFeatureLoad()
