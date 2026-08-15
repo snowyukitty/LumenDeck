@@ -24,8 +24,8 @@ internal sealed class MonitorCard : Panel
 
     /// <summary>Raised after any change. The flag says whether a person moved a control by hand.</summary>
     private readonly Action<MonitorCard, bool> _onChanged;
-    private readonly Action<MonitorCard> _onPowerToggle;
-    private readonly Action<MonitorCard> _onConfigurePowerHotkey;
+    private readonly Action<MonitorCard> _onScreenBlankToggle;
+    private readonly Action<MonitorCard> _onConfigureScreenBlankHotkey;
     private readonly Action<MonitorCard> _onFeaturesRequested;
 
     private readonly Action<string> _report;
@@ -38,8 +38,8 @@ internal sealed class MonitorCard : Panel
     private readonly TableLayoutPanel _grid;
     private readonly Panel _extras;
     private readonly LinkLabel _disclosure;
-    private readonly LinkLabel _powerShortcut;
-    private readonly FlatButton _powerButton;
+    private readonly LinkLabel _screenBlankShortcut;
+    private readonly FlatButton _screenBlankButton;
 
     private bool _suppress;
     private bool _highlighted;
@@ -59,8 +59,8 @@ internal sealed class MonitorCard : Panel
 
     public MonitorCard(Monitor m, AppSettings settings, DdcWorker worker,
                        Action<MonitorCard, bool> onChanged, Action<string> report,
-                       Action<MonitorCard> onPowerToggle,
-                       Action<MonitorCard> onConfigurePowerHotkey,
+                       Action<MonitorCard> onScreenBlankToggle,
+                       Action<MonitorCard> onConfigureScreenBlankHotkey,
                        Action<MonitorCard> onFeaturesRequested)
     {
         Monitor = m;
@@ -68,8 +68,8 @@ internal sealed class MonitorCard : Panel
         _worker = worker;
         _onChanged = onChanged ?? ((_, _) => { });
         _report = report ?? (_ => { });
-        _onPowerToggle = onPowerToggle ?? (_ => { });
-        _onConfigurePowerHotkey = onConfigurePowerHotkey ?? (_ => { });
+        _onScreenBlankToggle = onScreenBlankToggle ?? (_ => { });
+        _onConfigureScreenBlankHotkey = onConfigureScreenBlankHotkey ?? (_ => { });
         _onFeaturesRequested = onFeaturesRequested ?? (_ => { });
 
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
@@ -142,10 +142,10 @@ internal sealed class MonitorCard : Panel
         _warmth.ValueChanged += (_, _) => OnWarmth();
         AddRow(row++, "Warmth", _warmth, null);
 
-        // DPMS-off is a real low-power state, not brightness zero. Keeping the
-        // action on every card makes it unambiguous which physical display will
-        // go dark; the adjacent link gives that same action a global shortcut.
-        var powerRow = new FlowLayoutPanel
+        // Per-monitor blacking is deliberately a Windows overlay plus the
+        // lowest supported brightness. It is less power-efficient than DDC
+        // hardware-off, but every recovery path remains under app control.
+        var blankRow = new FlowLayoutPanel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -153,16 +153,16 @@ internal sealed class MonitorCard : Panel
             Margin = new Padding(0, 5, 0, 3),
             BackColor = Color.Transparent,
         };
-        _powerButton = new FlatButton("Screen off")
+        _screenBlankButton = new FlatButton("Blank screen")
         {
             Width = 126,
-            Enabled = m.HasPhysicalHandle && !m.IsInternalPanel,
+            Enabled = true,
             Margin = new Padding(0, 0, 12, 0),
         };
-        _powerButton.Click += (_, _) => _onPowerToggle(this);
-        powerRow.Controls.Add(_powerButton);
+        _screenBlankButton.Click += (_, _) => _onScreenBlankToggle(this);
+        blankRow.Controls.Add(_screenBlankButton);
 
-        _powerShortcut = new LinkLabel
+        _screenBlankShortcut = new LinkLabel
         {
             Font = Theme.Small,
             LinkColor = Theme.Info,
@@ -171,21 +171,15 @@ internal sealed class MonitorCard : Panel
             LinkBehavior = LinkBehavior.NeverUnderline,
             AutoSize = true,
             Anchor = AnchorStyles.Left,
-            Enabled = _powerButton.Enabled,
+            Enabled = true,
             Margin = new Padding(0, 8, 0, 0),
             BackColor = Color.Transparent,
         };
-        _powerShortcut.LinkClicked += (_, _) => _onConfigurePowerHotkey(this);
-        SetPowerShortcutText(_settings?.PowerHotkeyFor(m.StableKey));
-        powerRow.Controls.Add(_powerShortcut);
-        bool knownUnsafe = MonitorPower.IsKnownWakeUnsafe(m) ||
-                           (_settings?.PowerWakeUnsafeFor(m.StableKey) ?? false);
-        bool offRequested = _settings?.PowerOffRequestedFor(m.StableKey) ?? false;
-        AddRow(row++, "Power", powerRow,
-            !m.HasPhysicalHandle || m.IsInternalPanel
-                ? "no DDC"
-                : knownUnsafe && !offRequested ? "unsafe wake" : null);
-        SetPowerState(offRequested, knownUnsafe);
+        _screenBlankShortcut.LinkClicked += (_, _) => _onConfigureScreenBlankHotkey(this);
+        SetScreenBlankShortcutText(_settings?.ScreenBlankHotkeyFor(m.StableKey));
+        blankRow.Controls.Add(_screenBlankShortcut);
+        AddRow(row++, "Screen", blankRow, m.SupportsBrightness ? "min brightness" : "blackout only");
+        SetScreenBlankState(false);
 
         // ---- per-monitor presets ------------------------------------------
         var presets = new FlowLayoutPanel
@@ -510,38 +504,25 @@ internal sealed class MonitorCard : Panel
 
     // ---------------------------------------------------------------- extras
 
-    public void SetPowerShortcutText(string shortcut)
+    public void SetScreenBlankShortcutText(string shortcut)
     {
-        if (_powerShortcut == null) return;
-        _powerShortcut.Text = string.IsNullOrWhiteSpace(shortcut)
+        if (_screenBlankShortcut == null) return;
+        _screenBlankShortcut.Text = string.IsNullOrWhiteSpace(shortcut)
             ? "Set shortcut"
             : shortcut.Trim();
-        _powerShortcut.Links.Clear();
-        _powerShortcut.LinkArea = new LinkArea(0, _powerShortcut.Text.Length);
+        _screenBlankShortcut.Links.Clear();
+        _screenBlankShortcut.LinkArea = new LinkArea(0, _screenBlankShortcut.Text.Length);
     }
 
-    public void SetPowerState(bool offRequested, bool wakeUnsafe)
+    public void SetScreenBlankState(bool blanked)
     {
-        if (_powerButton == null || _powerShortcut == null) return;
-
-        bool hasDdc = Monitor.HasPhysicalHandle && !Monitor.IsInternalPanel;
-        if (offRequested)
-        {
-            // Wake must remain available even after a previous attempt failed.
-            _powerButton.Text = "Wake screen";
-            _powerButton.Enabled = hasDdc;
-            _powerShortcut.Enabled = hasDdc;
-            _tips.SetToolTip(_powerButton,
-                "Retry MCCS power-on. If this monitor cut its DDC receiver off, use its physical power button.");
-            return;
-        }
-
-        _powerButton.Text = wakeUnsafe ? "DDC off disabled" : "Screen off";
-        _powerButton.Enabled = hasDdc && !wakeUnsafe;
-        _powerShortcut.Enabled = hasDdc && !wakeUnsafe;
-        _tips.SetToolTip(_powerButton, wakeUnsafe
-            ? "This monitor did not wake from DDC power-off, so LumenDeck will not send it again."
-            : "Enter MCCS DPM-off. First use requires a hardware-specific safety confirmation.");
+        if (_screenBlankButton == null || _screenBlankShortcut == null) return;
+        _screenBlankButton.Text = blanked ? "Restore screen" : "Blank screen";
+        _screenBlankButton.Enabled = true;
+        _screenBlankShortcut.Enabled = true;
+        _tips.SetToolTip(_screenBlankButton, blanked
+            ? "Close the blackout and restore the exact brightness saved before it."
+            : "Temporarily cover this display in black and use its lowest supported brightness. Click it to restore.");
     }
 
     public void BeginFeatureLoad()

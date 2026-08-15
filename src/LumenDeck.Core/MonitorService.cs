@@ -57,12 +57,6 @@ internal sealed class Monitor : IDisposable
     public bool SupportsContrast;
     public int ContrastMin, ContrastMax, Contrast;
 
-    /// <summary>
-    /// Last power mode requested or observed through VCP D6. Zero means unknown;
-    /// the useful MCCS values are defined by <see cref="MonitorPower"/>.
-    /// </summary>
-    public int PowerMode;
-
     public string CapabilityString = "";
 
     /// <summary>
@@ -464,7 +458,7 @@ internal static class MonitorService
         // pre-check above and UseDdc taking its lock, stale true values must not
         // survive and leave enabled sliders for a dead monitor.
         m.SupportsBrightness = m.SupportsContrast = false;
-        bool accessed = m.UseDdc(h =>
+        m.UseDdc(h =>
         {
             m.SupportsBrightness = ReadFeature(
                 (IntPtr handle, ref uint a, ref uint b, ref uint c) => Native.GetMonitorBrightness(handle, ref a, ref b, ref c),
@@ -486,14 +480,8 @@ internal static class MonitorService
                 m.Contrast = cCur;
             }
 
-            if (m.SupportsBrightness || m.SupportsContrast)
-                m.PowerMode = MonitorPower.On;
-            else if (m.PowerMode != MonitorPower.Off)
-                m.PowerMode = MonitorPower.Unknown;
             return true;
         }, false);
-        if (!accessed && m.PowerMode != MonitorPower.Off)
-            m.PowerMode = MonitorPower.Unknown;
 
         // Note both flags are assigned unconditionally: a monitor that has gone
         // to sleep or switched input stops answering, and leaving a stale "true"

@@ -268,66 +268,11 @@ internal static class Cli
             string power = Value("--power");
             if (power != null)
             {
-                string mode = power.Trim().ToLowerInvariant();
-                if (mode is not ("on" or "off" or "toggle"))
-                {
-                    Console.Error.WriteLine($"Unknown power mode \"{power}\". Available: on, off, toggle.");
-                    return ExitNoMatch;
-                }
-
-                foreach (var m in targets)
-                {
-                    bool offWasRequested = settings.PowerOffRequestedFor(m.StableKey);
-                    int target = mode switch
-                    {
-                        "on" => MonitorPower.On,
-                        "off" => MonitorPower.Off,
-                        _ => offWasRequested ? MonitorPower.On : MonitorPower.ToggleTarget(m),
-                    };
-
-                    bool knownUnsafe = MonitorPower.IsKnownWakeUnsafe(m);
-                    bool rememberedUnsafe = settings.PowerWakeUnsafeFor(m.StableKey);
-                    if (target == MonitorPower.Off && (knownUnsafe || rememberedUnsafe))
-                    {
-                        exit = ExitWriteRefused;
-                        Console.Error.WriteLine(
-                            $"Refusing DDC power-off for {m.FriendlyName}: " +
-                            (knownUnsafe
-                                ? "this model is known to cut the receiver needed for software wake."
-                                : "a previous wake could not be verified on this monitor."));
-                        continue;
-                    }
-
-                    if (target == MonitorPower.Off)
-                    {
-                        // Persist intent before the fire-and-forget request, as
-                        // the GUI does. A following toggle must be Wake even if
-                        // the panel disappears from DDC immediately.
-                        settings.SetPowerRiskAccepted(m.StableKey, m.DisplayName, true);
-                        settings.SetPowerOffRequested(m.StableKey, m.DisplayName, true);
-                        settings.Save();
-                    }
-
-                    if (MonitorPower.Set(m, target))
-                    {
-                        settings.SetPowerOffRequested(
-                            m.StableKey, m.DisplayName, target == MonitorPower.Off);
-                    }
-                    else
-                    {
-                        exit = ExitWriteRefused;
-                        if (target == MonitorPower.On)
-                        {
-                            settings.SetPowerWakeUnsafe(m.StableKey, m.DisplayName, true);
-                            settings.SetPowerOffRequested(m.StableKey, m.DisplayName, true);
-                        }
-                        else
-                        {
-                            settings.SetPowerOffRequested(m.StableKey, m.DisplayName, false);
-                        }
-                    }
-                }
-                actions.Add("power " + mode);
+                Console.Error.WriteLine(
+                    "--power was withdrawn because MCCS D6 can leave a monitor impossible to wake in " +
+                    "software. Use the window's per-monitor Blank screen action or its global shortcut; " +
+                    "both are fully reversible.");
+                return ExitWriteRefused;
             }
 
             if (actions.Count == 0)
@@ -517,13 +462,6 @@ internal static class Cli
 
           -w, --warmth <kelvin>   3000-6500, or "off" for neutral
 
-              --power <mode>     toggle | off | on
-                                  "off" uses MCCS DPM-off (VCP D6 value 04),
-                                  the monitor's lowest normal power state.
-                                  Firmware may cut DDC and require a physical
-                                  power button; known unsafe models are refused.
-                                  "on" succeeds only after a live DDC read.
-
         -b, -c and -w set your own levels for the monitors they touch, so
         --preset Custom comes back to them.
 
@@ -538,7 +476,6 @@ internal static class Cli
           LumenDeck --brightness -10
           LumenDeck -m "left" -b 55 -c 45 -w 5000
           LumenDeck --warmth off
-          LumenDeck -m "left" --power toggle
 
         Exit codes: 0 done, 1 nothing matched, 2 a monitor refused the change.
         """;

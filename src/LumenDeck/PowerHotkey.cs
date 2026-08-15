@@ -1,9 +1,9 @@
 namespace LumenDeck;
 
 /// <summary>A normalised RegisterHotKey chord.</summary>
-internal readonly record struct PowerHotkey(uint Modifiers, uint VirtualKey, string Text)
+internal readonly record struct ScreenBlankHotkey(uint Modifiers, uint VirtualKey, string Text)
 {
-    public static bool TryParse(string text, out PowerHotkey hotkey)
+    public static bool TryParse(string text, out ScreenBlankHotkey hotkey)
     {
         hotkey = default;
         if (string.IsNullOrWhiteSpace(text)) return false;
@@ -34,7 +34,7 @@ internal readonly record struct PowerHotkey(uint Modifiers, uint VirtualKey, str
         return true;
     }
 
-    public static bool TryFromKeyData(Keys keyData, out PowerHotkey hotkey)
+    public static bool TryFromKeyData(Keys keyData, out ScreenBlankHotkey hotkey)
     {
         uint modifiers = 0;
         if ((keyData & Keys.Control) != 0) modifiers |= Native.MOD_CONTROL;
@@ -52,7 +52,7 @@ internal readonly record struct PowerHotkey(uint Modifiers, uint VirtualKey, str
         return true;
     }
 
-    private static PowerHotkey Create(uint modifiers, Keys key)
+    private static ScreenBlankHotkey Create(uint modifiers, Keys key)
     {
         var parts = new List<string>();
         if ((modifiers & Native.MOD_CONTROL) != 0) parts.Add("Ctrl");
@@ -60,7 +60,7 @@ internal readonly record struct PowerHotkey(uint Modifiers, uint VirtualKey, str
         if ((modifiers & Native.MOD_SHIFT) != 0) parts.Add("Shift");
         if ((modifiers & Native.MOD_WIN) != 0) parts.Add("Win");
         parts.Add(KeyName(key));
-        return new PowerHotkey(modifiers, (uint)key, string.Join("+", parts));
+        return new ScreenBlankHotkey(modifiers, (uint)key, string.Join("+", parts));
     }
 
     private static bool TryParseKey(string token, out Keys key)
@@ -97,17 +97,17 @@ internal readonly record struct PowerHotkey(uint Modifiers, uint VirtualKey, str
         Keys.LWin or Keys.RWin;
 }
 
-/// <summary>Small key-capture dialog for one monitor's power shortcut.</summary>
-internal sealed class PowerHotkeyDialog : Form
+/// <summary>Small key-capture dialog for one monitor's blackout shortcut.</summary>
+internal sealed class ScreenBlankHotkeyDialog : Form
 {
     private readonly Label _captured;
     private readonly Button _save;
 
     public string SelectedShortcut { get; private set; }
 
-    public PowerHotkeyDialog(string monitorName, string current)
+    public ScreenBlankHotkeyDialog(string monitorName, string current)
     {
-        Text = "Power shortcut";
+        Text = "Screen blank shortcut";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
@@ -128,7 +128,7 @@ internal sealed class PowerHotkeyDialog : Form
         });
         Controls.Add(new Label
         {
-            Text = "It requests on or DPM-off from anywhere. Firmware-specific safety checks still apply.",
+            Text = "It toggles a reversible black overlay and restores the saved brightness.",
             AutoSize = false,
             Bounds = new Rectangle(18, 42, 394, 34),
             ForeColor = Theme.InkMuted,
@@ -185,7 +185,7 @@ internal sealed class PowerHotkeyDialog : Form
             return;
         }
 
-        if (PowerHotkey.TryFromKeyData(e.KeyData, out var hotkey))
+        if (ScreenBlankHotkey.TryFromKeyData(e.KeyData, out var hotkey))
         {
             SelectedShortcut = hotkey.Text;
             _captured.Text = hotkey.Text;

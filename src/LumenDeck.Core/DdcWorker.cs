@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 namespace LumenDeck;
 
 /// <summary>
-/// Serialises every brightness/contrast/power write onto one background thread.
+/// Serialises every brightness/contrast/VCP write onto one background thread.
 ///
 /// Three facts drive this design, all of them learned the hard way:
 ///
@@ -28,7 +28,7 @@ namespace LumenDeck;
 /// </summary>
 internal sealed class DdcWorker : IDisposable
 {
-    public enum Feature { Brightness, Contrast, Vcp, Power }
+    public enum Feature { Brightness, Contrast, Vcp }
 
     // Code is part of the key so two different VCP features on one monitor
     // coalesce independently - dragging the volume slider must not discard a
@@ -54,10 +54,7 @@ internal sealed class DdcWorker : IDisposable
     /// Raised on the worker thread when a write reports failure.
     /// Subscribers must marshal to the UI thread themselves.
     /// </summary>
-    public event Action<Monitor, Feature, int> WriteFailed;
-
-    /// <summary>Raised after a power request has been verified or dispatched.</summary>
-    public event Action<Monitor, int> PowerCompleted;
+    public event Action<Monitor, Feature> WriteFailed;
 
     public DdcWorker()
     {
@@ -88,26 +85,11 @@ internal sealed class DdcWorker : IDisposable
     /// </summary>
     public void SetVcp(Monitor m, byte code, int value)
     {
-        // D6 is intentionally not a generic extra control. It must pass through
-        // SetPower so wake verification, persisted intent, and model safety
-        // checks cannot be bypassed by a future caller.
-        if (m == null || code == MonitorPower.VcpCode) return;
+        // D6 hardware-off is intentionally unavailable. Some firmware switches
+        // off the DDC receiver needed to reverse it, so a raw extra control must
+        // never be able to bypass the reversible screen-blank UI.
+        if (m == null || code == 0xD6) return;
         _pending[new Target(m, Feature.Vcp, code)] = value;
-        _signal.Set();
-    }
-
-    /// <summary>
-    /// Queue an absolute DPM power target. The UI persists that target before
-    /// calling this method, so a rebuild or restart can never turn a requested
-    /// Wake back into another Off.
-    /// </summary>
-    public void SetPower(Monitor m, int target)
-    {
-        if (m == null || target is not (MonitorPower.On or MonitorPower.Off)) return;
-
-        var key = new Target(m, Feature.Power, MonitorPower.VcpCode);
-        _pending[key] = target;
-        if (target == MonitorPower.Off) m.PowerMode = MonitorPower.Off;
         _signal.Set();
     }
 
@@ -167,15 +149,11 @@ internal sealed class DdcWorker : IDisposable
                         ReadBack(key, out int reported))
                         StoreActual(key, reported);
 
-                    WriteFailed?.Invoke(key.Mon, key.What, value);
+                    WriteFailed?.Invoke(key.Mon, key.What);
                     return;
                 }
 
-                if (!verify)
-                {
-                    if (key.What == Feature.Power) PowerCompleted?.Invoke(key.Mon, value);
-                    return;
-                }
+                if (!verify) return;
 
                 // During a drag, the newer pending value is the verification:
                 // do not spend another DDC round trip confirming an intermediate
@@ -200,7 +178,7 @@ internal sealed class DdcWorker : IDisposable
                 if (attempt + 1 == VerifyAttempts)
                 {
                     if (read) StoreActual(key, actual);
-                    WriteFailed?.Invoke(key.Mon, key.What, value);
+                    WriteFailed?.Invoke(key.Mon, key.What);
                     return;
                 }
             }
@@ -211,7 +189,7 @@ internal sealed class DdcWorker : IDisposable
             // display-change rebuild will dispose this Monitor object and drop
             // the stale queue entry. Surface the failed request in the meantime
             // rather than leaving an optimistic slider value unchallenged.
-            WriteFailed?.Invoke(key.Mon, key.What, value);
+            WriteFailed?.Invoke(key.Mon, key.What);
         }
     }
 
@@ -220,7 +198,7 @@ internal sealed class DdcWorker : IDisposable
         if (key.Mon.IsInternalPanel)
         {
             // WMI, and only brightness: a laptop panel has no contrast or DDC
-            // power mode to speak to.
+            // arbitrary VCP mode to speak to.
             return key.What == Feature.Brightness &&
                    WmiBrightness.Set(key.Mon.WmiInstanceName, value);
         }
@@ -233,9 +211,38 @@ internal sealed class DdcWorker : IDisposable
                 h => Native.SetMonitorContrast(h, (uint)value), false),
             Feature.Vcp => key.Mon.UseDdc(
                 h => Native.SetVCPFeature(h, key.Code, (uint)value), false),
-            Feature.Power => MonitorPower.Set(key.Mon, value),
             _ => true,
         };
+    }
+
+    /// <summary>
+    /// Restore a blackout synchronously and verify the real value. The marker
+    /// that protects crash recovery is cleared only after this succeeds;
+    /// ordinary slider changes still use the background queue.
+    /// </summary>
+    public static bool SetBrightnessImmediate(Monitor m, int value)
+    {
+        if (m == null) return false;
+        if (m.IsInternalPanel)
+            return WmiBrightness.Set(m.WmiInstanceName, value);
+
+        for (int attempt = 0; attempt < VerifyAttempts; attempt++)
+        {
+            bool written = m.UseDdc(
+                h => Native.SetMonitorBrightness(h, (uint)value), false);
+            if (!written) continue;
+
+            Thread.Sleep(VerifySettleMs);
+            uint minimum = 0, current = 0, maximum = 0;
+            bool read = m.UseDdc(h => Native.GetMonitorBrightness(
+                h, ref minimum, ref current, ref maximum), false);
+            if (read && current == (uint)value)
+            {
+                m.Brightness = value;
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool ReadBack(Target key, out int actual)
