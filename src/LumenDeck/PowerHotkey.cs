@@ -128,9 +128,9 @@ internal sealed class PowerHotkeyDialog : Form
         });
         Controls.Add(new Label
         {
-            Text = "It will toggle the monitor between on and DPMS-off from anywhere.",
-            AutoSize = true,
-            Location = new Point(18, 44),
+            Text = "It requests on or DPM-off from anywhere. Firmware-specific safety checks still apply.",
+            AutoSize = false,
+            Bounds = new Rectangle(18, 42, 394, 34),
             ForeColor = Theme.InkMuted,
         });
 

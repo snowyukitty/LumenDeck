@@ -270,6 +270,7 @@ internal sealed class MainForm : Form
         };
 
         _worker.WriteFailed += OnWriteFailed;
+        _worker.PowerCompleted += OnPowerCompleted;
 
         SetStatus("Reading monitors over DDC/CI...");
         // StartMinimised is applied in OnShown, not here. Setting WindowState in
@@ -402,6 +403,18 @@ internal sealed class MainForm : Form
                 // reversible rather than one-way.
                 _settings.SeedCustom(m);
 
+                bool wakeUnsafe = MonitorPower.IsKnownWakeUnsafe(m) ||
+                                  _settings.PowerWakeUnsafeFor(m.StableKey);
+                if (wakeUnsafe)
+                {
+                    // A failed wake is sticky so this monitor is never offered
+                    // DDC-off again. Its live DDC response still tells us
+                    // whether a physical button/cable recovery succeeded.
+                    _settings.SetPowerWakeUnsafe(m.StableKey, m.DisplayName, true);
+                    _settings.SetPowerOffRequested(
+                        m.StableKey, m.DisplayName, !m.SupportsBrightness);
+                }
+
                 var card = new MonitorCard(
                     m, _settings, _worker, OnCardChanged, s => SetStatus(s),
                     TogglePower, ConfigurePowerHotkey, LoadFeaturesForCard);
@@ -500,16 +513,43 @@ internal sealed class MainForm : Form
     }
 
     /// <summary>Raised on the worker thread when a write is refused.</summary>
-    private void OnWriteFailed(Monitor m, DdcWorker.Feature what)
+    private void OnWriteFailed(Monitor m, DdcWorker.Feature what, int requested)
     {
         if (IsDisposed) return;
         if (InvokeRequired)
         {
-            BeginInvoke(new Action(() => OnWriteFailed(m, what)));
+            BeginInvoke(new Action(() => OnWriteFailed(m, what, requested)));
             return;
         }
 
         string name = m?.FriendlyName ?? "A monitor";
+        if (what == DdcWorker.Feature.Power)
+        {
+            bool waking = requested == MonitorPower.On;
+            if (m != null)
+            {
+                if (waking)
+                    _settings.SetPowerWakeUnsafe(m.StableKey, m.DisplayName, true);
+                else
+                    _settings.SetPowerOffRequested(m.StableKey, m.DisplayName, false);
+                _settings.Save();
+
+                var powerCard = _cards.FirstOrDefault(c => c.Monitor == m);
+                if (powerCard is { IsDisposed: false })
+                    powerCard.SetPowerState(
+                        _settings.PowerOffRequestedFor(m.StableKey),
+                        _settings.PowerWakeUnsafeFor(m.StableKey) || MonitorPower.IsKnownWakeUnsafe(m));
+                RegisterPowerHotkeys();
+            }
+
+            SetStatus(waking
+                ? $"{name} did not answer the wake command. DDC-off is now disabled for this monitor; " +
+                  "use its physical power button or reconnect power once."
+                : $"{name} refused the power-off command; it remains on.",
+                StatusKind.Warn);
+            return;
+        }
+
         if (what is DdcWorker.Feature.Brightness or DdcWorker.Feature.Contrast)
         {
             var card = _cards.FirstOrDefault(c => c.Monitor == m);
@@ -517,11 +557,33 @@ internal sealed class MainForm : Form
             _map.Refresh(null);
         }
 
-        string detail = what == DdcWorker.Feature.Power
-            ? "power command"
-            : what.ToString().ToLowerInvariant() + " change";
+        string detail = what.ToString().ToLowerInvariant() + " change";
         SetStatus($"{name} refused the {detail} - it may be asleep, on another input, " +
                   "or have DDC/CI disabled.", StatusKind.Warn);
+    }
+
+    private void OnPowerCompleted(Monitor m, int requested)
+    {
+        if (IsDisposed) return;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnPowerCompleted(m, requested)));
+            return;
+        }
+
+        bool off = requested == MonitorPower.Off;
+        _settings.SetPowerOffRequested(m.StableKey, m.DisplayName, off);
+        _settings.Save();
+
+        var card = _cards.FirstOrDefault(c => c.Monitor == m);
+        if (card is { IsDisposed: false })
+            card.SetPowerState(off,
+                _settings.PowerWakeUnsafeFor(m.StableKey) || MonitorPower.IsKnownWakeUnsafe(m));
+        RegisterPowerHotkeys();
+
+        SetStatus($"{m.DisplayName}: " + (off
+            ? "DPM-off command sent. The next press is explicitly Wake."
+            : "wake verified by a live DDC read."));
     }
 
     private void TogglePower(MonitorCard card)
@@ -532,11 +594,52 @@ internal sealed class MainForm : Form
             return;
         }
 
-        bool turningOff = _worker.TogglePower(card.Monitor);
-        SetStatus($"{card.Monitor.DisplayName}: " +
-                  (turningOff
-                      ? "entering DPMS-off, the monitor's lowest normal power state."
-                      : "wake command sent."));
+        var m = card.Monitor;
+        bool waking = _settings.PowerOffRequestedFor(m.StableKey) ||
+                      m.PowerMode == MonitorPower.Off;
+
+        if (!waking)
+        {
+            bool unsafeWake = _settings.PowerWakeUnsafeFor(m.StableKey) ||
+                              MonitorPower.IsKnownWakeUnsafe(m);
+            if (unsafeWake)
+            {
+                SetStatus($"{m.DisplayName}: DDC power-off is disabled because this model did not wake safely.",
+                          StatusKind.Warn);
+                return;
+            }
+
+            if (!_settings.PowerRiskAcceptedFor(m.StableKey))
+            {
+                var answer = MessageBox.Show(this,
+                    "DDC power-off is controlled by monitor firmware. Some monitors turn off " +
+                    "their DDC receiver too, so software cannot wake them and the physical " +
+                    "power button or a cable reconnect is required.\n\n" +
+                    $"Test {m.DisplayName} only while you can reach its power button. Continue?",
+                    "Test monitor power control",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2);
+                if (answer != DialogResult.Yes) return;
+
+                _settings.SetPowerRiskAccepted(m.StableKey, m.DisplayName, true);
+                _settings.Save();
+                RegisterPowerHotkeys();
+            }
+
+            // Persist intent before the command. If the monitor disappears or
+            // LumenDeck restarts, the next action remains Wake rather than
+            // accidentally issuing a second Off.
+            _settings.SetPowerOffRequested(m.StableKey, m.DisplayName, true);
+            _settings.Save();
+            card.SetPowerState(true, false);
+            _worker.SetPower(m, MonitorPower.Off);
+            SetStatus($"{m.DisplayName}: sending DPM-off. The button is now Wake.");
+            return;
+        }
+
+        _worker.SetPower(m, MonitorPower.On);
+        SetStatus($"{m.DisplayName}: retrying wake and waiting for a live DDC response...");
     }
 
     private void ConfigurePowerHotkey(MonitorCard card)
@@ -562,9 +665,15 @@ internal sealed class MainForm : Form
         _settings.Save();
         card.SetPowerShortcutText(selected);
         RegisterPowerHotkeys();
+        bool awaitingSafetyTest = !string.IsNullOrEmpty(selected) &&
+                                  !_settings.PowerRiskAcceptedFor(card.Monitor.StableKey) &&
+                                  !_settings.PowerOffRequestedFor(card.Monitor.StableKey);
         bool active = string.IsNullOrEmpty(selected) || _powerHotkeys.Values.Contains(card);
         SetStatus(string.IsNullOrEmpty(selected)
             ? $"{card.Monitor.DisplayName}: power shortcut cleared."
+            : awaitingSafetyTest
+                ? $"{selected} was saved for {card.Monitor.DisplayName}. Use Screen off once to review " +
+                  "the firmware safety warning before the shortcut becomes global."
             : active
                 ? $"{card.Monitor.DisplayName}: {selected} now toggles screen power."
                 : $"{selected} was saved for {card.Monitor.DisplayName}, but Windows refused to register it; " +
@@ -582,6 +691,11 @@ internal sealed class MainForm : Form
         {
             string text = _settings.PowerHotkeyFor(card.Monitor.StableKey);
             if (!PowerHotkey.TryParse(text, out var hotkey)) continue;
+            if (!_settings.PowerRiskAcceptedFor(card.Monitor.StableKey) &&
+                !_settings.PowerOffRequestedFor(card.Monitor.StableKey)) continue;
+            if ((_settings.PowerWakeUnsafeFor(card.Monitor.StableKey) ||
+                 MonitorPower.IsKnownWakeUnsafe(card.Monitor)) &&
+                !_settings.PowerOffRequestedFor(card.Monitor.StableKey)) continue;
 
             int candidate = id++;
             if (Native.RegisterHotKey(Handle, candidate,
@@ -771,6 +885,7 @@ internal sealed class MainForm : Form
         _saveTimer.Stop();
         _displayChangeTimer.Stop();
         _worker.WriteFailed -= OnWriteFailed;
+        _worker.PowerCompleted -= OnPowerCompleted;
         _settings.Save();
         DisplayGamma.Save();
 

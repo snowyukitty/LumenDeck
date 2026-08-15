@@ -49,8 +49,8 @@ your own screenshots can be too.</sub></p>
 | **Colour temperature** | Per monitor, 3000K–6500K, as a blue light filter |
 | **Luminance-matched presets** | Day / Evening / Night — aims every panel at the *same light*, not the same number |
 | **Custom** | Your own levels per monitor, remembered as you set them. Every preset is reversible |
-| **Lowest-power screen off** | DPMS-off per external monitor, with an optional global shortcut that wakes it again |
-| **Everything else your monitor offers** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, power, factory reset — discovered from each monitor, not assumed |
+| **Hardware screen power** | Experimental per-monitor DPM-off with verified wake, a safety interlock, and an optional global shortcut |
+| **Everything else your monitor offers** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, factory reset — discovered from each monitor, not assumed |
 | **Desk map** | A scale drawing of your actual monitor layout; click a screen to jump to it |
 | **Identify** | Puts each monitor's name on its own glass |
 | **Laptop panels** | Internal displays via `WmiMonitorBrightnessMethods` |
@@ -171,11 +171,19 @@ Exit codes: `0` done, `1` nothing matched, `2` a monitor refused the change — 
 it can be used in a scheduled task or bound to a hotkey by whatever launcher you
 already use.
 
-Each external-monitor card also has **Screen off / on** and **Set shortcut**.
-The shortcut is global: it works while LumenDeck is in the notification area.
-Off sends MCCS VCP `D6=04` (DPMS-off), which powers down the panel and backlight
-instead of merely setting brightness to zero; the next press sends `D6=01` to
-wake that same monitor. Laptop internal panels do not expose this DDC command.
+Each external-monitor card also has **Screen off** / **Wake screen** and
+**Set shortcut**. The shortcut is global: it works while LumenDeck is in the
+notification area. Off sends MCCS VCP `D6=04` (DPM-off), which powers down the
+panel and backlight instead of merely setting brightness to zero; Wake retries
+`D6=01` and reports success only after a live DDC read.
+
+This control is firmware-dependent. Some monitors switch off the DDC receiver
+that must hear the wake command, leaving the physical power button or a cable
+reconnect as the only recovery. LumenDeck therefore asks for confirmation on
+first use, remembers that the next action must be Wake across restarts, and
+permanently disables DDC-off for a monitor after an unverified wake. Models
+already demonstrated to have this failure are blocked up front. Laptop internal
+panels do not expose this DDC command.
 
 ```powershell
 # dim everything a notch

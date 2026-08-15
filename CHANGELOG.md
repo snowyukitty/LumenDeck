@@ -8,14 +8,21 @@ Notable changes, newest first. Format follows
 
 ### Added
 
-- Every external-monitor card can toggle MCCS DPMS-off (`VCP D6=04`) and wake
-  the same display (`D6=01`). Each monitor can have its own configurable global
-  shortcut, which remains active while LumenDeck is in the notification area.
+- External-monitor cards can request MCCS DPM-off (`VCP D6=04`) and wake the
+  same display (`D6=01`) when that monitor's firmware keeps DDC reachable. Each
+  monitor can have its own configurable global shortcut, which remains active
+  while LumenDeck is in the notification area.
 - `lumendeck-cli --power toggle|off|on`, compatible with `--monitor`, provides
   the same per-display power action to scripts and third-party launchers.
 
 ### Fixed
 
+- Power-on no longer treats a fire-and-forget `SetVCPFeature` return as proof
+  that a monitor woke. LumenDeck retries and requires a live DDC read, persists
+  an explicit Wake state across display rebuilds and restarts, and disables
+  further DDC-off requests for firmware that cannot be woken by software. Known
+  affected models are blocked before the first unsafe command; the duplicate
+  raw power-mode control no longer bypasses these checks.
 - Brightness writes no longer wait behind capability probes for unrelated
   monitors. DDC traffic and handle lifetime are serialised per physical display
   rather than behind one desk-wide lock, and optional controls are discovered

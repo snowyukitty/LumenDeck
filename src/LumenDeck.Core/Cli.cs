@@ -277,14 +277,55 @@ internal static class Cli
 
                 foreach (var m in targets)
                 {
+                    bool offWasRequested = settings.PowerOffRequestedFor(m.StableKey);
                     int target = mode switch
                     {
                         "on" => MonitorPower.On,
                         "off" => MonitorPower.Off,
-                        _ => MonitorPower.ToggleTarget(m),
+                        _ => offWasRequested ? MonitorPower.On : MonitorPower.ToggleTarget(m),
                     };
 
-                    if (!MonitorPower.Set(m, target)) exit = ExitWriteRefused;
+                    bool knownUnsafe = MonitorPower.IsKnownWakeUnsafe(m);
+                    bool rememberedUnsafe = settings.PowerWakeUnsafeFor(m.StableKey);
+                    if (target == MonitorPower.Off && (knownUnsafe || rememberedUnsafe))
+                    {
+                        exit = ExitWriteRefused;
+                        Console.Error.WriteLine(
+                            $"Refusing DDC power-off for {m.FriendlyName}: " +
+                            (knownUnsafe
+                                ? "this model is known to cut the receiver needed for software wake."
+                                : "a previous wake could not be verified on this monitor."));
+                        continue;
+                    }
+
+                    if (target == MonitorPower.Off)
+                    {
+                        // Persist intent before the fire-and-forget request, as
+                        // the GUI does. A following toggle must be Wake even if
+                        // the panel disappears from DDC immediately.
+                        settings.SetPowerRiskAccepted(m.StableKey, m.DisplayName, true);
+                        settings.SetPowerOffRequested(m.StableKey, m.DisplayName, true);
+                        settings.Save();
+                    }
+
+                    if (MonitorPower.Set(m, target))
+                    {
+                        settings.SetPowerOffRequested(
+                            m.StableKey, m.DisplayName, target == MonitorPower.Off);
+                    }
+                    else
+                    {
+                        exit = ExitWriteRefused;
+                        if (target == MonitorPower.On)
+                        {
+                            settings.SetPowerWakeUnsafe(m.StableKey, m.DisplayName, true);
+                            settings.SetPowerOffRequested(m.StableKey, m.DisplayName, true);
+                        }
+                        else
+                        {
+                            settings.SetPowerOffRequested(m.StableKey, m.DisplayName, false);
+                        }
+                    }
                 }
                 actions.Add("power " + mode);
             }
@@ -301,7 +342,8 @@ internal static class Cli
             // Writes are queued to the hardware asynchronously in the GUI; here
             // they are direct, but a monitor still needs a moment before a read
             // reflects them. Report what was asked for, and say so plainly.
-            Console.WriteLine($"Applied {string.Join(", ", actions)} to " +
+            Console.WriteLine($"{(exit == ExitWriteRefused ? "Requested" : "Applied")} " +
+                              $"{string.Join(", ", actions)} to " +
                               string.Join(", ", targets.Select(t => t.FriendlyName)));
             if (exit == ExitWriteRefused)
                 Console.Error.WriteLine("At least one monitor refused a change - it may be asleep or on another input.");
@@ -476,8 +518,11 @@ internal static class Cli
           -w, --warmth <kelvin>   3000-6500, or "off" for neutral
 
               --power <mode>     toggle | off | on
-                                  "off" uses MCCS DPMS-off (VCP D6 value 04),
+                                  "off" uses MCCS DPM-off (VCP D6 value 04),
                                   the monitor's lowest normal power state.
+                                  Firmware may cut DDC and require a physical
+                                  power button; known unsafe models are refused.
+                                  "on" succeeds only after a live DDC read.
 
         -b, -c and -w set your own levels for the monitors they touch, so
         --preset Custom comes back to them.
