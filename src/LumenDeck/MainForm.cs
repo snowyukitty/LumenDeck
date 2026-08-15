@@ -4,10 +4,11 @@ internal sealed class MainForm : Form
 {
     private const int WM_DISPLAYCHANGE = 0x007E;
     private const int WM_HOTKEY = 0x0312;
-    private const int FirstPowerHotkeyId = 0x4C00;
+    private const int FirstScreenBlankHotkeyId = 0x4C00;
 
     private readonly DdcWorker _worker = new();
     private readonly AppSettings _settings = AppSettings.Load();
+    private readonly ScreenBlanker _blanker;
 
     private List<Monitor> _monitors = new();
     private readonly List<MonitorCard> _cards = new();
@@ -29,7 +30,7 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, FlatButton> _modeButtons = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Registered global-hotkey id to the card it controls.</summary>
-    private readonly Dictionary<int, MonitorCard> _powerHotkeys = new();
+    private readonly Dictionary<int, MonitorCard> _screenBlankHotkeys = new();
 
     /// <summary>Bumped per rebuild so a slow enumeration cannot overwrite a newer one.</summary>
     private int _generation;
@@ -44,6 +45,8 @@ internal sealed class MainForm : Form
 
     public MainForm()
     {
+        _blanker = new ScreenBlanker(_settings, _worker, OnScreenBlankStateChanged);
+
         Text = "LumenDeck";
         BackColor = Theme.Base;
         ForeColor = Theme.Ink;
@@ -270,7 +273,6 @@ internal sealed class MainForm : Form
         };
 
         _worker.WriteFailed += OnWriteFailed;
-        _worker.PowerCompleted += OnPowerCompleted;
 
         SetStatus("Reading monitors over DDC/CI...");
         // StartMinimised is applied in OnShown, not here. Setting WindowState in
@@ -352,7 +354,7 @@ internal sealed class MainForm : Form
             // the writer, so it waits for an in-flight request without making a
             // slow display block every other display.
             _worker.ClearPending();
-            UnregisterPowerHotkeys();
+            UnregisterScreenBlankHotkeys();
             foreach (var m in _monitors) m.Dispose();
             _monitors.Clear();
 
@@ -403,21 +405,17 @@ internal sealed class MainForm : Form
                 // reversible rather than one-way.
                 _settings.SeedCustom(m);
 
-                bool wakeUnsafe = MonitorPower.IsKnownWakeUnsafe(m) ||
-                                  _settings.PowerWakeUnsafeFor(m.StableKey);
-                if (wakeUnsafe)
-                {
-                    // A failed wake is sticky so this monitor is never offered
-                    // DDC-off again. Its live DDC response still tells us
-                    // whether a physical button/cable recovery succeeded.
-                    _settings.SetPowerWakeUnsafe(m.StableKey, m.DisplayName, true);
-                    _settings.SetPowerOffRequested(
-                        m.StableKey, m.DisplayName, !m.SupportsBrightness);
-                }
+                if (_blanker.IsBlanked(m.StableKey))
+                    _blanker.Rebind(m);
+                else
+                    _blanker.RecoverInterruptedBlank(m);
 
                 var card = new MonitorCard(
                     m, _settings, _worker, OnCardChanged, s => SetStatus(s),
-                    TogglePower, ConfigurePowerHotkey, LoadFeaturesForCard);
+                    ToggleScreenBlank, ConfigureScreenBlankHotkey, LoadFeaturesForCard);
+                card.SetScreenBlankState(
+                    _blanker.IsBlanked(m.StableKey) ||
+                    _settings.ScreenBlankActiveFor(m.StableKey));
                 card.SetWidth(CardWidth);
                 _cards.Add(card);
                 _list.Controls.Add(card);
@@ -430,7 +428,7 @@ internal sealed class MainForm : Form
             // slider move, or a crash before then loses the way back.
             SaveSoon();
             ReportInventory(reason);
-            RegisterPowerHotkeys();
+            RegisterScreenBlankHotkeys();
 
             // Capability strings are loaded only when their disclosure is
             // opened. They are the slowest DDC request available; probing all
@@ -513,43 +511,16 @@ internal sealed class MainForm : Form
     }
 
     /// <summary>Raised on the worker thread when a write is refused.</summary>
-    private void OnWriteFailed(Monitor m, DdcWorker.Feature what, int requested)
+    private void OnWriteFailed(Monitor m, DdcWorker.Feature what)
     {
         if (IsDisposed) return;
         if (InvokeRequired)
         {
-            BeginInvoke(new Action(() => OnWriteFailed(m, what, requested)));
+            BeginInvoke(new Action(() => OnWriteFailed(m, what)));
             return;
         }
 
         string name = m?.FriendlyName ?? "A monitor";
-        if (what == DdcWorker.Feature.Power)
-        {
-            bool waking = requested == MonitorPower.On;
-            if (m != null)
-            {
-                if (waking)
-                    _settings.SetPowerWakeUnsafe(m.StableKey, m.DisplayName, true);
-                else
-                    _settings.SetPowerOffRequested(m.StableKey, m.DisplayName, false);
-                _settings.Save();
-
-                var powerCard = _cards.FirstOrDefault(c => c.Monitor == m);
-                if (powerCard is { IsDisposed: false })
-                    powerCard.SetPowerState(
-                        _settings.PowerOffRequestedFor(m.StableKey),
-                        _settings.PowerWakeUnsafeFor(m.StableKey) || MonitorPower.IsKnownWakeUnsafe(m));
-                RegisterPowerHotkeys();
-            }
-
-            SetStatus(waking
-                ? $"{name} did not answer the wake command. DDC-off is now disabled for this monitor; " +
-                  "use its physical power button or reconnect power once."
-                : $"{name} refused the power-off command; it remains on.",
-                StatusKind.Warn);
-            return;
-        }
-
         if (what is DdcWorker.Feature.Brightness or DdcWorker.Feature.Contrast)
         {
             var card = _cards.FirstOrDefault(c => c.Monitor == m);
@@ -562,98 +533,58 @@ internal sealed class MainForm : Form
                   "or have DDC/CI disabled.", StatusKind.Warn);
     }
 
-    private void OnPowerCompleted(Monitor m, int requested)
+    private void OnScreenBlankStateChanged(string key, bool blanked, bool brightnessRestored)
     {
         if (IsDisposed) return;
         if (InvokeRequired)
         {
-            BeginInvoke(new Action(() => OnPowerCompleted(m, requested)));
+            BeginInvoke(new Action(() =>
+                OnScreenBlankStateChanged(key, blanked, brightnessRestored)));
             return;
         }
 
-        bool off = requested == MonitorPower.Off;
-        _settings.SetPowerOffRequested(m.StableKey, m.DisplayName, off);
-        _settings.Save();
-
-        var card = _cards.FirstOrDefault(c => c.Monitor == m);
+        var card = _cards.FirstOrDefault(c => c.Monitor.StableKey == key);
         if (card is { IsDisposed: false })
-            card.SetPowerState(off,
-                _settings.PowerWakeUnsafeFor(m.StableKey) || MonitorPower.IsKnownWakeUnsafe(m));
-        RegisterPowerHotkeys();
-
-        SetStatus($"{m.DisplayName}: " + (off
-            ? "DPM-off command sent. The next press is explicitly Wake."
-            : "wake verified by a live DDC read."));
+            card.SetScreenBlankState(
+                blanked || _settings.ScreenBlankActiveFor(key));
+        string name = card?.Monitor.DisplayName ?? "Screen";
+        SetStatus(blanked
+            ? $"{name}: temporarily blanked. Click that screen or use its shortcut to restore."
+            : brightnessRestored
+                ? $"{name}: screen and saved brightness restored."
+                : $"{name}: blackout removed, but brightness could not be restored yet. " +
+                  "LumenDeck will retry when this monitor answers DDC/CI.",
+            brightnessRestored ? StatusKind.Info : StatusKind.Warn);
     }
 
-    private void TogglePower(MonitorCard card)
+    private void ToggleScreenBlank(MonitorCard card)
     {
-        if (card == null || card.IsDisposed || !card.Monitor.HasPhysicalHandle)
+        if (card == null || card.IsDisposed)
         {
-            SetStatus("That display has no DDC/CI power control.", StatusKind.Warn);
+            SetStatus("That display is no longer available.", StatusKind.Warn);
             return;
         }
 
-        var m = card.Monitor;
-        bool waking = _settings.PowerOffRequestedFor(m.StableKey) ||
-                      m.PowerMode == MonitorPower.Off;
-
-        if (!waking)
-        {
-            bool unsafeWake = _settings.PowerWakeUnsafeFor(m.StableKey) ||
-                              MonitorPower.IsKnownWakeUnsafe(m);
-            if (unsafeWake)
-            {
-                SetStatus($"{m.DisplayName}: DDC power-off is disabled because this model did not wake safely.",
-                          StatusKind.Warn);
-                return;
-            }
-
-            if (!_settings.PowerRiskAcceptedFor(m.StableKey))
-            {
-                var answer = MessageBox.Show(this,
-                    "DDC power-off is controlled by monitor firmware. Some monitors turn off " +
-                    "their DDC receiver too, so software cannot wake them and the physical " +
-                    "power button or a cable reconnect is required.\n\n" +
-                    $"Test {m.DisplayName} only while you can reach its power button. Continue?",
-                    "Test monitor power control",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning,
-                    MessageBoxDefaultButton.Button2);
-                if (answer != DialogResult.Yes) return;
-
-                _settings.SetPowerRiskAccepted(m.StableKey, m.DisplayName, true);
-                _settings.Save();
-                RegisterPowerHotkeys();
-            }
-
-            // Persist intent before the command. If the monitor disappears or
-            // LumenDeck restarts, the next action remains Wake rather than
-            // accidentally issuing a second Off.
-            _settings.SetPowerOffRequested(m.StableKey, m.DisplayName, true);
-            _settings.Save();
-            card.SetPowerState(true, false);
-            _worker.SetPower(m, MonitorPower.Off);
-            SetStatus($"{m.DisplayName}: sending DPM-off. The button is now Wake.");
-            return;
-        }
-
-        _worker.SetPower(m, MonitorPower.On);
-        SetStatus($"{m.DisplayName}: retrying wake and waiting for a live DDC response...");
+        if (_blanker.IsBlanked(card.Monitor.StableKey))
+            _blanker.Restore(card.Monitor.StableKey);
+        else if (_settings.ScreenBlankActiveFor(card.Monitor.StableKey))
+            _blanker.RecoverInterruptedBlank(card.Monitor);
+        else if (!_blanker.Blank(card.Monitor))
+            SetStatus($"{card.Monitor.DisplayName}: could not create the blackout window.", StatusKind.Warn);
     }
 
-    private void ConfigurePowerHotkey(MonitorCard card)
+    private void ConfigureScreenBlankHotkey(MonitorCard card)
     {
         if (card == null || card.IsDisposed) return;
-        string current = _settings.PowerHotkeyFor(card.Monitor.StableKey);
-        using var dialog = new PowerHotkeyDialog(card.Monitor.DisplayName, current);
+        string current = _settings.ScreenBlankHotkeyFor(card.Monitor.StableKey);
+        using var dialog = new ScreenBlankHotkeyDialog(card.Monitor.DisplayName, current);
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
         string selected = dialog.SelectedShortcut ?? current;
-        PowerHotkey.TryParse(selected, out var selectedHotkey);
+        ScreenBlankHotkey.TryParse(selected, out var selectedHotkey);
         if (!string.IsNullOrEmpty(selected) &&
             _cards.Any(c => c != card &&
-                PowerHotkey.TryParse(_settings.PowerHotkeyFor(c.Monitor.StableKey), out var other) &&
+                ScreenBlankHotkey.TryParse(_settings.ScreenBlankHotkeyFor(c.Monitor.StableKey), out var other) &&
                 other.Modifiers == selectedHotkey.Modifiers &&
                 other.VirtualKey == selectedHotkey.VirtualKey))
         {
@@ -661,47 +592,36 @@ internal sealed class MainForm : Form
             return;
         }
 
-        _settings.SetPowerHotkey(card.Monitor.StableKey, card.Monitor.DisplayName, selected);
+        _settings.SetScreenBlankHotkey(card.Monitor.StableKey, card.Monitor.DisplayName, selected);
         _settings.Save();
-        card.SetPowerShortcutText(selected);
-        RegisterPowerHotkeys();
-        bool awaitingSafetyTest = !string.IsNullOrEmpty(selected) &&
-                                  !_settings.PowerRiskAcceptedFor(card.Monitor.StableKey) &&
-                                  !_settings.PowerOffRequestedFor(card.Monitor.StableKey);
-        bool active = string.IsNullOrEmpty(selected) || _powerHotkeys.Values.Contains(card);
+        card.SetScreenBlankShortcutText(selected);
+        RegisterScreenBlankHotkeys();
+        bool active = string.IsNullOrEmpty(selected) || _screenBlankHotkeys.Values.Contains(card);
         SetStatus(string.IsNullOrEmpty(selected)
-            ? $"{card.Monitor.DisplayName}: power shortcut cleared."
-            : awaitingSafetyTest
-                ? $"{selected} was saved for {card.Monitor.DisplayName}. Use Screen off once to review " +
-                  "the firmware safety warning before the shortcut becomes global."
+            ? $"{card.Monitor.DisplayName}: screen-blank shortcut cleared."
             : active
-                ? $"{card.Monitor.DisplayName}: {selected} now toggles screen power."
+                ? $"{card.Monitor.DisplayName}: {selected} now toggles its reversible blackout."
                 : $"{selected} was saved for {card.Monitor.DisplayName}, but Windows refused to register it; " +
                   "another app may already use it.",
             active ? StatusKind.Info : StatusKind.Warn);
     }
 
-    private void RegisterPowerHotkeys()
+    private void RegisterScreenBlankHotkeys()
     {
         if (!IsHandleCreated || IsDisposed) return;
-        UnregisterPowerHotkeys();
+        UnregisterScreenBlankHotkeys();
 
-        int id = FirstPowerHotkeyId;
+        int id = FirstScreenBlankHotkeyId;
         foreach (var card in _cards)
         {
-            string text = _settings.PowerHotkeyFor(card.Monitor.StableKey);
-            if (!PowerHotkey.TryParse(text, out var hotkey)) continue;
-            if (!_settings.PowerRiskAcceptedFor(card.Monitor.StableKey) &&
-                !_settings.PowerOffRequestedFor(card.Monitor.StableKey)) continue;
-            if ((_settings.PowerWakeUnsafeFor(card.Monitor.StableKey) ||
-                 MonitorPower.IsKnownWakeUnsafe(card.Monitor)) &&
-                !_settings.PowerOffRequestedFor(card.Monitor.StableKey)) continue;
+            string text = _settings.ScreenBlankHotkeyFor(card.Monitor.StableKey);
+            if (!ScreenBlankHotkey.TryParse(text, out var hotkey)) continue;
 
             int candidate = id++;
             if (Native.RegisterHotKey(Handle, candidate,
                     hotkey.Modifiers | Native.MOD_NOREPEAT, hotkey.VirtualKey))
             {
-                _powerHotkeys[candidate] = card;
+                _screenBlankHotkeys[candidate] = card;
             }
             else
             {
@@ -711,12 +631,12 @@ internal sealed class MainForm : Form
         }
     }
 
-    private void UnregisterPowerHotkeys()
+    private void UnregisterScreenBlankHotkeys()
     {
         if (IsHandleCreated)
-            foreach (int id in _powerHotkeys.Keys)
+            foreach (int id in _screenBlankHotkeys.Keys)
                 Native.UnregisterHotKey(Handle, id);
-        _powerHotkeys.Clear();
+        _screenBlankHotkeys.Clear();
     }
 
     /// <summary>
@@ -728,12 +648,12 @@ internal sealed class MainForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        if (_cards.Count > 0) RegisterPowerHotkeys();
+        if (_cards.Count > 0) RegisterScreenBlankHotkeys();
     }
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
-        UnregisterPowerHotkeys();
+        UnregisterScreenBlankHotkeys();
         base.OnHandleDestroyed(e);
     }
 
@@ -819,9 +739,10 @@ internal sealed class MainForm : Form
 
     protected override void WndProc(ref Message msg)
     {
-        if (msg.Msg == WM_HOTKEY && _powerHotkeys.TryGetValue(msg.WParam.ToInt32(), out var card))
+        if (msg.Msg == WM_HOTKEY &&
+            _screenBlankHotkeys.TryGetValue(msg.WParam.ToInt32(), out var card))
         {
-            TogglePower(card);
+            ToggleScreenBlank(card);
             return;
         }
 
@@ -881,11 +802,15 @@ internal sealed class MainForm : Form
         }
 
         _generation++;              // invalidate any rebuild still in flight
-        UnregisterPowerHotkeys();
+        UnregisterScreenBlankHotkeys();
         _saveTimer.Stop();
         _displayChangeTimer.Stop();
         _worker.WriteFailed -= OnWriteFailed;
-        _worker.PowerCompleted -= OnPowerCompleted;
+
+        // Every blackout must be reversible even when Exit is used while one
+        // is active. Restore synchronously before the monitor handles and DDC
+        // worker disappear.
+        _blanker.RestoreAll();
         _settings.Save();
         DisplayGamma.Save();
 
@@ -894,6 +819,7 @@ internal sealed class MainForm : Form
 
         // Stop the writer before freeing what it writes to.
         _worker.Dispose();
+        _blanker.Dispose();
         foreach (var m in _monitors) m.Dispose();
         _monitors.Clear();
 

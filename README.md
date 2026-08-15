@@ -27,11 +27,10 @@ Runs as an ordinary user. No administrator rights, no drivers, no service.
 lumendeck-cli --list            # every monitor and what it will accept
 lumendeck-cli --preset Night    # level the whole desk for the evening
 lumendeck-cli -m "left" -b 55 -w 5000
-lumendeck-cli -m "left" --power toggle
 ```
 
 <p align="center">
-  <img src="docs/assets/screenshot.png" alt="LumenDeck: a scale drawing of the desk layout above one card per monitor, each with brightness, contrast and warmth sliders plus a screen power toggle and shortcut" width="620">
+  <img src="docs/assets/screenshot.png" alt="LumenDeck: a scale drawing of the desk layout above one card per monitor, each with brightness, contrast and warmth sliders plus a reversible screen blackout and shortcut" width="620">
 </p>
 
 <p align="center"><sub>Three different sliders — 76%, 43%, 56% — and all three read
@@ -49,7 +48,7 @@ your own screenshots can be too.</sub></p>
 | **Colour temperature** | Per monitor, 3000K–6500K, as a blue light filter |
 | **Luminance-matched presets** | Day / Evening / Night — aims every panel at the *same light*, not the same number |
 | **Custom** | Your own levels per monitor, remembered as you set them. Every preset is reversible |
-| **Hardware screen power** | Experimental per-monitor DPM-off with verified wake, a safety interlock, and an optional global shortcut |
+| **Reversible screen blackout** | Per-monitor black overlay plus minimum supported brightness; click or use an optional global shortcut to restore |
 | **Everything else your monitor offers** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, factory reset — discovered from each monitor, not assumed |
 | **Desk map** | A scale drawing of your actual monitor layout; click a screen to jump to it |
 | **Identify** | Puts each monitor's name on its own glass |
@@ -163,7 +162,6 @@ Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). `install.ps1
 -b, --brightness <n>    0-100, or a relative step: +10, -10
 -c, --contrast <n>      0-100, or a relative step: +10, -10
 -w, --warmth <kelvin>   3000-6500, or "off"
-    --power <mode>       toggle | off | on; per-monitor DPMS power
 -v, --version           Version
 ```
 
@@ -171,19 +169,20 @@ Exit codes: `0` done, `1` nothing matched, `2` a monitor refused the change — 
 it can be used in a scheduled task or bound to a hotkey by whatever launcher you
 already use.
 
-Each external-monitor card also has **Screen off** / **Wake screen** and
-**Set shortcut**. The shortcut is global: it works while LumenDeck is in the
-notification area. Off sends MCCS VCP `D6=04` (DPM-off), which powers down the
-panel and backlight instead of merely setting brightness to zero; Wake retries
-`D6=01` and reports success only after a live DDC read.
+Every monitor card also has **Blank screen** / **Restore screen** and
+**Set shortcut**. Blank screen draws a borderless black window over that one
+display and lowers it to its minimum supported brightness. Click the black
+screen, press a key while it has focus, use the global shortcut, or exit
+LumenDeck to restore the exact saved brightness. An interrupted blackout is
+recovered automatically on the next launch.
 
-This control is firmware-dependent. Some monitors switch off the DDC receiver
-that must hear the wake command, leaving the physical power button or a cable
-reconnect as the only recovery. LumenDeck therefore asks for confirmation on
-first use, remembers that the next action must be Wake across restarts, and
-permanently disables DDC-off for a monitor after an unverified wake. Models
-already demonstrated to have this failure are blocked up front. Laptop internal
-panels do not expose this DDC command.
+This is deliberately not MCCS hardware-off. Some monitor firmware switches off
+the DDC receiver while processing `VCP D6=04`, making the matching wake command
+impossible and requiring a physical power button or power-cable reconnect.
+LumenDeck therefore never exposes DDC-off through its window, shortcuts, generic
+controls, or CLI. On an LCD, a black image cannot save as much power as a true
+backlight-off state; reversibility takes priority. A display without software
+brightness control still gets the black overlay.
 
 ```powershell
 # dim everything a notch
@@ -191,9 +190,6 @@ lumendeck-cli --brightness -10
 
 # warm only the screen on the left
 lumendeck-cli -m left --warmth 4600
-
-# toggle one external monitor's lowest-power screen-off state
-lumendeck-cli -m left --power toggle
 
 # -m narrows what is shown, too
 lumendeck-cli --list -m left

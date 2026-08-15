@@ -34,27 +34,22 @@ internal sealed class AppSettings
         public double? CustomContrastPercent { get; set; }
         public int? CustomKelvin { get; set; }
 
-        /// <summary>
-        /// Optional global shortcut that toggles this monitor between on and
-        /// DPM-off. Stored as readable text so settings.json remains editable.
-        /// </summary>
-        public string PowerHotkey { get; set; } = "";
+        /// <summary>Optional global shortcut for reversible per-screen blanking.</summary>
+        public string ScreenBlankHotkey { get; set; } = "";
 
         /// <summary>
-        /// DDC power control can switch off the receiver that must hear the wake
-        /// command. Risk acceptance is per monitor because firmware, not
-        /// Windows, decides whether this is reversible.
+        /// True between lowering this monitor and restoring it. If the process
+        /// is killed, the next launch uses this marker to restore the saved
+        /// brightness rather than leaving a black screen behind.
         /// </summary>
-        public bool PowerRiskAccepted { get; set; }
+        public bool ScreenBlankActive { get; set; }
 
-        /// <summary>Set after a software wake could not be verified.</summary>
-        public bool PowerWakeUnsafe { get; set; }
+        public double? ScreenBlankBrightnessPercent { get; set; }
 
-        /// <summary>
-        /// The last requested power state. Persisted before sending Off so a
-        /// restart or display rebuild still knows the next action must be Wake.
-        /// </summary>
-        public bool PowerOffRequested { get; set; }
+        /// <summary>Migrates shortcuts written by the withdrawn DDC-off UI.</summary>
+        [JsonPropertyName("PowerHotkey")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string LegacyPowerHotkey { get; set; }
 
         /// <summary>
         /// Derived, so it must not be written. A get-only property is still
@@ -105,36 +100,25 @@ internal sealed class AppSettings
 
     public int KelvinFor(string key) => Find(key)?.Kelvin ?? GammaControl.NeutralKelvin;
 
-    public string PowerHotkeyFor(string key) => Find(key)?.PowerHotkey ?? "";
+    public string ScreenBlankHotkeyFor(string key) => Find(key)?.ScreenBlankHotkey ?? "";
 
-    public bool PowerRiskAcceptedFor(string key) => Find(key)?.PowerRiskAccepted ?? false;
+    public bool ScreenBlankActiveFor(string key) => Find(key)?.ScreenBlankActive ?? false;
 
-    public bool PowerWakeUnsafeFor(string key) => Find(key)?.PowerWakeUnsafe ?? false;
+    public double? ScreenBlankBrightnessFor(string key) =>
+        Find(key)?.ScreenBlankBrightnessPercent;
 
-    public bool PowerOffRequestedFor(string key) => Find(key)?.PowerOffRequested ?? false;
-
-    public void SetPowerHotkey(string key, string name, string hotkey)
+    public void SetScreenBlankHotkey(string key, string name, string hotkey)
     {
         if (string.IsNullOrEmpty(key)) return;
-        Entry(key, name).PowerHotkey = hotkey?.Trim() ?? "";
+        Entry(key, name).ScreenBlankHotkey = hotkey?.Trim() ?? "";
     }
 
-    public void SetPowerRiskAccepted(string key, string name, bool accepted)
+    public void SetScreenBlank(string key, string name, bool active, double? brightnessPercent)
     {
         if (string.IsNullOrEmpty(key)) return;
-        Entry(key, name).PowerRiskAccepted = accepted;
-    }
-
-    public void SetPowerWakeUnsafe(string key, string name, bool unsafeWake)
-    {
-        if (string.IsNullOrEmpty(key)) return;
-        Entry(key, name).PowerWakeUnsafe = unsafeWake;
-    }
-
-    public void SetPowerOffRequested(string key, string name, bool requested)
-    {
-        if (string.IsNullOrEmpty(key)) return;
-        Entry(key, name).PowerOffRequested = requested;
+        var entry = Entry(key, name);
+        entry.ScreenBlankActive = active;
+        entry.ScreenBlankBrightnessPercent = active ? Sane(brightnessPercent) : null;
     }
 
     public void SetKelvin(string key, string name, int kelvin)
@@ -193,7 +177,11 @@ internal sealed class AppSettings
                     foreach (var m in s.Monitors)
                     {
                         m.LastSeenName ??= "";
-                        m.PowerHotkey ??= "";
+                        m.ScreenBlankHotkey ??= "";
+                        if (m.ScreenBlankHotkey.Length == 0 &&
+                            !string.IsNullOrWhiteSpace(m.LegacyPowerHotkey))
+                            m.ScreenBlankHotkey = m.LegacyPowerHotkey.Trim();
+                        m.LegacyPowerHotkey = null;
                         m.Kelvin = Math.Clamp(m.Kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin);
 
                         // A hand-edited or half-written custom value must not be
@@ -202,6 +190,7 @@ internal sealed class AppSettings
                         // clamped - it would reach the slider as a silent zero.
                         m.CustomBrightnessPercent = Sane(m.CustomBrightnessPercent);
                         m.CustomContrastPercent = Sane(m.CustomContrastPercent);
+                        m.ScreenBlankBrightnessPercent = Sane(m.ScreenBlankBrightnessPercent);
                         if (m.CustomKelvin is int k)
                             m.CustomKelvin = Math.Clamp(k, GammaControl.MinKelvin, GammaControl.MaxKelvin);
                     }
