@@ -40,6 +40,11 @@ jobs:
       - name: Build
         run: dotnet build LumenDeck.slnx -c Release --no-restore /warnaserror
 
+      - name: Control regression checks
+        # Uses isolated settings and off-desktop overlays; never writes to a
+        # physical monitor or depends on DDC hardware being present.
+        run: dotnet run --project test/ControlTests/ControlTests.csproj -c Release
+
       - name: Publish self-contained
         run: >
           dotnet publish src/LumenDeck/LumenDeck.csproj -c Release -r win-x64

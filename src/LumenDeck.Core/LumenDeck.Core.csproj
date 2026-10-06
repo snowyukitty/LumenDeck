@@ -27,6 +27,7 @@
          API surface this project does not want to promise. -->
     <InternalsVisibleTo Include="LumenDeck" />
     <InternalsVisibleTo Include="lumendeck-cli" />
+    <InternalsVisibleTo Include="LumenDeck.ControlTests" />
   </ItemGroup>
 
 </Project>

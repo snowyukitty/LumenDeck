@@ -49,6 +49,8 @@ your own screenshots can be too.</sub></p>
 | **Luminance-matched presets** | Day / Evening / Night — aims every panel at the *same light*, not the same number |
 | **Custom** | Your own levels per monitor, remembered as you set them. Every preset is reversible |
 | **Reversible screen blackout** | Per-monitor black overlay plus minimum supported brightness; click or use an optional global shortcut to restore |
+| **Night saver** | Keep one work display unchanged; darken all other displays with one click, then restore their saved brightness |
+| **Precise adjustment** | Click a slider's value or press F2 to enter an exact value; arrows adjust one hardware unit, Shift adjusts ten |
 | **Everything else your monitor offers** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, factory reset — discovered from each monitor, not assumed |
 | **Desk map** | A scale drawing of your actual monitor layout; click a screen to jump to it |
 | **Identify** | Puts each monitor's name on its own glass |
@@ -183,6 +185,38 @@ LumenDeck therefore never exposes DDC-off through its window, shortcuts, generic
 controls, or CLI. On an LCD, a black image cannot save as much power as a true
 backlight-off state; reversibility takes priority. A display without software
 brightness control still gets the black overlay.
+
+### One-click night desk
+
+Choose your centre display in **Keep working on** (the Windows primary display
+is selected by default), then press **Night saver** in the window or tray menu.
+The selected display stays unchanged. Other screens get a black overlay and
+their lowest supported hardware brightness. **Restore night desk** restores
+the saved hardware brightness values, including values on panels with ranges
+such as 0–255. Screens you had already blanked individually stay under their
+own restore controls.
+
+You can restore one screen by clicking its black overlay or using its existing
+shortcut. Refresh keeps remaining blackouts in place; exiting restores them.
+An unavailable display retains its recovery data for the next reconnect or
+launch. Displays attached after entering Night saver are left visible so a
+new work screen is never unexpectedly hidden. Presets skip blanked displays,
+and their brightness slider is disabled until restored.
+
+This reduces light and can reduce backlight power; actual energy savings depend
+on the panel. A black LCD still has its backlight on. LumenDeck does not claim
+a measured watt reduction or use a hardware-off command that may prevent wake.
+
+### Exact slider values
+
+Click a slider's number, or focus it and press **F2** or **Enter**, to type an
+exact value. Brightness and contrast use the hardware's reported range;
+brightness's usual readout remains a normalized percentage. Warmth accepts
+Kelvin directly (3000–6500; 6500 restores the neutral profile).
+
+Arrow keys and wheel notches move brightness or contrast by one hardware unit.
+**Shift** multiplies the step by ten; warmth uses 50 K steps. **Home / End** go
+to the range limits, and **Page Up / Page Down** make larger adjustments.
 
 ```powershell
 # dim everything a notch

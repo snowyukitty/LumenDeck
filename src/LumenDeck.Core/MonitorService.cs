@@ -17,6 +17,9 @@ internal sealed class Monitor : IDisposable
     /// </summary>
     private readonly object _ioLock = new();
 
+    /// <summary>Order queued writes and synchronous restore for this display only.</summary>
+    internal readonly object WriteGate = new();
+
     /// <summary>The earliest tick at which this monitor may receive another DDC request.</summary>
     private long _nextDdcTick;
 

@@ -109,6 +109,8 @@ internal sealed class MonitorCard : Panel
 
         _brightness = MakeSlider(m.SupportsBrightness, m.BrightnessMin, m.BrightnessMax, m.Brightness);
         _brightness.Format = v => $"{Presets.RawToPercent(Monitor, v):0}%";
+        _brightness.AccessibleName = "Brightness (hardware units)";
+        _tips.SetToolTip(_brightness, "Click the number or press F2 to enter an exact hardware value. Arrows: one unit; Shift: ten units.");
         _brightness.ValueChanged += (_, _) => OnBrightness();
         AddRow(row++, "Brightness", _brightness, m.SupportsBrightness ? null : "no DDC");
 
@@ -124,6 +126,8 @@ internal sealed class MonitorCard : Panel
         _grid.Controls.Add(_nits, 1, row++);
 
         _contrast = MakeSlider(m.SupportsContrast, m.ContrastMin, m.ContrastMax, m.Contrast);
+        _contrast.AccessibleName = "Contrast (hardware units)";
+        _tips.SetToolTip(_contrast, "Click the number or press F2 to enter an exact hardware value. Arrows: one unit; Shift: ten units.");
         _contrast.ValueChanged += (_, _) => OnContrast();
         AddRow(row++, "Contrast", _contrast, m.SupportsContrast ? null : "no DDC");
 
@@ -139,6 +143,11 @@ internal sealed class MonitorCard : Panel
         _warmth = MakeSlider(true, 0, GammaControl.NeutralKelvin - GammaControl.MinKelvin,
                              WarmthFromKelvin(m.Kelvin));
         _warmth.Format = v => v <= 0 ? "off" : KelvinFromWarmth(v) + "K";
+        _warmth.AccessibleName = "Colour temperature (kelvin)";
+        _warmth.SmallChange = 50;
+        _warmth.EditValue = KelvinFromWarmth;
+        _warmth.FromEditValue = WarmthFromKelvin;
+        _tips.SetToolTip(_warmth, "Click the number or press F2 to enter Kelvin. Arrows: 50 K; Shift: 500 K. 6500 K restores neutral colour.");
         _warmth.ValueChanged += (_, _) => OnWarmth();
         AddRow(row++, "Warmth", _warmth, null);
 
@@ -424,7 +433,7 @@ internal sealed class MonitorCard : Panel
 
     public void ApplyBrightness(int raw)
     {
-        if (!Monitor.SupportsBrightness) return;
+        if (!Monitor.SupportsBrightness || _settings.ScreenBlankActiveFor(Monitor.StableKey)) return;
         int v = Math.Clamp(raw, _brightness.Minimum, _brightness.Maximum);
         _suppress = true;
         _brightness.SetValueSilently(v);
@@ -520,6 +529,7 @@ internal sealed class MonitorCard : Panel
         _screenBlankButton.Text = blanked ? "Restore screen" : "Blank screen";
         _screenBlankButton.Enabled = true;
         _screenBlankShortcut.Enabled = true;
+        _brightness.Enabled = !blanked && Monitor.SupportsBrightness;
         _tips.SetToolTip(_screenBlankButton, blanked
             ? "Close the blackout and restore the exact brightness saved before it."
             : "Temporarily cover this display in black and use its lowest supported brightness. Click it to restore.");

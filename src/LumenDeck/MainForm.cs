@@ -25,6 +25,10 @@ internal sealed class MainForm : Form
     private readonly ToolTip _tips = new();
     private readonly Panel _bar;
     private readonly FlowLayoutPanel _toolRow;
+    private readonly FlatButton _nightButton;
+    private readonly ComboBox _workMonitor;
+    private readonly ToolStripMenuItem _nightTrayItem;
+    private readonly NightSaver _nightSaver;
 
     /// <summary>Mode buttons by name, so the one in force can be shown as such.</summary>
     private readonly Dictionary<string, FlatButton> _modeButtons = new(StringComparer.OrdinalIgnoreCase);
@@ -46,6 +50,7 @@ internal sealed class MainForm : Form
     public MainForm()
     {
         _blanker = new ScreenBlanker(_settings, _worker, OnScreenBlankStateChanged);
+        _nightSaver = new NightSaver(_blanker, _settings);
 
         Text = "LumenDeck";
         BackColor = Theme.Base;
@@ -132,6 +137,37 @@ internal sealed class MainForm : Form
 
         _bar.Controls.Add(_toolRow);
 
+        var nightRow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top, Height = 52, Padding = new Padding(14, 8, 14, 0),
+            BackColor = Theme.Bar, WrapContents = false,
+        };
+        _nightButton = new FlatButton("Night saver") { Width = 148 };
+        _nightButton.Click += (_, _) => ToggleNightSaver();
+        _tips.SetToolTip(_nightButton,
+            "Keep your work screen unchanged. Black out the others at minimum brightness; press again to restore.");
+        nightRow.Controls.Add(_nightButton);
+        nightRow.Controls.Add(new Label
+        {
+            Text = "Keep working on", AutoSize = true, ForeColor = Theme.InkMuted,
+            Margin = new Padding(12, 7, 8, 0),
+        });
+        _workMonitor = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList, Width = 330,
+            BackColor = Theme.Base, ForeColor = Theme.Ink,
+            DisplayMember = nameof(WorkScreenChoice.Label),
+        };
+        _workMonitor.SelectionChangeCommitted += (_, _) =>
+        {
+            if (_workMonitor.SelectedItem is WorkScreenChoice choice)
+            {
+                _settings.NightWorkMonitorKey = choice.Key;
+                _settings.Save();
+            }
+        };
+        nightRow.Controls.Add(_workMonitor);
+
         // ---- desk map ------------------------------------------------------
         _map = new LayoutMap { Dock = DockStyle.Top };
         _map.MonitorPicked += m =>
@@ -167,6 +203,7 @@ internal sealed class MainForm : Form
         Controls.Add(_list);
         Controls.Add(_status);
         Controls.Add(_map);
+        Controls.Add(nightRow);
         Controls.Add(_bar);
 
         // ---- tray ----------------------------------------------------------
@@ -181,6 +218,8 @@ internal sealed class MainForm : Form
         // The tray is where a preset is most likely to be hit by accident, so
         // the way back has to be here too.
         menu.Items.Add(Presets.CustomName, null, (_, _) => ApplyCustom());
+        _nightTrayItem = new ToolStripMenuItem("Night saver", null, (_, _) => ToggleNightSaver());
+        menu.Items.Add(_nightTrayItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Warmth off", null, (_, _) => WarmthOff());
 
@@ -345,6 +384,7 @@ internal sealed class MainForm : Form
     {
         int gen = ++_generation;
         _refreshButton.Enabled = false;
+        UpdateNightSaver();
         SetStatus(reason == null ? "Reading monitors over DDC/CI..." : reason + " Re-reading monitors...");
 
         try
@@ -422,6 +462,8 @@ internal sealed class MainForm : Form
             }
 
             _map.SetMonitors(_monitors);
+            PopulateWorkScreens();
+            UpdateNightSaver();
 
             // Seeded Custom positions and resolved baselines are both new facts
             // about this desk. Persist them rather than waiting for the next
@@ -446,7 +488,63 @@ internal sealed class MainForm : Form
         finally
         {
             if (!IsDisposed) _refreshButton.Enabled = true;
+            if (!IsDisposed) UpdateNightSaver();
         }
+    }
+
+    private sealed record WorkScreenChoice(string Key, string Label);
+
+    private void PopulateWorkScreens()
+    {
+        string preferred = _settings.NightWorkMonitorKey;
+        _workMonitor.Items.Clear();
+        foreach (var m in _monitors)
+            _workMonitor.Items.Add(new WorkScreenChoice(m.StableKey,
+                $"{m.DisplayName} ({m.PositionLabel})"));
+        var selected = _monitors.FirstOrDefault(m => m.StableKey == preferred)
+            ?? _monitors.FirstOrDefault(m => m.IsPrimary) ?? _monitors.FirstOrDefault();
+        if (selected != null)
+            _workMonitor.SelectedIndex = _monitors.IndexOf(selected);
+    }
+
+    private void UpdateNightSaver()
+    {
+        bool active = _nightSaver.Count > 0;
+        _nightButton.Text = active ? "Restore night desk" : "Night saver";
+        _nightButton.Primary = active;
+        _nightButton.Invalidate();
+        _nightButton.Enabled = _refreshButton.Enabled && (active || _monitors.Count > 1);
+        _nightTrayItem.Text = _nightButton.Text;
+        _nightTrayItem.Enabled = _nightButton.Enabled;
+        _workMonitor.Enabled = !active && _refreshButton.Enabled;
+    }
+
+    private void ToggleNightSaver()
+    {
+        if (!_refreshButton.Enabled) return;
+        if (_nightSaver.Count > 0)
+        {
+            _nightSaver.Restore(_monitors);
+            UpdateNightSaver();
+            SetStatus(_nightSaver.Count == 0
+                ? "Night desk restored to its saved brightness."
+                : "Some brightness restores are pending. Reconnect the displays and press Restore night desk again.",
+                _nightSaver.Count == 0 ? StatusKind.Info : StatusKind.Warn);
+            return;
+        }
+
+        if (_workMonitor.SelectedItem is not WorkScreenChoice choice) return;
+        var work = _monitors.FirstOrDefault(m => m.StableKey == choice.Key);
+        int failed = _nightSaver.Start(_monitors, choice.Key);
+        if (failed < 0)
+        {
+            SetStatus("Restore your work screen before starting Night saver.", StatusKind.Warn);
+            return;
+        }
+        UpdateNightSaver();
+        SetStatus($"Night saver: {_nightSaver.Count} screen(s) dark; {work.DisplayName} stays unchanged." +
+            (failed > 0 ? $" {failed} screen(s) could not be blanked." : " Press Restore night desk to go back."),
+            failed > 0 ? StatusKind.Warn : StatusKind.Info);
     }
 
     private static int CountControls(Control root)
@@ -545,8 +643,13 @@ internal sealed class MainForm : Form
 
         var card = _cards.FirstOrDefault(c => c.Monitor.StableKey == key);
         if (card is { IsDisposed: false })
+        {
             card.SetScreenBlankState(
                 blanked || _settings.ScreenBlankActiveFor(key));
+            card.SyncFromMonitor();
+        }
+        if (!blanked && brightnessRestored) _nightSaver.ForgetRestored(key);
+        UpdateNightSaver();
         string name = card?.Monitor.DisplayName ?? "Screen";
         SetStatus(blanked
             ? $"{name}: temporarily blanked. Click that screen or use its shortcut to restore."
@@ -570,7 +673,7 @@ internal sealed class MainForm : Form
         else if (_settings.ScreenBlankActiveFor(card.Monitor.StableKey))
             _blanker.RecoverInterruptedBlank(card.Monitor);
         else if (!_blanker.Blank(card.Monitor))
-            SetStatus($"{card.Monitor.DisplayName}: could not create the blackout window.", StatusKind.Warn);
+            SetStatus($"{card.Monitor.DisplayName}: could not prepare the blackout window or save recovery data.", StatusKind.Warn);
     }
 
     private void ConfigureScreenBlankHotkey(MonitorCard card)
@@ -661,7 +764,7 @@ internal sealed class MainForm : Form
 
     private void ApplyLevel(Presets.Level level)
     {
-        foreach (var c in _cards)
+        foreach (var c in _cards.Where(c => !_settings.ScreenBlankActiveFor(c.Monitor.StableKey)))
         {
             c.ApplyBrightness(Presets.BrightnessFor(c.Monitor, level.Nits));
             c.ApplyWarmth(level.Kelvin);
@@ -673,7 +776,7 @@ internal sealed class MainForm : Form
         string caveat = unknown > 0
             ? $"  {unknown} panel{(unknown == 1 ? " is" : "s are")} not in the luminance table, so those values are estimates."
             : "";
-        SetStatus($"{level.Name}: every panel aimed at about {level.Nits} nits, {level.Kelvin}K." +
+        SetStatus($"{level.Name}: visible panels aimed at about {level.Nits} nits, {level.Kelvin}K." +
                   $"{caveat}  Press {Presets.CustomName} to go back.");
     }
 
@@ -683,7 +786,7 @@ internal sealed class MainForm : Form
     /// </summary>
     private void ApplyCustom()
     {
-        int restored = _cards.Count(c => c.RestoreCustom());
+        int restored = _cards.Count(c => !_settings.ScreenBlankActiveFor(c.Monitor.StableKey) && c.RestoreCustom());
         SaveSoon();
         SetMode(restored == 0 ? null : Presets.CustomName);
 

@@ -115,9 +115,11 @@ internal sealed class DdcWorker : IDisposable
             foreach (var key in _pending.Keys)
             {
                 if (!_running) return;
-                if (!_pending.TryRemove(key, out int value)) continue;
-
-                Process(key, value);
+                lock (key.Mon.WriteGate)
+                {
+                    if (!_pending.TryRemove(key, out int value)) continue;
+                    Process(key, value);
+                }
             }
         }
     }
@@ -243,6 +245,16 @@ internal sealed class DdcWorker : IDisposable
             }
         }
         return false;
+    }
+
+    /// <summary>Finish any in-flight write, discard stale brightness, then restore.</summary>
+    public bool RestoreBrightness(Monitor m, int value)
+    {
+        lock (m.WriteGate)
+        {
+            _pending.TryRemove(new Target(m, Feature.Brightness, 0), out _);
+            return SetBrightnessImmediate(m, value);
+        }
     }
 
     private static bool ReadBack(Target key, out int actual)

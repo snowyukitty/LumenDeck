@@ -13,6 +13,12 @@ namespace LumenDeck;
 /// </summary>
 internal sealed class AppSettings
 {
+    private readonly string _storagePath;
+
+    public AppSettings() { }
+
+    /// <summary>Use isolated storage in tests without touching the user's settings.</summary>
+    internal AppSettings(string storagePath) => _storagePath = storagePath;
     public sealed class MonitorSetting
     {
         public string Key { get; set; } = "";
@@ -45,6 +51,7 @@ internal sealed class AppSettings
         public bool ScreenBlankActive { get; set; }
 
         public double? ScreenBlankBrightnessPercent { get; set; }
+        public int? ScreenBlankBrightnessRaw { get; set; }
 
         /// <summary>Migrates shortcuts written by the withdrawn DDC-off UI.</summary>
         [JsonPropertyName("PowerHotkey")]
@@ -75,6 +82,7 @@ internal sealed class AppSettings
 
     public bool StartMinimised { get; set; }
     public bool MinimiseToTray { get; set; } = true;
+    public string NightWorkMonitorKey { get; set; } = "";
 
     [JsonIgnore]
     public static string Directory =>
@@ -113,12 +121,13 @@ internal sealed class AppSettings
         Entry(key, name).ScreenBlankHotkey = hotkey?.Trim() ?? "";
     }
 
-    public void SetScreenBlank(string key, string name, bool active, double? brightnessPercent)
+    public void SetScreenBlank(string key, string name, bool active, double? brightnessPercent, int? brightnessRaw = null)
     {
         if (string.IsNullOrEmpty(key)) return;
         var entry = Entry(key, name);
         entry.ScreenBlankActive = active;
         entry.ScreenBlankBrightnessPercent = active ? Sane(brightnessPercent) : null;
+        entry.ScreenBlankBrightnessRaw = active ? brightnessRaw : null;
     }
 
     public void SetKelvin(string key, string name, int kelvin)
@@ -137,7 +146,8 @@ internal sealed class AppSettings
         if (m == null || string.IsNullOrEmpty(m.StableKey)) return;
 
         var e = Entry(m.StableKey, m.DisplayName);
-        if (m.SupportsBrightness) e.CustomBrightnessPercent = Presets.RawToPercent(m, m.Brightness);
+        if (m.SupportsBrightness && !ScreenBlankActiveFor(m.StableKey))
+            e.CustomBrightnessPercent = Presets.RawToPercent(m, m.Brightness);
         if (m.SupportsContrast) e.CustomContrastPercent = Presets.ToPercent(m.Contrast, m.ContrastMin, m.ContrastMax);
         e.CustomKelvin = m.Kelvin;
     }
@@ -209,20 +219,23 @@ internal sealed class AppSettings
     private static double? Sane(double? percent) =>
         percent is double p && double.IsFinite(p) ? Math.Clamp(p, 0, 100) : null;
 
-    public void Save()
+    public bool Save()
     {
         try
         {
-            System.IO.Directory.CreateDirectory(Directory);
+            string path = _storagePath ?? FilePath;
+            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path));
             // Write to a temp file and move into place, so an interrupted save
             // cannot leave a half-written file that fails to parse next start.
-            string tmp = FilePath + ".tmp";
+            string tmp = path + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
-            File.Move(tmp, FilePath, overwrite: true);
+            File.Move(tmp, path, overwrite: true);
+            return true;
         }
         catch
         {
             // Losing a preference is not worth an error dialog mid-session.
+            return false;
         }
     }
 }

@@ -32,6 +32,15 @@ internal sealed class Slider : Control
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public Func<int, string> Format { get; set; } = v => v.ToString();
 
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public int SmallChange { get; set; } = 1;
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<int, int> EditValue { get; set; } = v => v;
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<int, int> FromEditValue { get; set; } = v => v;
+
     public Slider()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
@@ -209,7 +218,13 @@ internal sealed class Slider : Control
         base.OnMouseDown(e);
         if (!Enabled || e.Button != MouseButtons.Left) return;
         Focus();
+        if (e.X > TrackRect.Right + _thumbR)
+        {
+            EditExactValue();
+            return;
+        }
         _dragging = true;
+        Capture = true;
         SetFromX(e.X);
     }
 
@@ -226,6 +241,7 @@ internal sealed class Slider : Control
     {
         base.OnMouseUp(e);
         _dragging = false;
+        Capture = false;
         Invalidate();
     }
 
@@ -266,7 +282,7 @@ internal sealed class Slider : Control
         if (notches == 0) return;
         _wheelResidue -= notches * SystemInformation.MouseWheelScrollDelta;
 
-        int step = Math.Max(1, (_max - _min) / 50);
+        int step = Math.Max(1, SmallChange) * ((ModifierKeys & Keys.Shift) != 0 ? 10 : 1);
         int v = Math.Clamp(_value + notches * step, _min, _max);
         if (v == _value) return;
         _value = v;
@@ -275,14 +291,22 @@ internal sealed class Slider : Control
     }
 
     protected override bool IsInputKey(Keys key) =>
-        key is Keys.Left or Keys.Right or Keys.Up or Keys.Down or Keys.Home or Keys.End || base.IsInputKey(key);
+        (key & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down or
+            Keys.Home or Keys.End or Keys.PageUp or Keys.PageDown || base.IsInputKey(key);
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
         if (!Enabled) return;
 
-        int step = Math.Max(1, (_max - _min) / 50);
+        if (e.KeyCode is Keys.Enter or Keys.F2)
+        {
+            EditExactValue();
+            e.Handled = e.SuppressKeyPress = true;
+            return;
+        }
+
+        int step = Math.Max(1, SmallChange) * (e.Shift ? 10 : 1);
         int big = Math.Max(step, (_max - _min) / 10);
         int v = e.KeyCode switch
         {
@@ -300,6 +324,40 @@ internal sealed class Slider : Control
         Invalidate();
         ValueChanged?.Invoke(this, EventArgs.Empty);
         e.Handled = true;
+    }
+
+    private void EditExactValue()
+    {
+        using var dialog = new Form
+        {
+            Text = AccessibleName ?? "Exact value", FormBorderStyle = FormBorderStyle.FixedDialog,
+            StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(340, 140),
+            MinimizeBox = false, MaximizeBox = false, ShowInTaskbar = false,
+            BackColor = Theme.Base, ForeColor = Theme.Ink, Font = Theme.Body,
+            AutoScaleMode = AutoScaleMode.Dpi,
+        };
+        int a = EditValue(_min), b = EditValue(_max);
+        var label = new Label
+        {
+            Text = $"Exact value ({Math.Min(a, b)}–{Math.Max(a, b)})",
+            AutoSize = true, Location = new Point(16, 14),
+        };
+        var input = new NumericUpDown
+        {
+            Minimum = Math.Min(a, b), Maximum = Math.Max(a, b), Value = EditValue(_value),
+            Location = new Point(16, 44), Width = 300, AccessibleName = label.Text,
+        };
+        var ok = new Button { Text = "Apply", DialogResult = DialogResult.OK, Location = new Point(150, 94) };
+        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(240, 94) };
+        dialog.Controls.AddRange([label, input, ok, cancel]);
+        dialog.AcceptButton = ok;
+        dialog.CancelButton = cancel;
+        dialog.Shown += (_, _) => { input.Focus(); input.Select(0, input.Text.Length); };
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+        int next = Math.Clamp(FromEditValue((int)input.Value), _min, _max);
+        if (next == _value) return;
+        Value = next;
+        ValueChanged?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }

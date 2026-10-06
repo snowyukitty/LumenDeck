@@ -8,12 +8,29 @@ Notable changes, newest first. Format follows
 
 ### Added
 
+- Night saver keeps a selected work display unchanged and blanks the other
+  displays at minimum brightness. One button in the window or tray restores
+  the saved desk; independent blackouts remain independent.
+- Slider readouts accept exact values by click, F2 or Enter. Brightness and
+  contrast use one-unit keyboard and wheel steps, with Shift for ten units;
+  colour temperature supports direct Kelvin entry and 50 K steps.
+- Hardware-free regression checks cover precision controls, recovery
+  persistence and night-session ownership, including disconnected displays.
+
 - Every monitor card can temporarily blank that one display with a black,
   borderless overlay and its minimum supported brightness. Clicking the overlay
   or using the optional per-monitor global shortcut restores the exact saved
   brightness. Exit and interrupted-start recovery are reversible too.
 
 ### Fixed
+
+- Restoring a blackout cancels pending brightness writes after finishing any
+  in-flight write, preventing a stale minimum-brightness command from undoing
+  the restore. Original hardware values are persisted without rounding.
+- A blackout is refused if recovery data cannot be saved. Refresh re-applies
+  minimum brightness for active blackouts, and presets skip blanked displays.
+- Editing another control during a blackout no longer saves its temporary
+  minimum brightness as the monitor's Custom brightness.
 
 - MCCS `VCP D6` hardware-off is no longer exposed by the window, global
   shortcuts, generic controls, or CLI. Firmware can switch off the DDC receiver

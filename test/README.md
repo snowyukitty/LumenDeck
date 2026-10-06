@@ -1,5 +1,19 @@
 # Tests
 
+Hardware-free control regression checks (isolated temporary settings and
+off-desktop test overlays, with no physical monitor writes):
+
+```powershell
+dotnet run --project test/ControlTests/ControlTests.csproj -c Release
+```
+
+These run in CI and cover raw-unit keyboard precision, Shift steps, wheel accumulation,
+silent synchronization, blackout persistence, refresh rebinding, interrupted
+recovery, exact raw-value serialization, persistence failure, group ownership,
+work-display protection, individual wake, and disconnected-display retries. They require
+an interactive Windows session for WinForms; the real-monitor scripts below
+remain separate.
+
 Three PowerShell checks that need **real monitors**, which is why they are not in
 CI: a GitHub runner has no display that answers DDC/CI, so the workflow can only
 prove the binaries build and start.
