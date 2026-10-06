@@ -330,6 +330,9 @@ numbers agreed with each other while both came from the wrong place.
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Luminance
 profiles for panels not yet in the table are especially useful.
 
+The [night-saver checkpoint](docs/checkpoint.md) records implementation scope,
+verification and the remaining real-monitor acceptance work before a release.
+
 ---
 
 <sub>Keywords: Windows monitor brightness control, external display brightness,

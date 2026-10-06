@@ -30,14 +30,21 @@ call actually returned.
 
 ```powershell
 dotnet build LumenDeck.slnx -c Release
+dotnet run --project test/ControlTests/ControlTests.csproj -c Release
 powershell -File test\Test-Startup.ps1        # needs real monitors
 powershell -File test\Test-RebuildLeak.ps1
 ```
 
-CI builds with `/warnaserror` on a clean Windows runner. It cannot test
-hardware — a GitHub runner has no display that answers DDC/CI — so the
-PowerShell tests in `test/` are the real verification and they must be run
-locally against actual monitors.
+CI builds with `/warnaserror` on a clean Windows runner and runs the isolated
+control regression checks. These use temporary settings and off-desktop
+overlays without writing to physical monitors. They cover precision controls,
+blackout recovery and night-session ownership.
+
+A GitHub runner has no display that answers DDC/CI. Hardware behavior still
+needs local verification with the PowerShell tests in `test/` and the manual
+night-desk checklist in [test/README.md](test/README.md). Some hardware tests
+restart LumenDeck and temporarily replace its settings; read each script before
+running it against an active desk.
 
 ### Two habits this codebase is built on
 

@@ -259,3 +259,34 @@ And the capability string's own `model()` field is not trustworthy either:
 firmware gets copy-pasted across a product family, and a 27" panel has been seen
 reporting a 31.5" sibling's model name. EDID plus the physical dimensions settle
 it.
+
+## A blackout restore must also cancel its queued writes
+
+Restoring brightness synchronously is insufficient when a background writer
+still has a minimum-brightness request queued. The restore can succeed and the
+old request can then darken the display again. Queued writes and synchronous
+restores now share a per-monitor ordering lock: finish the in-flight request,
+discard pending brightness for that monitor, and only then write and verify
+the saved brightness. Unrelated displays retain independent locks.
+
+Store the original raw hardware brightness as well as its normalized
+percentage. The raw value preserves the exact setting on ranges such as
+0–255, while the percentage remains a recovery fallback for older settings.
+Persist recovery data before showing an overlay or lowering brightness; if
+that save fails, decline the blackout instead of losing the way back.
+
+## Group actions need ownership, not just an inverse
+
+Night saver does not restore every blanked display when it ends. A display
+blanked independently before the night session belongs to that earlier
+operation. `NightSaver` tracks only the stable identities it blanked itself;
+individual wake removes an identity from that session after successful
+recovery. An unavailable brightness backend retains the recovery marker and
+the group's restore action remains available for retry.
+
+The default work display is the Windows primary display, with an explicit
+selection for desks whose centre monitor differs. New displays stay visible
+after a topology change rather than joining an old blackout automatically.
+Hardware-free tests establish the software ownership rules; real-panel
+acceptance and energy measurements remain separate evidence. See
+[the checkpoint](checkpoint.md) and [the acceptance checklist](../test/README.md#manual-night-desk-acceptance).

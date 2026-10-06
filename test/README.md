@@ -7,16 +7,18 @@ off-desktop test overlays, with no physical monitor writes):
 dotnet run --project test/ControlTests/ControlTests.csproj -c Release
 ```
 
-These run in CI and cover raw-unit keyboard precision, Shift steps, wheel accumulation,
+These run in CI and cover raw-unit keyboard precision, Shift steps, wheel
+accumulation,
 silent synchronization, blackout persistence, refresh rebinding, interrupted
 recovery, exact raw-value serialization, persistence failure, group ownership,
-work-display protection, individual wake, and disconnected-display retries. They require
+work-display protection, individual wake, and disconnected-display retries.
+They require
 an interactive Windows session for WinForms; the real-monitor scripts below
 remain separate.
 
 Three PowerShell checks that need **real monitors**, which is why they are not in
-CI: a GitHub runner has no display that answers DDC/CI, so the workflow can only
-prove the binaries build and start.
+CI: a GitHub runner has no display that answers DDC/CI. The isolated control
+checks above verify software behavior; these scripts verify actual hardware.
 
 Build first (`dotnet build LumenDeck.slnx -c Release`), then:
 
@@ -25,6 +27,38 @@ powershell -File test\Test-Startup.ps1
 powershell -File test\Test-RebuildLeak.ps1 -Cycles 25
 powershell -File test\Test-Gamma.ps1
 ```
+
+## Manual night-desk acceptance
+
+Run this checklist on the built GUI before declaring a hardware-verified release.
+Record initial brightness values and restore the desk when finished.
+
+1. Select the intended centre monitor in **Keep working on**. Start **Night
+   saver** and confirm that the work display's brightness and desktop remain
+   unchanged, while every other available display becomes black at its
+   supported minimum brightness.
+2. Use **Restore night desk** from the window and the tray in separate trials.
+   Confirm each saved hardware brightness value is restored, including panels
+   whose range is not 0–100.
+3. Blank one screen individually before entering Night saver. Group restore
+   must leave that independent blackout in place.
+4. Click one night overlay or use its existing shortcut. That screen should
+   wake independently, and the group button should reflect remaining screens.
+5. Refresh while Night saver is active. Confirm overlays follow their stable
+   monitor identities and remain at minimum brightness. Try a preset and
+   confirm blanked screens stay dark.
+6. Disconnect and reconnect a blanked display, then restore. A failed restore
+   must retain recovery data and allow retry rather than claim success.
+7. Exit while the mode is active and confirm brightness is restored. In a
+   separate controlled trial, terminate the process and relaunch; confirm
+   interrupted blackouts recover from saved settings.
+8. Click a slider's number and use F2 / Enter to edit brightness, contrast and
+   Kelvin. Test Apply, Cancel, range limits, one-unit arrows, Shift steps, and
+   readability at the desktop's DPI settings.
+
+Minimum brightness plus a black image is not hardware-off. Measure power at
+the wall if an energy-saving claim is needed; software checks cannot establish
+watt savings or the visual behavior of every panel.
 
 ## Test-Startup.ps1
 
