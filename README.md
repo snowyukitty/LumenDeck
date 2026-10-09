@@ -74,9 +74,12 @@ within their available width.
 Clicking a display on the desk map aligns its card's adjustment area and focuses
 its brightness bar, or warmth when brightness is unavailable. Keyboard adjustment
 then applies to that selected display.
-The 1.2.0 interface uses layered slate cards, quiet amber controls and framed
+The 1.2.1 interface uses layered slate cards, quiet amber controls and framed
 value readouts. Contrast stays neutral, and the focused card retains an amber
 edge and marker. See the [interface design notes](docs/ui-design.md).
+Moving between monitors with different scaling batches DPI layout to avoid
+repeated card measurement and command-bar flickering; see the
+[repair and verification notes](docs/cross-display-dpi.md).
 If an adjustment fails or cannot be confirmed, its card keeps a notice with
 Connection help and Dismiss. Other actions and retries do not erase that history;
 dismissing the notice does not confirm the change. Refresh replaces the cards
