@@ -14,12 +14,15 @@ public release approval.
 | SHA-256 | `f5ce096106c3196dd3e8666764a880f75adc55d5945582fe66aa686fcd733cca` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.2.1.0` for both executables |
-| Version status | Verified local candidate; desktop replacement pending old-app exit |
+| Version status | Installed local candidate; source features remain Unreleased |
 
 The recorded source is the clean snapshot used for both executables. Subsequent
 checkpoint and preview updates change documentation only. Builder verification
-passed on the actual ZIP. Desktop replacement is pending the running 1.2.0
-app's normal Exit flow; the installer refuses to overwrite a running process.
+passed on the actual ZIP. The old app exited normally before the owner-profile
+update. Installed GUI/CLI hashes match the exact payload and their source/build
+versions match this record. Desktop and Start Menu shortcuts target the installed
+GUI, CLI help/version pass, and all three application JSON files retained their
+pre-install hashes. Previous binaries and the desktop shortcut were backed up.
 No GitHub release or tag has been created.
 
 ## Source verification
@@ -57,7 +60,7 @@ The actual candidate passed package regressions for valid/tampered/extra/version
 inputs, environment restoration on injected launch failures and running-app
 installer refusal. Installer source-preflight and state-preservation fixtures
 also passed. These fixture results do not establish a transactional install or
-clean-machine download behavior. The pending owner-profile update requires binary
+clean-machine download behavior. The owner-profile update is verified by binary
 hashes, shortcut targets, CLI help/version and unchanged settings/profile hashes.
 
 ## Remaining release acceptance

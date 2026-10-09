@@ -44,9 +44,12 @@ control, other DPI combinations and screen-reader output remain manual acceptanc
 ## Distribution and repository state
 
 The source snapshot `12ab33e` produces the verified 1.2.1 Windows x64 portable
-candidate in release readiness. Package and installer regressions pass; previous
-installed binaries and the desktop shortcut were preserved as a local backup.
-Replacing the running 1.2.0 installation is pending its normal tray-menu Exit.
+candidate in release readiness. Package and installer regressions pass. The
+owner-profile GUI/CLI now match that exact payload, and Desktop/Start Menu
+shortcuts target the installed GUI. Installed CLI help/version pass; all three
+application JSON files kept their pre-install hashes. The previous binaries and
+desktop shortcut were preserved as a local backup. The old app exited normally
+before replacement.
 
 The completed 1.2.1 source and documentation checkpoint is published to GitHub `main`.
 The private development history remains local; the public checkpoint begins
@@ -69,7 +72,7 @@ No independent whole-app approval or physical display pass is claimed.
 Read this page and the candidate identity in release readiness first. Inspect the
 worktree and any active project lease, preserve unrelated edits and stage explicit
 paths. Use the verified source-bound binaries for further acceptance. The next
-work is final desktop replacement, then physical display/reader acceptance and
-clean-machine release readiness, then an explicitly authorized release.
+work is physical display/reader acceptance and clean-machine release readiness,
+then an explicitly authorized release.
 Rebuild and record a new candidate if
 product or packaged content changes.
