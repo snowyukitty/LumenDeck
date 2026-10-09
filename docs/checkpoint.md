@@ -37,9 +37,18 @@ physical display behavior, actual mixed-DPI transitions or screen-reader output.
 
 ## Distribution and repository state
 
-The 1.2.0 source snapshot is prepared for GitHub. Portable packaging, installed
-binary identity, shortcut verification and hosted CI will be recorded after they
-complete. No release or tag is created by this checkpoint.
+The source snapshot `ff270ac` produces the verified 1.2.0 Windows x64 portable
+candidate in release readiness. The owner-profile GUI and CLI were updated to
+that exact payload. Desktop and Start Menu shortcuts point to the installed GUI;
+CLI help/version pass, and settings/profile hashes stayed unchanged. Previous
+installed binaries and the desktop shortcut were preserved as a local backup.
+
+The completed source and documentation checkpoint is published to GitHub `main`.
+The private development history remains local; the public checkpoint begins
+from the previous public main and includes the current implementation, tests and
+maintainer-facing documentation. Inspect the actual
+[build workflow](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml)
+for hosted results. No release or tag is created by this checkpoint.
 
 ## Remaining acceptance
 
@@ -53,5 +62,7 @@ No independent whole-app approval or physical display pass is claimed.
 
 Read this page and the candidate identity in release readiness first. Inspect the
 worktree and any active project lease, preserve unrelated edits and stage explicit
-paths. Use the verified source-bound binaries for further acceptance. Rebuild and
-record a new candidate if product or packaged content changes.
+paths. Use the verified source-bound binaries for further acceptance. The next
+work is physical display/DPI/reader acceptance and clean-machine release readiness,
+then an explicitly authorized release. Rebuild and record a new candidate if
+product or packaged content changes.

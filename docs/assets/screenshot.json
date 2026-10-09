@@ -2,7 +2,7 @@
   "fixture": "synthetic-two-displays-v1",
   "synthetic": true,
   "build": "working-tree development build; not a released-version preview",
-  "assemblyInformationalVersion": "1.1.0\u002B6b258969336b7e0ff245014d742d38e4a36147c6",
+  "assemblyInformationalVersion": "1.2.0\u002Bff270aca924369511225c09c7345d0b12ed19b3c",
   "clientWidth": 780,
   "clientHeight": 1000,
   "outerWidth": 796,

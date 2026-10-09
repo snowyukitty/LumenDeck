@@ -37,7 +37,7 @@ lumendeck-cli -m "left" -b 55 -w 5000
   <img src="docs/assets/screenshot.png" alt="LumenDeck development build with Settings, a desk map and two fictitious monitor cards: brightness estimates, contrast availability, warmth, blackout and per-monitor presets" width="620">
 </p>
 
-<p align="center"><sub>Actual window rendered from development source <code>6b25896</code>,
+<p align="center"><sub>Actual window rendered from development source <code>ff270ac</code>,
 using two fictitious displays; released versions may differ.
 <a href="docs/assets/screenshot.json">Render details</a>.<br>
 62% and 45% calculate <b>estimated 203 and 160 nits</b> from generic profiles.

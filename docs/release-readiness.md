@@ -6,9 +6,22 @@ public release approval.
 
 ## Recorded candidate
 
-The new source snapshot is ready. The source revision, build, portable archive
-and SHA-256 will be recorded here after packaging verifies the actual binaries.
-No new GitHub release or tag has been created.
+| Item | Recorded value |
+| --- | --- |
+| Source commit | `ff270aca924369511225c09c7345d0b12ed19b3c` - refined native UI, aligned map selection and current display-control features |
+| GUI recorded build | `1.2.0+ff270aca924369511225c09c7345d0b12ed19b3c` |
+| Package | `LumenDeck-1.2.0-win-x64.zip` |
+| SHA-256 | `b09187602dfeef4acccdba7ce3d50838fb5ce7728292c90dfa92bf9506ce485f` |
+| Distribution | Self-contained Windows x64 GUI and CLI |
+| File version | `1.2.0.0` for both executables |
+| Version status | Installed local candidate; source features remain Unreleased |
+
+The recorded source is the clean snapshot used for both executables. Subsequent
+checkpoint and preview updates change documentation only. Builder verification
+passed on the actual ZIP. The installed GUI/CLI hashes match its payload; the
+desktop shortcut targets the installed GUI. User settings and panel profiles
+were unchanged. The previous installed binaries and shortcut were backed up.
+No GitHub release or tag has been created.
 
 ## Source verification
 
@@ -37,6 +50,13 @@ synthetic GUI startup and recovery from refused package/installer inputs.
 recorded revision and digest to the archive and both actual executable payloads.
 See [packaging](packaging.md) for reproducible commands and their limits.
 
+The actual candidate passed package regressions for valid/tampered/extra/version
+inputs, environment restoration on injected launch failures and running-app
+installer refusal. Installer source-preflight and state-preservation fixtures
+also passed. These fixture results do not establish a transactional install or
+clean-machine download behavior. The owner-profile update is verified by binary
+hashes, shortcut targets, CLI help/version and unchanged settings/profile hashes.
+
 ## Remaining release acceptance
 
 | Area | Required evidence |
@@ -46,7 +66,7 @@ See [packaging](packaging.md) for reproducible commands and their limits.
 | Download/install | Clean Windows environment and separate-profile install/update/uninstall |
 | Download security | Exact-file unsigned-download and antivirus acceptance; no false-positive finding is claimed |
 | Review | Final source and release-critical content assessment; no whole-app approval is carried from older snapshots |
-| Hosted CI | Observe the actual run for the pushed source; local success does not prove hosted execution |
+| Hosted CI | Check the actual [build workflow](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml) for the pushed source; local success does not prove hosted execution |
 | Publication | Explicit approval for the intended release, tag and downloadable assets |
 
 The [checkpoint](checkpoint.md) records current work and the next acceptance steps.

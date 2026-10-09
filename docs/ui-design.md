@@ -6,6 +6,11 @@ cards add a subtle vertical gradient and a divider below the display identity.
 The shared theme owns colors and fonts, so reference windows and editors use
 the same visual vocabulary as the main window.
 
+On the lightest card surface, muted text has a calculated contrast ratio of
+7.01:1 and secondary text 5.39:1. Primary-button text is 8.87:1 against amber.
+These token calculations complement native render inspection; they do not
+establish a full accessibility audit or high-contrast-mode compatibility.
+
 Brightness and warmth use amber tracks; contrast uses a neutral track. Every
 slider has a framed value readout, a small grip and an explicit focus ring.
 Unavailable sliders show a dash visually, alongside the existing availability
