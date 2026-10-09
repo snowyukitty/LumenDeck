@@ -54,6 +54,10 @@ internal partial class MainForm : Form
     private int _visibilityGeneration;
     private bool _reallyClosing;
     private int _revealPending;
+    private bool _scalingDpi;
+    private bool _layingOutCards;
+    private bool _dpiLayoutPending;
+    private List<Control> _dpiSuspendedControls;
 
     /// <summary>
     /// Set once the window has actually been shown. Guards the minimise-to-tray
@@ -291,7 +295,7 @@ internal partial class MainForm : Form
 
     private void UpdateDeskMapVisibility()
     {
-        if (_map == null || _bar == null || _status == null || WindowState == FormWindowState.Minimized) return;
+        if (_scalingDpi || _dpiLayoutPending || _map == null || _bar == null || _status == null || WindowState == FormWindowState.Minimized) return;
         // Reserve working space for cards. The map is an optional mouse shortcut;
         // its projected geometry and card actions survive being hidden.
         int cards = ClientSize.Height - _bar.Height - _status.Height;
@@ -1024,11 +1028,87 @@ internal partial class MainForm : Form
         LayoutCards();
     }
 
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        // WinForms scales the entire tree and applies Windows' suggested bounds.
+        // ClientSize/Font events inside that transaction describe mixed old/new
+        // metrics. Pinning card widths there forces repeated table measurement.
+        BeginDpiLayout();
+        base.OnDpiChanged(e);
+    }
+
+    protected override bool OnGetDpiScaledSize(int deviceDpiOld, int deviceDpiNew, ref Size desiredSize)
+    {
+        // PMv2 sends this before the children's BEFOREPARENT notifications.
+        // Waiting for Form.DpiChanged is too late: explicit child fonts and
+        // AutoSize flows have already started laying out at mixed metrics.
+        if (deviceDpiOld != deviceDpiNew) BeginDpiLayout();
+        return base.OnGetDpiScaledSize(deviceDpiOld, deviceDpiNew, ref desiredSize);
+    }
+
+    private void BeginDpiLayout()
+    {
+        if (_dpiLayoutPending) return;
+        _scalingDpi = true;
+        _dpiLayoutPending = true;
+        var controls = new List<Control>();
+        void SuspendTree(Control control)
+        {
+            controls.Add(control);
+            control.SuspendLayout();
+            foreach (Control child in control.Controls) SuspendTree(child);
+        }
+        SuspendTree(this);
+        _dpiSuspendedControls = controls;
+        BeginInvoke((Action)(() =>
+        {
+            if (IsDisposed || Disposing) return;
+            // All AFTERPARENT notifications have now completed. Release the
+            // suspension without replaying every queued intermediate layout;
+            // the command rows and pinned cards perform their final passes.
+            try
+            {
+                foreach (var control in _dpiSuspendedControls)
+                    if (!control.IsDisposed) control.ResumeLayout(false);
+                _bar.SuspendLayout();
+                try
+                {
+                    foreach (CommandSection section in _bar.Controls)
+                    {
+                        section.PerformLayout();
+                        section.Commands.PerformLayout();
+                    }
+                }
+                finally { _bar.ResumeLayout(true); }
+                PerformLayout();
+            }
+            finally
+            {
+                _dpiSuspendedControls = null;
+                _scalingDpi = false;
+            }
+            _dpiLayoutPending = false;
+            UpdateDeskMapVisibility();
+            LayoutCards();
+        }));
+    }
+
     private void LayoutCards()
     {
-        if (_list == null || WindowState == FormWindowState.Minimized) return;
-        foreach (var c in _cards) c.SetWidth(CardWidth);
-        _scanView?.SetWidth(CardWidth);
+        if (_scalingDpi || _dpiLayoutPending || _layingOutCards || _list == null || WindowState == FormWindowState.Minimized) return;
+        _layingOutCards = true;
+        _list.SuspendLayout();
+        try
+        {
+            int width = CardWidth;
+            foreach (var c in _cards) c.SetWidth(width);
+            _scanView?.SetWidth(width);
+        }
+        finally
+        {
+            _list.ResumeLayout(true);
+            _layingOutCards = false;
+        }
     }
 
     private async void RestoreFromTray()

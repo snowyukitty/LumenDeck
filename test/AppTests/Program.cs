@@ -148,6 +148,13 @@ internal static partial class Program
                         result = 0;
                         return;
                     }
+                    if (args.Length is 1 or 2 && args[0] == "--cross-display-dpi-only")
+                    {
+                        CheckCrossDisplayDpi(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
+                        Console.WriteLine($"PASS: {_checks} isolated cross-display DPI checks; synthetic displays only.");
+                        result = 0;
+                        return;
+                    }
                     if (args is ["--restore-only"])
                     {
                         CheckRestoreResponsiveness(directory);
@@ -195,6 +202,7 @@ internal static partial class Program
                     CheckBackgroundSettings(directory);
                     CheckPresetTargetLifecycle(directory);
                     CheckScheduleLifecycle(directory);
+                    CheckCrossDisplayDpi(directory);
                     CheckRestoreResponsiveness(directory);
                     CheckNightDimLifecycle(directory);
                     CheckSettingsRecovery(directory);

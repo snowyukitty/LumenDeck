@@ -1,6 +1,6 @@
 # Native interface design
 
-The 1.2.0 interface uses a restrained slate palette and warm amber accents.
+The 1.2.1 interface uses a restrained slate palette and warm amber accents.
 The desktop surface, command area and monitor cards have separate tonal levels;
 cards add a subtle vertical gradient and a divider below the display identity.
 The shared theme owns colors and fonts, so reference windows and editors use
@@ -34,5 +34,7 @@ paint resources and no new animation loop.
 Verification uses the actual WinForms controls and synthetic display fixtures.
 Inspect native renders at the minimum window size, regular widths and simulated
 150%/200% component sizes. Bounds checks cover wrapping, scrolling, focus routing
-and unavailable controls. Actual mixed-DPI transitions, foreground input and
-screen-reader announcements still need a real Windows desktop acceptance pass.
+and unavailable controls. Native 100%/125% transitions now run on a private test
+desktop, with bounded layout work and stable dimensions; see the
+[DPI repair evidence](cross-display-dpi.md). Foreground pointer dragging, other DPI
+combinations and screen-reader announcements still need manual acceptance.

@@ -13,6 +13,7 @@ internal sealed class CommandSection : Panel
     public CommandSection(string caption)
     {
         BackColor = Theme.Bar;
+        DoubleBuffered = true;
         Padding = new Padding(14, 8, 14, 8);
         Dock = DockStyle.Top;
         _caption = new Label
@@ -33,11 +34,11 @@ internal sealed class CommandSection : Panel
 
     protected override void OnLayout(LayoutEventArgs e)
     {
-        base.OnLayout(e);
         if (_layingOut || Commands == null) return;
         _layingOut = true;
         try
         {
+            base.OnLayout(e);
             int captionWidth = Math.Max(LogicalToDeviceUnits(104), _caption.PreferredWidth + LogicalToDeviceUnits(12));
             int width = Math.Max(1, ClientSize.Width - Padding.Horizontal - captionWidth);
             _caption.Location = new Point(Padding.Left, Padding.Top + LogicalToDeviceUnits(8));

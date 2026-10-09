@@ -31,6 +31,11 @@ Notable changes, newest first. Format follows
 
 ### Fixed
 
+- Version 1.2.1 fixes stalls and command-bar flickering when moving the window
+  between monitors with different DPI scaling. Intermediate font/size changes
+  are batched before measuring command rows and monitor cards at their final
+  width; dragging does not re-enumerate displays or change monitor settings.
+
 - Clicking a display on the desk map now focuses its brightness control (or
   warmth when brightness is unavailable) and aligns its adjustment area in the
   viewport, including repeated selections and cards taller than the viewport.

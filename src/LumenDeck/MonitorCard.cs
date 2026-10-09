@@ -773,34 +773,46 @@ internal sealed class MonitorCard : Panel
         // width; repeating the pass for each is what made restoring stall.
         int content = ContentSignature();
         if (w == _laidOutWidth && Width == w && content == _laidOutContent) return;
-        MinimumSize = new Size(w, 0);
-        MaximumSize = new Size(w, 0);
-        Width = w;
-        // AutoSize flows otherwise measure one unbounded line and can push
-        // their children past the fixed card edge. Constrain before measuring
-        // height, including labels whose preferred width can exceed a cell.
-        int gridWidth = ClientSize.Width - Padding.Horizontal;
-        foreach (Control control in _grid.Controls)
+        SuspendLayout();
+        _grid.SuspendLayout();
+        try
         {
-            int available = gridWidth - (_grid.GetColumnSpan(control) == 2
-                ? 0 : (int)_grid.ColumnStyles[0].Width) - control.Margin.Horizontal;
-            if (_grid.GetColumn(control) == 0 && _grid.GetColumnSpan(control) == 1) continue;
-            if (control is FlowLayoutPanel flow)
+            MinimumSize = new Size(w, 0);
+            MaximumSize = new Size(w, 0);
+            Width = w;
+            // AutoSize flows otherwise measure one unbounded line and can push
+            // their children past the fixed card edge. Constrain before measuring
+            // height, including labels whose preferred width can exceed a cell.
+            int gridWidth = ClientSize.Width - Padding.Horizontal;
+            foreach (Control control in _grid.Controls)
             {
-                flow.MaximumSize = new Size(Math.Max(1, available), 0);
-                flow.Width = Math.Max(1, available);
-                foreach (Control child in flow.Controls)
-                    if (child is Label)
-                        child.MaximumSize = new Size(Math.Max(1, available - child.Margin.Horizontal), 0);
-                flow.PerformLayout();
+                int available = gridWidth - (_grid.GetColumnSpan(control) == 2
+                    ? 0 : (int)_grid.ColumnStyles[0].Width) - control.Margin.Horizontal;
+                if (_grid.GetColumn(control) == 0 && _grid.GetColumnSpan(control) == 1) continue;
+                if (control is FlowLayoutPanel flow)
+                {
+                    flow.SuspendLayout();
+                    try
+                    {
+                        flow.MaximumSize = new Size(Math.Max(1, available), 0);
+                        flow.Width = Math.Max(1, available);
+                        foreach (Control child in flow.Controls)
+                            if (child is Label)
+                                child.MaximumSize = new Size(Math.Max(1, available - child.Margin.Horizontal), 0);
+                    }
+                    finally { flow.ResumeLayout(true); }
+                }
+                else if (control is Label)
+                    control.MaximumSize = new Size(Math.Max(1, available), 0);
             }
-            else if (control is Label)
-                control.MaximumSize = new Size(Math.Max(1, available), 0);
+            _laidOutWidth = w;
+            _laidOutContent = content;
         }
-        _grid.PerformLayout();
-        PerformLayout();
-        _laidOutWidth = w;
-        _laidOutContent = content;
+        finally
+        {
+            _grid.ResumeLayout(true);
+            ResumeLayout(true);
+        }
     }
 
     public void Highlight()

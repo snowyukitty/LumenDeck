@@ -24,6 +24,7 @@ internal sealed class DeskCommandBar : Panel
     public DeskCommandBar()
     {
         Dock = DockStyle.Top;
+        DoubleBuffered = true;
         BackColor = Theme.Bar;
         var modes = new CommandSection("All monitors") { TabIndex = 0 };
         var tools = new CommandSection("Tools") { TabIndex = 1 };
