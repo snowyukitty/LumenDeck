@@ -1,288 +1,312 @@
-using System.Collections.Concurrent;
-
 namespace LumenDeck;
 
 /// <summary>
-/// Serialises every brightness/contrast/VCP write onto one background thread.
-///
-/// Three facts drive this design, all of them learned the hard way:
-///
-///  1. A DDC write takes 50-150 ms. Doing one per slider tick on the UI thread
-///     freezes the window solid while a slider is dragged.
-///  2. MCCS requires a gap between consecutive writes to the same monitor.
-///     Writing red, green and blue back to back really does get commands
-///     dropped - silently, with every call still reporting success.
-///  3. Only the newest value matters. Dragging a slider from 20 to 80 produces
-///     sixty intermediate values; writing all sixty would take ten seconds and
-///     end in the same place. So this coalesces: one pending value per
-///     (monitor, feature), last write wins.
-///
-/// Queue entries key on the Monitor object rather than a raw handle. Windows
-/// recycles handle values, so a stale write addressed to a numeric handle can
-/// land on a *different* monitor after a re-enumeration. Keying on identity and
-/// re-checking the handle inside the lock makes that impossible.
-///
-/// A true return from SetMonitorBrightness means the request reached the driver
-/// and nothing more - MCCS Set is fire-and-forget with no acknowledgement. Any
-/// caller that needs certainty has to read the value back.
+/// Coalesces writes per monitor/control on one background thread. A short queue
+/// lock owns request identity and optimistic/readback model commits; hardware
+/// pacing and synchronous restore ordering belong to Monitor.WriteGate.
 /// </summary>
 internal sealed class DdcWorker : IDisposable
 {
     public enum Feature { Brightness, Contrast, Vcp }
-
-    // Code is part of the key so two different VCP features on one monitor
-    // coalesce independently - dragging the volume slider must not discard a
-    // pending input-source change.
     private readonly record struct Target(Monitor Mon, Feature What, byte Code);
-
-    private readonly ConcurrentDictionary<Target, int> _pending = new();
+    private sealed record Request(int Value);
+    private readonly object _gate = new();
+    private readonly Dictionary<Target, Request> _pending = new();
+    private readonly Dictionary<Target, Request> _current = new();
     private readonly AutoResetEvent _signal = new(false);
     private readonly Thread _thread;
+    private readonly IDdcTransport _transport;
+    private readonly int _settleMs;
     private volatile bool _running = true;
+    private int _active;
+    internal const int VerifyAttempts = 3;
+    internal const int VerifySettleMilliseconds = 80;
 
-    // The Monitor owns per-device locking and MCCS pacing. Keeping that state on
-    // the monitor is what lets a slow request on one display coexist with an
-    // immediate brightness write to another.
-
-    /// <summary>Time for firmware to make a set visible to a following read.</summary>
-    private const int VerifySettleMs = 80;
-
-    /// <summary>One initial write plus two retries for a silently dropped final value.</summary>
-    private const int VerifyAttempts = 3;
-
-    /// <summary>
-    /// Raised on the worker thread when a write reports failure.
-    /// Subscribers must marshal to the UI thread themselves.
-    /// </summary>
+    /// <summary>Raised once for a terminal failure, outside hardware and queue locks.</summary>
     public event Action<Monitor, Feature> WriteFailed;
 
-    public DdcWorker()
+    public DdcWorker() : this(new NativeDdcTransport(), VerifySettleMilliseconds) { }
+
+    internal DdcWorker(IDdcTransport transport, int settleMs = 0)
     {
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        if (settleMs < 0) throw new ArgumentOutOfRangeException(nameof(settleMs));
+        _settleMs = settleMs;
         _thread = new Thread(Loop)
         {
-            IsBackground = true,
-            Name = "LumenDeckWriter",
-            // Slider feedback is latency-sensitive and this thread spends most
-            // of its life asleep. BelowNormal can starve it behind unrelated CPU
-            // work for no useful saving.
-            Priority = ThreadPriority.Normal,
+            IsBackground = true, Name = "LumenDeckWriter", Priority = ThreadPriority.Normal,
         };
         _thread.Start();
     }
 
-    /// <summary>Queue a value. Replaces any value not yet written for the same monitor and feature.</summary>
+    /// <summary>Atomically publish the requested model value and replace queued work.</summary>
     public void Set(Monitor m, Feature what, int value)
     {
-        if (m == null) return;
-        _pending[new Target(m, what, 0)] = value;
-        _signal.Set();
+        if (m == null || what is not (Feature.Brightness or Feature.Contrast)) return;
+        Enqueue(new Target(m, what, 0), value);
     }
 
-    /// <summary>
-    /// Queue any VCP code. Callers must only pass codes the monitor advertised -
-    /// writing an unadvertised code is not rejected, it is simply obeyed by
-    /// whatever that code happens to mean on that firmware.
-    /// </summary>
+    /// <summary>Queue only advertised codes. D6 hardware-off remains unavailable.</summary>
     public void SetVcp(Monitor m, byte code, int value)
     {
-        // D6 hardware-off is intentionally unavailable. Some firmware switches
-        // off the DDC receiver needed to reverse it, so a raw extra control must
-        // never be able to bypass the reversible screen-blank UI.
         if (m == null || code == 0xD6) return;
-        _pending[new Target(m, Feature.Vcp, code)] = value;
-        _signal.Set();
+        Enqueue(new Target(m, Feature.Vcp, code), value);
     }
 
-    public bool Idle => _pending.IsEmpty;
+    private void Enqueue(Target target, int value)
+    {
+        lock (_gate)
+        {
+            if (!_running) return;
+            var request = new Request(value);
+            _current[target] = _pending[target] = request;
+            StoreActual(target, value);
+            _signal.Set();
+        }
+    }
+
+    /// <summary>No pending or active I/O/model finalization; observer delivery is excluded.</summary>
+    public bool Idle
+    {
+        get { lock (_gate) return _pending.Count == 0 && _active == 0; }
+    }
 
     /// <summary>
-    /// Drop everything still queued. Call before tearing down monitor handles:
-    /// a write aimed at a handle that is about to be destroyed is worthless, and
-    /// dropping it shortens the window the lock has to cover.
+    /// Discard pending work and invalidate in-flight commits/retries. Already
+    /// authorized native I/O cannot be cancelled; disposal still waits on its monitor.
     /// </summary>
-    public void ClearPending() => _pending.Clear();
+    public void ClearPending()
+    {
+        lock (_gate) { _pending.Clear(); _current.Clear(); }
+    }
 
     private void Loop()
     {
-        while (_running)
+        try
         {
-            if (_pending.IsEmpty)
+            while (_running)
             {
-                _signal.WaitOne(250);
-                continue;
+                Target[] targets;
+                lock (_gate) targets = _pending.Keys.ToArray();
+                if (targets.Length == 0) { _signal.WaitOne(250); continue; }
+                foreach (var target in targets)
+                {
+                    if (!_running) return;
+                    Request request;
+                    bool failed;
+                    // Enqueue never takes WriteGate. No I/O, callbacks or waits
+                    // run while holding _gate, and restore uses the same order.
+                    lock (target.Mon.WriteGate)
+                    {
+                        lock (_gate)
+                        {
+                            if (!_running) return;
+                            if (!_pending.Remove(target, out request)) continue;
+                            _active++;
+                        }
+                        try { failed = Process(target, request); }
+                        finally
+                        {
+                            lock (_gate)
+                            {
+                                _active--;
+                                if (_current.TryGetValue(target, out var current) && ReferenceEquals(current, request))
+                                    _current.Remove(target);
+                            }
+                        }
+                    }
+                    if (failed && _running) PublishFailure(target);
+                }
             }
-
-            foreach (var key in _pending.Keys)
+        }
+        finally
+        {
+            lock (_gate)
             {
-                if (!_running) return;
-                if (!_pending.TryRemove(key, out int value)) continue;
-
-                Process(key, value);
+                _running = false;
+                _pending.Clear();
+                _current.Clear();
+                // Only this thread releases its wait handle, after its last use.
+                _signal.Dispose();
             }
         }
     }
 
-    private void Process(Target key, int value)
+    private bool Process(Target target, Request request)
     {
         try
         {
-            bool verify = !key.Mon.IsInternalPanel &&
-                          key.What is Feature.Brightness or Feature.Contrast;
-
+            bool verify = !target.Mon.IsInternalPanel &&
+                          target.What is Feature.Brightness or Feature.Contrast;
             for (int attempt = 0; attempt < (verify ? VerifyAttempts : 1); attempt++)
             {
-                if (!_running) return;
-                if (!key.Mon.IsInternalPanel && !key.Mon.HasPhysicalHandle) return;
-
-                bool ok = Write(key, value);
-                if (!ok)
+                if (!IsCurrent(target, request) || !_transport.CanWrite(target.Mon)) return false;
+                bool written = _transport.Write(target.Mon, target.What, target.Code, request.Value);
+                if (!IsCurrent(target, request)) return false;
+                if (!verify) return !written;
+                if (written)
                 {
-                    // A transient driver refusal is no more authoritative than
-                    // a silently dropped write. Give a final slider value the
-                    // same bounded retry treatment, then restore the value the
-                    // panel reports so the UI never claims success.
-                    if (verify && attempt + 1 < VerifyAttempts &&
-                        !_pending.ContainsKey(key))
-                        continue;
-
-                    if (verify && !_pending.ContainsKey(key) &&
-                        ReadBack(key, out int reported))
-                        StoreActual(key, reported);
-
-                    WriteFailed?.Invoke(key.Mon, key.What);
-                    return;
+                    Thread.Sleep(_settleMs);
+                    if (!IsCurrent(target, request)) return false;
+                    bool read = _transport.Read(target.Mon, target.What, out int actual);
+                    if (read && actual == request.Value)
+                    {
+                        CommitActual(target, request, actual);
+                        return false;
+                    }
+                    if (attempt + 1 == VerifyAttempts)
+                        return FinishFailure(target, request, read ? actual : null);
                 }
-
-                if (!verify) return;
-
-                // During a drag, the newer pending value is the verification:
-                // do not spend another DDC round trip confirming an intermediate
-                // pixel that is already obsolete.
-                if (_pending.ContainsKey(key)) return;
-                Thread.Sleep(VerifySettleMs);
-                if (_pending.ContainsKey(key)) return;
-
-                bool read = ReadBack(key, out int actual);
-                if (_pending.ContainsKey(key)) return;
-
-                if (read && actual == value)
+                else if (attempt + 1 == VerifyAttempts)
                 {
-                    StoreActual(key, actual);
-                    return;
-                }
-
-                // A true SetMonitorBrightness return only means the command was
-                // handed to the driver. Firmware commonly drops it while still
-                // reporting success. Retry the final value, then make the UI
-                // honest if the panel continues to report something else.
-                if (attempt + 1 == VerifyAttempts)
-                {
-                    if (read) StoreActual(key, actual);
-                    WriteFailed?.Invoke(key.Mon, key.What);
-                    return;
+                    bool read = _transport.Read(target.Mon, target.What, out int actual);
+                    return FinishFailure(target, request, read ? actual : null);
                 }
             }
+            return false;
         }
         catch
         {
-            // A monitor unplugged mid-request can throw through P/Invoke. Its
-            // display-change rebuild will dispose this Monitor object and drop
-            // the stale queue entry. Surface the failed request in the meantime
-            // rather than leaving an optimistic slider value unchallenged.
-            WriteFailed?.Invoke(key.Mon, key.What);
+            // Only transport failures enter this path; observer exceptions are
+            // isolated after Process and cannot repeat a hardware request.
+            return IsCurrent(target, request);
         }
     }
 
-    private static bool Write(Target key, int value)
+    private bool IsCurrent(Target target, Request request)
     {
-        if (key.Mon.IsInternalPanel)
-        {
-            // WMI, and only brightness: a laptop panel has no contrast or DDC
-            // arbitrary VCP mode to speak to.
-            return key.What == Feature.Brightness &&
-                   WmiBrightness.Set(key.Mon.WmiInstanceName, value);
-        }
+        lock (_gate) return IsCurrentLocked(target, request);
+    }
 
-        return key.What switch
+    private bool IsCurrentLocked(Target target, Request request) =>
+        _running && _current.TryGetValue(target, out var current) && ReferenceEquals(current, request);
+
+    private void CommitActual(Target target, Request request, int actual)
+    {
+        lock (_gate)
+            if (IsCurrentLocked(target, request)) StoreActual(target, actual);
+    }
+
+    private bool FinishFailure(Target target, Request request, int? actual)
+    {
+        lock (_gate)
         {
-            Feature.Brightness => key.Mon.UseDdc(
-                h => Native.SetMonitorBrightness(h, (uint)value), false),
-            Feature.Contrast => key.Mon.UseDdc(
-                h => Native.SetMonitorContrast(h, (uint)value), false),
-            Feature.Vcp => key.Mon.UseDdc(
-                h => Native.SetVCPFeature(h, key.Code, (uint)value), false),
-            _ => true,
-        };
+            if (!IsCurrentLocked(target, request)) return false;
+            if (actual is int observed) StoreActual(target, observed);
+            return true;
+        }
+    }
+
+    private void PublishFailure(Target target)
+    {
+        var observers = WriteFailed;
+        if (observers == null) return;
+        foreach (Action<Monitor, Feature> observer in observers.GetInvocationList())
+        {
+            try { observer(target.Mon, target.What); }
+            catch { /* One UI observer cannot terminate the writer or suppress another observer. */ }
+        }
     }
 
     /// <summary>
-    /// Restore a blackout synchronously and verify the real value. The marker
-    /// that protects crash recovery is cleared only after this succeeds;
-    /// ordinary slider changes still use the background queue.
+    /// Re-read already available controls when returning from the tray. Preserve
+    /// queued requests and invalidate observed values if a new adjustment arrives.
+    /// Availability/range changes still require a full display scan.
     /// </summary>
-    public static bool SetBrightnessImmediate(Monitor m, int value)
+    public void RefreshValues(Monitor m)
+    {
+        if (m == null) return;
+        lock (m.WriteGate)
+        {
+            lock (_gate)
+            {
+                if (!_running) return;
+                _active++;
+            }
+            try
+            {
+                foreach (var feature in new[] { Feature.Brightness, Feature.Contrast })
+                {
+                    if (feature == Feature.Brightness ? !m.SupportsBrightness : !m.SupportsContrast) continue;
+                    var target = new Target(m, feature, 0);
+                    var readRequest = new Request(0);
+                    lock (_gate)
+                    {
+                        if (!_running) return;
+                        if (_current.ContainsKey(target)) continue;
+                        _current[target] = readRequest;
+                    }
+                    try
+                    {
+                        if (_transport.CanWrite(m) && _transport.Read(m, feature, out int actual))
+                            CommitActual(target, readRequest, actual);
+                    }
+                    catch { /* A failed observation leaves the existing value; it is not a failed write. */ }
+                    finally
+                    {
+                        lock (_gate)
+                            if (_current.TryGetValue(target, out var current) && ReferenceEquals(current, readRequest))
+                                _current.Remove(target);
+                    }
+                }
+            }
+            finally { lock (_gate) _active--; }
+        }
+    }
+
+    /// <summary>Wait for the monitor's in-flight write, discard old brightness, then restore.</summary>
+    public bool RestoreBrightness(Monitor m, int value)
     {
         if (m == null) return false;
-        if (m.IsInternalPanel)
-            return WmiBrightness.Set(m.WmiInstanceName, value);
-
-        for (int attempt = 0; attempt < VerifyAttempts; attempt++)
+        var target = new Target(m, Feature.Brightness, 0);
+        var restoreRequest = new Request(value);
+        lock (m.WriteGate)
         {
-            bool written = m.UseDdc(
-                h => Native.SetMonitorBrightness(h, (uint)value), false);
-            if (!written) continue;
-
-            Thread.Sleep(VerifySettleMs);
-            uint minimum = 0, current = 0, maximum = 0;
-            bool read = m.UseDdc(h => Native.GetMonitorBrightness(
-                h, ref minimum, ref current, ref maximum), false);
-            if (read && current == (uint)value)
+            lock (_gate)
             {
-                m.Brightness = value;
-                return true;
+                if (!_running) return false;
+                _pending.Remove(target);
+                _current[target] = restoreRequest;
+                _active++;
+            }
+            try
+            {
+                bool restored = _transport.RestoreBrightness(m, value);
+                if (restored) CommitActual(target, restoreRequest, value);
+                return restored;
+            }
+            catch { return false; }
+            finally
+            {
+                lock (_gate)
+                {
+                    _active--;
+                    if (_current.TryGetValue(target, out var current) && ReferenceEquals(current, restoreRequest))
+                        _current.Remove(target);
+                }
             }
         }
-        return false;
     }
 
-    private static bool ReadBack(Target key, out int actual)
+    private static void StoreActual(Target target, int actual)
     {
-        int observed = 0;
-        bool ok = key.Mon.UseDdc(h =>
-        {
-            uint min = 0, current = 0, max = 0;
-            bool read = key.What switch
-            {
-                Feature.Brightness => Native.GetMonitorBrightness(h, ref min, ref current, ref max),
-                Feature.Contrast => Native.GetMonitorContrast(h, ref min, ref current, ref max),
-                _ => false,
-            };
-            if (read) observed = (int)current;
-            return read;
-        }, false);
-        actual = observed;
-        return ok;
-    }
-
-    private static void StoreActual(Target key, int actual)
-    {
-        if (key.What == Feature.Brightness) key.Mon.Brightness = actual;
-        else if (key.What == Feature.Contrast) key.Mon.Contrast = actual;
+        if (target.What == Feature.Brightness) target.Mon.Brightness = actual;
+        else if (target.What == Feature.Contrast) target.Mon.Contrast = actual;
     }
 
     public void Dispose()
     {
-        _running = false;
-        _pending.Clear();
-        _signal.Set();
-
-        bool stopped = _thread.Join(1500);
-
-        // Only dispose the handle if the thread is provably gone. Disposing it
-        // underneath a still-running WaitOne throws ObjectDisposedException on a
-        // background thread - an unhandled crash during shutdown, exactly when
-        // nobody is watching. Leaking one event handle until process exit is the
-        // better trade.
-        if (stopped) _signal.Dispose();
+        lock (_gate)
+        {
+            if (_running)
+            {
+                _running = false;
+                _pending.Clear();
+                _current.Clear();
+                _signal.Set();
+            }
+        }
+        // A callback may dispose its worker. Joining that same thread deadlocks.
+        if (Thread.CurrentThread != _thread) _thread.Join(1500);
     }
 }

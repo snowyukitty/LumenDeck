@@ -33,20 +33,19 @@ internal static class StartupEntry
         }
     }
 
-    public static bool IsEnabled
+    public static bool IsEnabled => ReadState() == true;
+
+    /// <summary>Null means the registration could not be read, not disabled.</summary>
+    public static bool? ReadState() => ReadState(() =>
     {
-        get
-        {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(RunKey);
-                return key?.GetValue(ValueName) is string s && s.Length > 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        using var key = Registry.CurrentUser.OpenSubKey(RunKey);
+        return key?.GetValue(ValueName);
+    });
+
+    internal static bool? ReadState(Func<object> readValue)
+    {
+        try { return readValue() is string value && value.Length > 0; }
+        catch { return null; }
     }
 
     /// <summary>
@@ -96,7 +95,7 @@ internal static class StartupEntry
         }
 
         // Read back rather than trusting the write, in the usual way.
-        return IsEnabled == enabled;
+        return ReadState() == enabled;
     }
 
     /// <summary>Rewrite the path after the executable has moved. No-op when correct.</summary>

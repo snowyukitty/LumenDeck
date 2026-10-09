@@ -10,7 +10,8 @@ namespace LumenDeck;
 /// A GUI-only utility cannot be scripted, scheduled, or bound to a hotkey by
 /// whatever launcher someone already uses. Everything here runs without opening
 /// a window, prints plain text (or JSON with --json), and exits with a code that
-/// means something: 0 success, 1 nothing matched, 2 a write was refused.
+/// means something: 0 success, 1 invalid request or nothing matched,
+/// 2 a request was refused or could not be persisted.
 /// </summary>
 internal static class Cli
 {
@@ -46,7 +47,21 @@ internal static class Cli
             ? informational
             : VersionText;
 
-    public static int Run(string[] args)
+    public static int Run(string[] args) => Run(args, RunValidated);
+
+    // Keep preflight ahead of every production collaborator. The executor seam
+    // lets tests prove rejection without opening real display/settings handles.
+    internal static int Run(string[] args, Func<string[], int> execute)
+    {
+        if (CliArguments.Validate(args) is { } invalid)
+        {
+            Console.Error.WriteLine(invalid.Message);
+            return invalid.ExitCode;
+        }
+        return execute(args);
+    }
+
+    private static int RunValidated(string[] args)
     {
         bool json = args.Any(a => a.Equals("--json", StringComparison.OrdinalIgnoreCase));
 
@@ -58,6 +73,9 @@ internal static class Cli
             return null;
         }
         bool Flag(params string[] names) => args.Any(a => names.Contains(a, StringComparer.OrdinalIgnoreCase));
+
+        if (Flag("--support-report"))
+            return RunSupportReport(args, () => MonitorService.Enumerate(resolveGamma: false));
 
         if (Flag("-h", "--help", "/?")) { Console.WriteLine(HelpText); return ExitOk; }
         if (Flag("-v", "--version"))
@@ -109,6 +127,7 @@ internal static class Cli
 
             if (Flag("--diagnose"))
             {
+                Console.Error.WriteLine("Detailed diagnostics include device identifiers. Review before sharing; use --support-report for the minimal report.");
                 Console.WriteLine("LumenDeck diagnostics");
                 Console.WriteLine($"  version: {FullVersionText}");
                 Console.WriteLine($"  monitors detected: {monitors.Count}" +
@@ -185,7 +204,8 @@ internal static class Cli
                 }
                 else
                 {
-                    var level = Presets.ByName(presetName);
+                    // The window's Settings > Preset targets edits these.
+                    var level = settings.PresetLevel(presetName);
                     if (level == null)
                     {
                         Console.Error.WriteLine(
@@ -200,7 +220,7 @@ internal static class Cli
                         // this is the first LumenDeck command ever run here.
                         settings.SeedCustom(m);
                         if (!ApplyBrightness(m, Presets.BrightnessFor(m, level.Nits))) exit = ExitWriteRefused;
-                        ApplyWarmth(m, level.Kelvin, settings);
+                        if (!ApplyWarmth(m, level.Kelvin, settings)) exit = ExitWriteRefused;
                     }
                     actions.Add($"preset {level.Name} ({level.Nits} nits, {level.Kelvin}K)");
                 }
@@ -259,20 +279,9 @@ internal static class Cli
                 }
                 foreach (var m in targets)
                 {
-                    ApplyWarmth(m, kelvin, settings);
-                    settings.CaptureCustom(m);
+                    if (!ApplyWarmth(m, kelvin, settings, rememberCustom: true)) exit = ExitWriteRefused;
                 }
                 actions.Add("warmth " + (kelvin >= GammaControl.NeutralKelvin ? "off" : kelvin + "K"));
-            }
-
-            string power = Value("--power");
-            if (power != null)
-            {
-                Console.Error.WriteLine(
-                    "--power was withdrawn because MCCS D6 can leave a monitor impossible to wake in " +
-                    "software. Use the window's per-monitor Blank screen action or its global shortcut; " +
-                    "both are fully reversible.");
-                return ExitWriteRefused;
             }
 
             if (actions.Count == 0)
@@ -281,17 +290,8 @@ internal static class Cli
                 return ExitNoMatch;
             }
 
-            settings.Save();
+            exit = FinishAdjustment(settings, exit, actions, targets.Select(t => t.FriendlyName), Console.Out, Console.Error);
             DisplayGamma.Save();
-
-            // Writes are queued to the hardware asynchronously in the GUI; here
-            // they are direct, but a monitor still needs a moment before a read
-            // reflects them. Report what was asked for, and say so plainly.
-            Console.WriteLine($"{(exit == ExitWriteRefused ? "Requested" : "Applied")} " +
-                              $"{string.Join(", ", actions)} to " +
-                              string.Join(", ", targets.Select(t => t.FriendlyName)));
-            if (exit == ExitWriteRefused)
-                Console.Error.WriteLine("At least one monitor refused a change - it may be asleep or on another input.");
             return exit;
         }
         finally
@@ -302,6 +302,57 @@ internal static class Cli
             // out again from shape alone.
             DisplayGamma.Save();
             foreach (var m in monitors) m.Dispose();
+        }
+    }
+
+    internal static int FinishAdjustment(AppSettings settings, int hardwareExit,
+        IEnumerable<string> actions, IEnumerable<string> names, TextWriter output, TextWriter errors)
+    {
+        bool saved = settings.Save();
+        if (!saved)
+            errors.WriteLine("Settings save not confirmed. Monitor requests were already sent; " +
+                "Custom levels and saved warmth may not persist. Check settings storage and reopen " +
+                "after another app or editor changes the file.");
+        // Persistence failure is distinct from a refused monitor request. Do
+        // not invent a monitor failure just because both use exit code 2.
+        output.WriteLine($"{(hardwareExit == ExitWriteRefused ? "Requested" : "Applied")} " +
+            $"{string.Join(", ", actions)} to {string.Join(", ", names)}");
+        if (hardwareExit == ExitWriteRefused)
+            errors.WriteLine("At least one monitor refused a change - it may be asleep or on another input.");
+        return saved ? hardwareExit : ExitWriteRefused;
+    }
+
+    internal static int RunSupportReport(string[] args, Func<List<Monitor>> enumerate)
+    {
+        // A report cannot silently turn a combined invocation into a hardware
+        // adjustment, nor emit a private monitor-filter argument in its output.
+        if (args.Any(a => !a.Equals("--support-report", StringComparison.OrdinalIgnoreCase) &&
+                          !a.Equals("--json", StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.Error.WriteLine("Use --support-report with optional --json only.");
+            return ExitNoMatch;
+        }
+        List<Monitor> monitors = null;
+        bool json = args.Any(a => a.Equals("--json", StringComparison.OrdinalIgnoreCase));
+        try
+        {
+            monitors = enumerate();
+            var report = SupportReport.Create(monitors, DisplayScanState.Ready, VersionText, Environment.OSVersion.Version);
+            Console.WriteLine(json
+                ? SupportReport.Json(report) : SupportReport.Text(report));
+            return ExitOk;
+        }
+        catch (Exception)
+        {
+            var report = SupportReport.Create(Array.Empty<Monitor>(), DisplayScanState.Failed,
+                VersionText, Environment.OSVersion.Version);
+            Console.WriteLine(json ? SupportReport.Json(report) : SupportReport.Text(report));
+            Console.Error.WriteLine("Could not scan displays for the support report. Detailed errors are omitted.");
+            return ExitWriteRefused;
+        }
+        finally
+        {
+            if (monitors != null) foreach (var monitor in monitors) monitor.Dispose();
         }
     }
 
@@ -357,11 +408,28 @@ internal static class Cli
         return ok;
     }
 
-    private static void ApplyWarmth(Monitor m, int kelvin, AppSettings settings)
+    internal static bool ApplyWarmth(Monitor m, int kelvin, AppSettings settings,
+        bool rememberCustom = false, Func<Monitor, bool> apply = null)
     {
+        int previous = m.Kelvin;
+        bool confirmed = false;
         m.Kelvin = Math.Clamp(kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin);
-        DisplayGamma.Apply(m);
-        settings.SetKelvin(m.StableKey, m.DisplayName, m.Kelvin);
+        try
+        {
+            confirmed = (apply ?? DisplayGamma.Apply)(m);
+            if (confirmed)
+            {
+                settings.SetKelvin(m.StableKey, m.DisplayName, m.Kelvin);
+                if (rememberCustom) settings.CaptureCustom(m);
+            }
+            return confirmed;
+        }
+        finally
+        {
+            // A refused request must not become the current or saved warmth.
+            // DisplayGamma records its ramp signature only after a confirmed write.
+            if (!confirmed) m.Kelvin = previous;
+        }
     }
 
     /// <summary>
@@ -380,11 +448,11 @@ internal static class Cli
         if (e.CustomContrastPercent is double cp &&
             !ApplyContrast(m, Presets.FromPercent(cp, m.ContrastMin, m.ContrastMax))) exit = ExitWriteRefused;
 
-        if (e.CustomKelvin is int k) ApplyWarmth(m, k, settings);
+        if (e.CustomKelvin is int k && !ApplyWarmth(m, k, settings)) exit = ExitWriteRefused;
         return true;
     }
 
-    private static string ListText(List<Monitor> monitors)
+    internal static string ListText(List<Monitor> monitors)
     {
         var sb = new StringBuilder();
         foreach (var m in monitors.OrderBy(x => x.Rect.Left).ThenBy(x => x.Rect.Top))
@@ -400,8 +468,7 @@ internal static class Cli
             sb.AppendLine($"    control    {backend}");
             if (m.SupportsBrightness)
                 sb.AppendLine($"    brightness {m.Brightness}  ({Presets.RawToPercent(m, m.Brightness):0}% of " +
-                              $"{m.BrightnessMin}-{m.BrightnessMax}, about {Presets.NitsFor(m, m.Brightness)} nits" +
-                              (Presets.IsKnown(m) ? ")" : ", estimated)"));
+                              $"{m.BrightnessMin}-{m.BrightnessMax}, {Presets.EstimateFor(m, m.Brightness).DisplayText})");
             if (m.SupportsContrast)
                 sb.AppendLine($"    contrast   {m.Contrast}  ({m.ContrastMin}-{m.ContrastMax})");
             sb.AppendLine($"    warmth     {(m.Kelvin >= GammaControl.NeutralKelvin ? "off" : m.Kelvin + "K")}");
@@ -411,7 +478,7 @@ internal static class Cli
         return sb.ToString().TrimEnd();
     }
 
-    private static string ListJson(List<Monitor> monitors) =>
+    internal static string ListJson(List<Monitor> monitors) =>
         JsonSerializer.Serialize(
             monitors.OrderBy(x => x.Rect.Left).ThenBy(x => x.Rect.Top).Select(m => new
             {
@@ -425,7 +492,9 @@ internal static class Cli
                 brightnessRange = m.SupportsBrightness ? new { min = m.BrightnessMin, max = m.BrightnessMax } : null,
                 brightnessPercent = m.SupportsBrightness ? Math.Round(Presets.RawToPercent(m, m.Brightness)) : (double?)null,
                 estimatedNits = m.SupportsBrightness ? Presets.NitsFor(m, m.Brightness) : (int?)null,
-                nitsAreEstimated = !Presets.IsKnown(m),
+                nitsAreEstimated = true,
+                luminanceProfile = Presets.EstimateFor(m, m.Brightness).ProfileKind,
+                profileEndpointsMeasured = Presets.EstimateFor(m, m.Brightness).ProfileEndpointsMeasured,
                 contrast = m.SupportsContrast ? m.Contrast : (int?)null,
                 kelvin = m.Kelvin,
                 rect = new { m.Rect.Left, m.Rect.Top, m.Rect.Right, m.Rect.Bottom },
@@ -435,20 +504,24 @@ internal static class Cli
     private const string HelpText = """
         LumenDeck - brightness, contrast and colour temperature for every monitor.
 
-        Run with no arguments to open the window. With arguments it stays on the
-        command line and exits.
+        Run lumendeck-cli with no arguments to show this help.
+        Open LumenDeck.exe for the window and notification-area controls.
 
           --list                  Show every monitor and its current settings
           --diagnose              Why a monitor does or does not respond
+          --support-report        Minimal report with names and device IDs excluded
+                                  Use alone, or with --json; never adjusts a display
           --features              Extra controls each monitor advertises
-          --json                  Machine-readable output (with --list)
+          --json                  Machine-readable output (with --list or --support-report)
 
           -m, --monitor <text>    Only monitors whose name, position or device
                                   contains <text>. Default: all of them.
 
           -p, --preset <name>     Day | Evening | Night
-                                  Aims every panel at the same perceived
-                                  luminance, not the same slider number.
+                                  Targets estimated luminance from panel
+                                  profiles; does not measure emitted light.
+                                  Uses the targets saved in the window's
+                                  Settings > Preset targets.
 
                                   Custom
                                   Back to your own levels per monitor - what
@@ -469,14 +542,21 @@ internal static class Cli
           -v, --version           Version
 
         Examples
-          LumenDeck --list
-          LumenDeck --list -m "left"
-          LumenDeck --preset Night
-          LumenDeck --preset Custom
-          LumenDeck --brightness -10
-          LumenDeck -m "left" -b 55 -c 45 -w 5000
-          LumenDeck --warmth off
+          lumendeck-cli --list
+          lumendeck-cli --list -m "left"
+          lumendeck-cli --preset Night
+          lumendeck-cli --preset Custom
+          lumendeck-cli --brightness -10
+          lumendeck-cli -m "left" -b 55 -c 45 -w 5000
+          lumendeck-cli --warmth off
 
-        Exit codes: 0 done, 1 nothing matched, 2 a monitor refused the change.
+        Requests are validated before settings or display access. Missing, unknown,
+        duplicate or invalid options fail without applying an earlier option.
+        Do not combine information commands with adjustments. Relative steps stop
+        at the display's limits; absolute percentages and Kelvin must be in range.
+
+        Exit codes: 0 done, 1 invalid request or nothing matched,
+                    2 a monitor change or settings save failed, or withdrawn --power,
+                    3 an unexpected command failure.
         """;
 }

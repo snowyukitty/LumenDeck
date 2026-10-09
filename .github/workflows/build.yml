@@ -40,6 +40,19 @@ jobs:
       - name: Build
         run: dotnet build LumenDeck.slnx -c Release --no-restore /warnaserror
 
+      - name: Release source-path privacy
+        run: powershell -NoProfile -File test/Test-ReleasePathsChecks.ps1
+
+      - name: Control regression checks
+        # Uses isolated settings and off-desktop overlays; never writes to a
+        # physical monitor or depends on DDC hardware being present.
+        run: dotnet run --project test/ControlTests/ControlTests.csproj -c Release
+
+      - name: Main-window lifecycle checks
+        # References the actual GUI assembly; native monitor/registry/gamma
+        # collaborators are replaced and all storage is temporary.
+        run: dotnet run --project test/AppTests/AppTests.csproj -c Release
+
       - name: Publish self-contained
         run: >
           dotnet publish src/LumenDeck/LumenDeck.csproj -c Release -r win-x64
@@ -85,9 +98,21 @@ jobs:
           }
           Write-Host "version $expected agrees across --version and both executables"
 
+      - name: Package and verify extracted binaries
+        run: >
+          powershell -NoProfile -File scripts/package-release.ps1
+          -Gui artifacts/gui/LumenDeck.exe -Cli artifacts/cli/lumendeck-cli.exe
+          -OutputDirectory artifacts/package
+
+      - name: Package regression checks
+        run: |
+          $archive = Get-ChildItem artifacts/package/*.zip | Select-Object -First 1
+          powershell -NoProfile -File test/Test-Package.ps1 -Archive $archive.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Package regression checks failed.' }
+
       - uses: actions/upload-artifact@v7
         with:
           name: lumendeck-win-x64
           path: |
-            artifacts/gui/LumenDeck.exe
-            artifacts/cli/lumendeck-cli.exe
+            artifacts/package/*.zip
+            artifacts/package/*.zip.sha256

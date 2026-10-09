@@ -17,6 +17,9 @@ internal sealed class Monitor : IDisposable
     /// </summary>
     private readonly object _ioLock = new();
 
+    /// <summary>Order queued writes and synchronous restore for this display only.</summary>
+    internal readonly object WriteGate = new();
+
     /// <summary>The earliest tick at which this monitor may receive another DDC request.</summary>
     private long _nextDdcTick;
 
@@ -206,8 +209,10 @@ internal static class MonitorService
     /// because the capability string is by far the slowest DDC request and
     /// nothing in the UI needs it; fetching it at startup cost seconds of dead
     /// window for information nobody looked at.
+    /// Pure support scans can disable <paramref name="resolveGamma"/> to avoid
+    /// loading saved baseline records; all display-adjusting callers keep it on.
     /// </summary>
-    public static List<Monitor> Enumerate(bool withCapabilities = false)
+    public static List<Monitor> Enumerate(bool withCapabilities = false, bool resolveGamma = true)
     {
 
         var handles = new List<IntPtr>();
@@ -278,10 +283,10 @@ internal static class MonitorService
         AssignStableKeys(list);
         AssignAnonymousNames(list);
 
-        // Needs the stable keys, and every caller needs it - so it happens here
-        // rather than in each of them. Forgetting it leaves BaselineRamp holding
-        // whatever ramp was loaded, which is the bug it exists to prevent.
-        DisplayGamma.Resolve(list);
+        // Display-adjusting callers need a resolved baseline, not whatever ramp
+        // was loaded. A pure support scan only reports whether capture succeeded
+        // and deliberately avoids loading or changing the baseline records.
+        if (resolveGamma) DisplayGamma.Resolve(list);
         return list;
     }
 

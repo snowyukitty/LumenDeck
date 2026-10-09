@@ -1,0 +1,128 @@
+LumenDeck for Windows 10 / 11 (x64)
+
+Get started
+1. Extract the entire ZIP into a folder you want to keep.
+2. Open LumenDeck.exe. No .NET installation or administrator access is needed.
+3. Use Identify to find each screen, then adjust its brightness or warmth.
+   Day / Evening / Night aim for similar light across panels; Custom returns
+   to the per-monitor levels saved when you adjust a slider.
+
+Open LumenDeck.exe again to reveal the existing window if it is hidden in the
+notification area. A second launch does not start another monitor controller.
+If it cannot reveal the window, use the existing tray icon or retry once startup
+finishes. Normal user permissions are recommended; administrator access is not
+required.
+
+Short windows hide the desk map to keep monitor cards usable. Scroll to reach
+each card; enlarge the window to bring the map back. Identify remains available.
+Click a display on the map to align its adjustment area and select its brightness
+bar, or warmth if brightness is unavailable. Adjustment keys then affect that
+display. The focused card has an amber outline and marker.
+
+Refresh returns keyboard selection to the same display/control when available
+and scrolls that control into view. Choosing another control during reading takes
+priority. A removed display or unavailable control returns selection to Refresh.
+
+Keyboard controls
+In the main window, Ctrl + Page Down / Page Up selects the next / previous
+display card, wrapping in layout order. Selection keeps the same available
+control, otherwise brightness or warmth, and scrolls into view. This does not
+adjust a display and is unavailable while reading displays.
+Press F1 in the main window or choose Settings > Keyboard controls for the
+offline reference. While that guide is open, Page Up / Page Down scroll its
+text, Home / End go to the start / end, and Escape closes it.
+Slider keys and F2/Enter do not adjust or open exact entry while Ctrl or Alt
+is held. Ordinary keys and Shift adjustments retain their normal behavior.
+
+Exact values
+Click a slider's number, or focus it and press F2/Enter. The dialog shows the
+display/control, unit and range. Brightness/contrast use hardware units; warmth
+accepts Kelvin. Apply sends a request; check the screen and card warnings.
+Cancel/Escape discard the draft. Refresh replacing the card or disabling the
+control cancels the open entry.
+
+Settings
+Settings keeps the last save outcome visible even after other messages appear.
+Settings ! means a save was not confirmed. Retry saving active settings saves
+the values currently in effect; a failed preference or shortcut choice must be
+selected again. Newer changes can show waiting until their own save finishes.
+If the file changed outside the window or cannot be loaded, restore active
+blackouts and use tray Exit before reopening. Back up damaged settings privately
+before repair; retry never overwrites a changed or invalid source automatically.
+
+Use Settings in the window for Windows startup, minimised launch, closing to the
+notification area and saved-warmth reapplication. Startup switches stay in sync
+with the tray. Local preferences save in the background; checks stay at the active
+preference until completion. Local preference options are disabled while saving. An
+unconfirmed save retains the previous preference. Start minimised applies at the next launch; with keep-running
+off, it starts on the taskbar. Reapply warmth affects the next scan or Refresh,
+without adjusting current warmth when you toggle it. An unavailable startup
+registration read is labeled explicitly. Use tray Exit to quit if keep-running
+is enabled.
+If a save is pending, wait for completion and use Exit again. Shortcuts also
+activate only after confirmed storage; a saved shortcut can still fail Windows
+registration. A pending save prevents starting a new blackout; retry afterwards.
+
+If settings changed outside the app, quit and reopen before saving again. A busy
+writer can be retried when it finishes. A damaged/unreadable settings file is
+preserved while the app uses session defaults. Do not delete it while screens
+are blanked: it may contain their saved brightness for recovery. Restore screens
+and exit normally before backing up and repairing or resetting the file.
+CLI exit code 2 also reports an unconfirmed settings save; monitor requests may
+already have been applied, so inspect their state before repeating a command.
+
+If a control is unavailable, open Connection help. External monitors may need
+DDC/CI enabled in their own menu. If no cards appear, the window distinguishes
+reading displays, a completed scan with none found and a failed scan. Connection
+help stays available while reading; use Refresh after checking the connection.
+Refresh may reapply saved warmth and recover active blackouts. Opening help does
+not start another scan.
+
+Built-in panels use Windows brightness support.
+Some docks and KVMs block control commands; not all panels expose contrast.
+
+Brightness estimates
+Edit brightness estimate on a card lets you set peak/floor luminance and sources.
+Its preview calculates estimated nits and preset brightness percentages. Save
+changes estimates and future presets; it does not adjust the screen immediately.
+Identical model names share a profile. Endpoint measurement is your declaration,
+not app verification. Existing files are backed up in the settings directory's
+profile-backups folder. If the file changed during editing, cancel and reopen.
+
+Night desk
+Choose the screen to keep working on, then use Night saver. The work display
+dims toward the Night target only if initially brighter; the other displays
+become black. Restore night desk returns the saved brightness, including the
+work display, unless you chose a newer brightness for it. Individual Blank screen actions
+also restore by clicking their overlay. This is a reversible blackout, not
+hardware power-off. Exit normally from the tray menu before moving or replacing
+the app files so active blackouts can be restored.
+
+Command line
+Open a terminal in the extracted folder:
+  .\lumendeck-cli.exe --help
+  .\lumendeck-cli.exe --support-report
+  .\lumendeck-cli.exe --preset Night
+  .\lumendeck-cli.exe --preset Custom
+
+Support
+Settings > About LumenDeck > Copy version copies the running GUI version and
+build for an issue. Only that explicit action writes these two lines to the
+clipboard; opening About does not copy anything.
+Connection help > View support report shows a minimal report you can review and
+copy into an issue. Names, serials, device identifiers, paths and raw logs are
+excluded; counts and control ranges still describe your setup. Nothing is
+uploaded automatically. Advanced --diagnose output includes identifiers.
+Project and issues: https://github.com/snowyukitty/LumenDeck
+
+Settings are stored in %APPDATA%\LumenDeck, separately from these executables.
+Moving or deleting this folder does not erase settings. Portable describes how
+the app binaries are distributed, not where the app stores settings.
+
+Integrity
+SHA256SUMS.txt records hashes of the package files. Check the ZIP hash against
+the separate .sha256 file supplied with a release when available. Hashes detect
+file changes; they do not prove who created the package. This package is not
+code-signed. If Windows blocks a download, verify its source before running it.
+
+License: MIT, included in LICENSE.txt.

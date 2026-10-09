@@ -1,13 +1,24 @@
 namespace LumenDeck;
 
 /// <summary>
-/// Levels that aim every panel at the same perceived luminance, using the
+/// Levels that target estimated luminance, using the
 /// profiles in <see cref="PanelDatabase"/>.
 /// </summary>
 internal static class Presets
 {
     public sealed record Level(string Name, int Nits, int Kelvin, string Description);
 
+    // Editable targets stay inside a range the luminance model can express
+    // usefully. Above roughly 1000 nits every SDR profile is at its peak anyway;
+    // zero would silently mean "the floor" on every panel.
+    public const int MinTargetNits = 1;
+    public const int MaxTargetNits = 1000;
+
+    /// <summary>
+    /// Built-in targets. A person's own targets are stored as overrides in
+    /// settings (see <see cref="AppSettings.PresetLevel"/>), so changing these
+    /// defaults in a later version still reaches everyone who never edited them.
+    /// </summary>
     public static readonly Level[] Levels =
     {
         new("Day",     200, 6500, "Matches a normally lit room"),
@@ -29,8 +40,16 @@ internal static class Presets
     public static bool IsCustom(string name) =>
         string.Equals(name, CustomName, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>The built-in level with this name; use settings for the active target.</summary>
     public static Level ByName(string name) =>
         Levels.FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    public static bool IsValidTarget(int nits, int kelvin) =>
+        nits is >= MinTargetNits and <= MaxTargetNits &&
+        kelvin >= GammaControl.MinKelvin && kelvin <= GammaControl.MaxKelvin;
+
+    public static bool IsBuiltIn(Level level) =>
+        ByName(level?.Name) is { } builtIn && builtIn.Nits == level.Nits && builtIn.Kelvin == level.Kelvin;
 
     // The luminance model works in PERCENT of the panel's range. The value a
     // monitor actually wants over DDC is a raw VCP number in whatever range it
@@ -80,18 +99,22 @@ internal static class Presets
         return Math.Clamp(min + (int)Math.Round(span * percent / 100.0), min, max);
     }
 
-    /// <summary>Raw brightness value that puts this panel at the requested luminance.</summary>
-    public static int BrightnessFor(Monitor m, int targetNits)
-    {
-        var p = PanelDatabase.For(m);
-        double slope = (p.PeakNits - p.FloorNits) / 100.0;
-        if (slope <= 0) return m.Brightness;
+    /// <summary>Raw brightness targeting the requested luminance in the linear model.</summary>
+    public static int BrightnessFor(Monitor m, int targetNits) =>
+        PercentFor(PanelDatabase.For(m), targetNits) is double percent ? PercentToRaw(m, percent) : m.Brightness;
 
-        double percent = (targetNits - p.FloorNits) / slope;
-        return PercentToRaw(m, percent);
+    /// <summary>
+    /// Unclamped percentage of the panel's range targeting the requested
+    /// luminance, so a preview can say when a target is below the floor or
+    /// above the peak. Null when the profile has no usable slope.
+    /// </summary>
+    public static double? PercentFor(PanelDatabase.Profile p, int targetNits)
+    {
+        double slope = (p.PeakNits - p.FloorNits) / 100.0;
+        return slope > 0 ? (targetNits - p.FloorNits) / slope : null;
     }
 
-    /// <summary>Rough luminance a given raw brightness value produces. For display only.</summary>
+    /// <summary>Model-estimated luminance for a raw brightness value. Not an optical reading.</summary>
     public static int NitsFor(Monitor m, int rawBrightness)
     {
         var p = PanelDatabase.For(m);
@@ -99,5 +122,6 @@ internal static class Presets
         return (int)Math.Round(p.FloorNits + (p.PeakNits - p.FloorNits) * (percent / 100.0));
     }
 
-    public static bool IsKnown(Monitor m) => PanelDatabase.IsMeasured(m);
+    public static LuminanceEstimate EstimateFor(Monitor m, int rawBrightness) =>
+        new(NitsFor(m, rawBrightness), PanelDatabase.HasUserProfile(m), PanelDatabase.For(m).Measured);
 }

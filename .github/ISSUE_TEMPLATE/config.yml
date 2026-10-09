@@ -2,4 +2,7 @@ blank_issues_enabled: true
 contact_links:
   - name: My monitor does not appear at all
     url: https://github.com/snowyukitty/LumenDeck#troubleshooting
-    about: Usually DDC/CI is disabled in the monitor's own menu, or a KVM/dock is blocking it. Check the troubleshooting section first.
+    about: Use Connection help if your build provides it, or read the troubleshooting guide. If the issue persists, open a bug report with the problem and release version.
+  - name: Report a security vulnerability privately
+    url: https://github.com/snowyukitty/LumenDeck/security/advisories/new
+    about: Keep security-sensitive details out of public issues. Use the private reporting channel described in Security policy.

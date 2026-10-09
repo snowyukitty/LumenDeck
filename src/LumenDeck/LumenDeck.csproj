@@ -36,4 +36,7 @@
     <ProjectReference Include="..\LumenDeck.Core\LumenDeck.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="LumenDeck.AppTests" />
+  </ItemGroup>
 </Project>

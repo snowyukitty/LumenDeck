@@ -150,27 +150,27 @@ place it is visible.
 
 ## A gamma ramp is not in the same units as the light it makes
 
-The same measurement turned up a second, independent fault, and this one was in
-the arithmetic.
+The same ramp readback and model calculation turned up a second, independent
+fault, and this one was in the arithmetic.
 
-A gamma ramp holds **encoded** values. The display raises them to roughly 2.2
-before any light comes out, so scaling a ramp entry by `f` scales the emitted
-light by `f^2.2`, not by `f`.
+A gamma ramp holds **encoded** values. Under an approximate gamma-2.2 display
+response, scaling a ramp entry by `f` scales the modeled light by `f^2.2`, not
+by `f`. Actual panels and colour pipelines can differ from that assumption.
 
 The white points in `GammaControl` are linear light ratios — correctly derived,
 clearly commented as linear — and were multiplied straight onto the encoded
 ramp. Every setting therefore overshot by that exponent. The Night preset asks
 for 4600 K, whose blue is 0.6345 of full; applied to the encoded ramp that emits
-`0.6345^2.2 = 0.37`, a white point nearer **3000 K** — a visibly orange screen,
-on any monitor, at a setting labelled 4600 K.
+`0.6345^2.2 = 0.37`, a tint nearer **3000 K** in that model, at a setting
+labelled 4600 K.
 
 Nothing inside the app could catch this. Every value it could read back was the
 value it had written; the error is in what the display does with them
-afterwards. It needed a measurement that starts from the ramp and works forward
-to the light.
+afterwards. Independent ramp readback and the model expose the arithmetic
+error; they do not measure emitted light or the physical white point.
 
 Raise each linear ratio to `1/2.2` before it touches the ramp:
-`(e · f^(1/2.2))^2.2 = e^2.2 · f`. Requested 4600 K now measures 4600 K.
+`(e · f^(1/2.2))^2.2 = e^2.2 · f`. Requested 4600 K now agrees with the model.
 
 The general lesson is worth more than the constant: **a correct number in the
 wrong domain is still wrong, and it will not look wrong in any log.** The
@@ -259,3 +259,34 @@ And the capability string's own `model()` field is not trustworthy either:
 firmware gets copy-pasted across a product family, and a 27" panel has been seen
 reporting a 31.5" sibling's model name. EDID plus the physical dimensions settle
 it.
+
+## A blackout restore must also cancel its queued writes
+
+Restoring brightness synchronously is insufficient when a background writer
+still has a minimum-brightness request queued. The restore can succeed and the
+old request can then darken the display again. Queued writes and synchronous
+restores now share a per-monitor ordering lock: finish the in-flight request,
+discard pending brightness for that monitor, and only then write and verify
+the saved brightness. Unrelated displays retain independent locks.
+
+Store the original raw hardware brightness as well as its normalized
+percentage. The raw value preserves the exact setting on ranges such as
+0–255, while the percentage remains a recovery fallback for older settings.
+Persist recovery data before showing an overlay or lowering brightness; if
+that save fails, decline the blackout instead of losing the way back.
+
+## Group actions need ownership, not just an inverse
+
+Night saver does not restore every blanked display when it ends. A display
+blanked independently before the night session belongs to that earlier
+operation. `NightSaver` tracks only the stable identities it blanked itself;
+individual wake removes an identity from that session after successful
+recovery. An unavailable brightness backend retains the recovery marker and
+the group's restore action remains available for retry.
+
+The default work display is the Windows primary display, with an explicit
+selection for desks whose centre monitor differs. New displays stay visible
+after a topology change rather than joining an old blackout automatically.
+Hardware-free tests establish the software ownership rules; real-panel
+acceptance and energy measurements remain separate evidence. See
+[the checkpoint](checkpoint.md) and [the acceptance checklist](../test/README.md#manual-night-desk-acceptance).

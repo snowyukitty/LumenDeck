@@ -19,6 +19,7 @@ internal sealed class LayoutMap : Control
     private List<Monitor> _monitors = new();
     private int _hoverIndex = -1;
     private int _selectedIndex = -1;
+    private readonly Label _caption;
 
     /// <summary>Raised when a monitor rectangle is clicked.</summary>
     public event Action<Monitor> MonitorPicked;
@@ -33,6 +34,14 @@ internal sealed class LayoutMap : Control
         // everything it does is also reachable from the cards below, so it must
         // not sit in the Tab order with no focus cue.
         TabStop = false;
+        _caption = new Label
+        {
+            Name = "display-map-caption", Dock = DockStyle.Bottom, Height = 24,
+            Font = Theme.Small, ForeColor = Theme.InkMuted, BackColor = Theme.Bar,
+            TextAlign = ContentAlignment.MiddleCenter, AutoSize = false, AutoEllipsis = true,
+            UseMnemonic = false, Padding = new Padding(6, 0, 6, 0),
+        };
+        Controls.Add(_caption);
     }
 
     public void SetMonitors(IEnumerable<Monitor> monitors)
@@ -40,6 +49,8 @@ internal sealed class LayoutMap : Control
         _monitors = monitors?.ToList() ?? new List<Monitor>();
         _hoverIndex = -1;
         _selectedIndex = -1;
+        Cursor = Cursors.Default;
+        UpdateCaption();
         Invalidate();
     }
 
@@ -47,7 +58,22 @@ internal sealed class LayoutMap : Control
     public void Refresh(Monitor selected)
     {
         _selectedIndex = selected == null ? -1 : _monitors.IndexOf(selected);
+        UpdateCaption();
         Invalidate();
+    }
+
+    private void UpdateCaption()
+    {
+        int index = _hoverIndex >= 0 ? _hoverIndex : _selectedIndex;
+        string text = _monitors.Count == 0 ? "" : "Select a display to find its controls.";
+        if (index >= 0 && index < _monitors.Count)
+        {
+            var monitor = _monitors[index];
+            text = string.IsNullOrWhiteSpace(monitor.PositionLabel) ? monitor.DisplayName
+                : $"{monitor.DisplayName} ({monitor.PositionLabel})";
+        }
+        _caption.Text = text;
+        _caption.AccessibleName = text;
     }
 
     /// <summary>
@@ -57,7 +83,7 @@ internal sealed class LayoutMap : Control
     private List<RectangleF> Project()
     {
         var boxes = new List<RectangleF>();
-        if (_monitors.Count == 0 || Width < 8 || Height < 8) return boxes;
+        if (_monitors.Count == 0 || Width < 8 || Height - _caption.Height < 8) return boxes;
 
         int minX = _monitors.Min(m => m.Rect.Left);
         int minY = _monitors.Min(m => m.Rect.Top);
@@ -69,7 +95,7 @@ internal sealed class LayoutMap : Control
 
         const int pad = 10;
         float availW = Math.Max(1, Width - pad * 2);
-        float availH = Math.Max(1, Height - pad * 2);
+        float availH = Math.Max(1, Height - _caption.Height - pad * 2);
         float scale = Math.Min(availW / spanX, availH / spanY);
 
         float offX = pad + (availW - spanX * scale) / 2f;
@@ -95,7 +121,8 @@ internal sealed class LayoutMap : Control
         var boxes = Project();
         if (boxes.Count == 0)
         {
-            TextRenderer.DrawText(g, "No monitors detected", Theme.Small, ClientRectangle,
+            var canvas = new Rectangle(0, 0, Width, Math.Max(0, Height - _caption.Height));
+            TextRenderer.DrawText(g, "No monitors detected", Theme.Small, canvas,
                 Theme.InkFaint, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             return;
         }
@@ -110,18 +137,33 @@ internal sealed class LayoutMap : Control
             // Fill brightness mirrors the panel's own brightness, so a screen
             // that is out of step with the others is visible at a glance.
             double pct = m.SupportsBrightness ? Presets.RawToPercent(m, m.Brightness) / 100.0 : 0.25;
-            int alpha = 40 + (int)(pct * 175);
+            int alpha = 28 + (int)(pct * 110);
 
             Color fill = m.SupportsBrightness
                 ? Color.FromArgb(alpha, Theme.Amber)
                 : Color.FromArgb(46, Theme.InkFaint);
 
-            Theme.FillRound(g, r, 4, fill);
+            Theme.FillRound(g, r, 4, Theme.Sunken);
+            using (var surface = new LinearGradientBrush(r, fill, Color.FromArgb(20, Theme.Amber), LinearGradientMode.Vertical))
+            using (var shape = Theme.Round(r, 4))
+                g.FillPath(surface, shape);
 
             bool active = i == _hoverIndex || i == _selectedIndex;
             Theme.StrokeRound(g, r, 4,
                 active ? Theme.AmberLight : Color.FromArgb(120, Theme.Line),
                 active ? 2f : 1f);
+
+            if (r.Width > 20 && r.Height > 20)
+            {
+                int inset = LogicalToDeviceUnits(5);
+                int railHeight = Math.Max(2, LogicalToDeviceUnits(3));
+                var rail = new Rectangle(r.Left + inset, r.Bottom - inset - railHeight,
+                    Math.Max(1, r.Width - inset * 2), railHeight);
+                Theme.FillRound(g, rail, railHeight / 2, Theme.Line);
+                if (m.SupportsBrightness && pct > 0)
+                    Theme.FillRound(g, new Rectangle(rail.X, rail.Y, Math.Max(1, (int)Math.Round(rail.Width * pct)), rail.Height),
+                        railHeight / 2, active ? Theme.AmberLight : Theme.Amber);
+            }
 
             if (m.IsPrimary && r.Width > 18 && r.Height > 14)
             {
@@ -132,17 +174,6 @@ internal sealed class LayoutMap : Control
             }
         }
 
-        if (_hoverIndex >= 0 && _hoverIndex < _monitors.Count)
-        {
-            var m = _monitors[_hoverIndex];
-            string label = m.DisplayName + "  -  " + m.PositionLabel;
-            var size = TextRenderer.MeasureText(label, Theme.Small);
-            var box = new Rectangle(6, Height - size.Height - 6, size.Width + 12, size.Height + 4);
-            if (box.Right > Width) box.X = Math.Max(0, Width - box.Width - 6);
-            Theme.FillRound(g, box, 5, Color.FromArgb(235, Theme.Sunken));
-            TextRenderer.DrawText(g, label, Theme.Small, box, Theme.Ink,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-        }
     }
 
     private int HitTest(Point p)
@@ -160,6 +191,7 @@ internal sealed class LayoutMap : Control
         int hit = HitTest(e.Location);
         if (hit == _hoverIndex) return;
         _hoverIndex = hit;
+        UpdateCaption();
         Cursor = hit >= 0 ? Cursors.Hand : Cursors.Default;
         Invalidate();
     }
@@ -169,6 +201,7 @@ internal sealed class LayoutMap : Control
         base.OnMouseLeave(e);
         if (_hoverIndex < 0) return;
         _hoverIndex = -1;
+        UpdateCaption();
         Cursor = Cursors.Default;
         Invalidate();
     }
@@ -176,9 +209,11 @@ internal sealed class LayoutMap : Control
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
+        if (e.Button != MouseButtons.Left) return;
         int hit = HitTest(e.Location);
         if (hit < 0) return;
         _selectedIndex = hit;
+        UpdateCaption();
         Invalidate();
         MonitorPicked?.Invoke(_monitors[hit]);
     }

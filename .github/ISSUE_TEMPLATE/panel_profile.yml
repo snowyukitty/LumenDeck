@@ -1,29 +1,40 @@
 name: Panel profile
-description: Add a monitor to the luminance table so presets match it properly
+description: Share a sourced profile for estimated-luminance presets
 labels: [panel-profile]
 body:
   - type: markdown
     attributes:
       value: |
-        Presets aim every monitor at the same perceived brightness, which needs
-        each panel's rated peak luminance. Without a profile yours gets a
-        generic estimate.
+        Issues are public. Share model information and sources, not serials,
+        device identifiers, private file paths or unreviewed diagnostic output.
+        Presets use a linear estimate based on peak and floor luminance. Profiles
+        are loaded from your own panels.json, not a built-in monitor table.
+        Please distinguish spec-sheet values, instrument measurements and
+        assumptions. A profile does not guarantee perceived matching.
   - type: input
     id: name
     attributes:
-      label: Monitor name exactly as `lumendeck-cli --list` shows it
+      label: Monitor model
+      description: "Use the model name; omit serials and device identifiers. Review --list output before sharing."
     validations:
       required: true
   - type: input
     id: peak
     attributes:
-      label: Rated peak brightness in cd/m²
+      label: Peak brightness in cd/m²
     validations:
       required: true
   - type: input
     id: source
     attributes:
-      label: Where that number came from
-      description: Spec sheet link, or "measured with <colorimeter>"
+      label: Sources and measurement conditions
+      description: "Spec sheet link or instrument/model, picture mode and SDR/HDR state. Identify any estimated values."
     validations:
       required: true
+  - type: input
+    id: floor
+    attributes:
+      label: Floor brightness at brightness 0 in cd/m²
+      description: "Include a source or measurement conditions. If unknown, say unknown; do not assume the generic floor is measured."
+    validations:
+      required: false

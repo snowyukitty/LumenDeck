@@ -1,0 +1,13 @@
+{
+  "fixture": "synthetic-two-displays-v1",
+  "synthetic": true,
+  "build": "working-tree development build; not a released-version preview",
+  "assemblyInformationalVersion": "1.1.0\u002B6b258969336b7e0ff245014d742d38e4a36147c6",
+  "clientWidth": 780,
+  "clientHeight": 1000,
+  "outerWidth": 796,
+  "outerHeight": 1039,
+  "deviceDpi": 96,
+  "method": "Actual MainForm.DrawToBitmap including nonclient bounds",
+  "estimates": "Generic profiles; calculated nits, not measured light"
+}

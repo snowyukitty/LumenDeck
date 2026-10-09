@@ -5,26 +5,37 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please include `--diagnose` output. Monitor behaviour varies enormously
-        between models, and that output usually identifies the cause outright.
+        Issues are public. Do not post security-sensitive details here; use
+        the private vulnerability reporting link in Security policy instead.
+        If your build supports it, include an optional support report: open
+        Connection help > View support report, review it, then Copy report.
+        Or run `lumendeck-cli --support-report`. If your release lacks these
+        features or cannot start, describe the problem and name the release.
+        Names, serials, device identifiers, paths and raw logs are excluded
+        from the support report, but counts and control ranges still describe
+        your setup. Nothing is uploaded automatically.
+        Detailed `--diagnose` output includes identifiers; review and redact it
+        before sharing if deeper troubleshooting is needed.
   - type: textarea
-    id: diagnose
+    id: support_report
     attributes:
-      label: Output of `lumendeck-cli --diagnose`
+      label: Support report
+      description: "Optional and not available in every release: Connection help > View support report, or lumendeck-cli --support-report. Leave blank if unsupported or the app cannot start."
       render: text
     validations:
-      required: true
+      required: false
   - type: textarea
     id: what
     attributes:
       label: What happened, and what you expected instead
     validations:
       required: true
-  - type: input
+  - type: textarea
     id: version
     attributes:
-      label: LumenDeck version
-      description: "`lumendeck-cli --version`, or the release you downloaded"
+      label: LumenDeck version and build
+      description: "If available, Settings > About LumenDeck > Copy version copies both lines for this field. You can also use `lumendeck-cli --version` or name the release you downloaded."
+      render: text
     validations:
       required: true
   - type: input

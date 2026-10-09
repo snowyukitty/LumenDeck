@@ -7,6 +7,11 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Package verification creates only synthetic UI, before the normal
+        // singleton, settings, startup-entry repair and monitor enumeration.
+        if (args.Length == 1 && args[0] == "--verify-startup")
+            return StartupVerification.Run();
+
         // Arguments are the console binary's job: a WinExe cannot stream stdout
         // to the shell that launched it. Point people at it instead of quietly
         // ignoring what they typed.
@@ -25,8 +30,11 @@ internal static class Program
         using var single = new Mutex(true, @"Local\LumenDeck.SingleInstance", out bool isFirst);
         if (!isFirst)
         {
+            if (InstanceActivation.RequestAsync().GetAwaiter().GetResult()) return 0;
             MessageBox.Show(
-                "LumenDeck is already running.\nLook for its icon in the notification area.",
+                "LumenDeck is already running, but its window could not be opened.\n\n" +
+                "Use its notification-area icon, or try again once startup finishes. " +
+                "If the copies have different permissions, use the original copy's tray menu.",
                 "LumenDeck", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return 0;
         }
@@ -40,7 +48,10 @@ internal static class Program
         PanelDatabase.Load();
         PanelDatabase.WriteExampleIfMissing();
 
-        Application.Run(new MainForm());
+        using var form = new MainForm();
+        using var activation = new InstanceActivation(form.RequestReveal);
+        form.Shown += (_, _) => activation.Start();
+        Application.Run(form);
 
         GC.KeepAlive(single);
         return 0;

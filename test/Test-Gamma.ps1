@@ -1,5 +1,6 @@
 # Test-Gamma.ps1
-# What colour temperature is actually reaching the glass.
+# Independently read GPU ramps and check their model-implied tint.
+# This is not an optical measurement of a display's colour temperature.
 #
 # This test exists because the app spent its whole life shipping a warmth that
 # was far stronger than the number on the slider, and nothing in the app could
@@ -8,7 +9,7 @@
 # 1. WRONG DOMAIN. A gamma ramp holds encoded values and the display raises them
 #    to about 2.2 before any light comes out. Scaling a ramp entry by f scales
 #    the light by f^2.2. The app scaled the ramp by the LINEAR white point, so
-#    the Night preset asked for 4600 K and delivered nearer 3000 K.
+#    the Night preset asked for 4600 K and implied nearer 3000 K in this model.
 #
 # 2. COMPOUNDING. SetDeviceGammaRamp outlives the process. The enumerator
 #    captured whatever ramp was loaded and called it the display's baseline, so
@@ -16,9 +17,9 @@
 #    warmth onto the previous warmth. "Warmth off" restored the polluted
 #    capture, so nothing undid it.
 #
-# Both are measurable from outside the app, which is what this does: read the
-# ramp each display is really running, work back to the light it produces, and
-# name the temperature that implies.
+# Readback checks the ramp outside the app. The subsequent calculation assumes
+# a gamma-2.2 response and the white-point table; it does not measure emitted
+# light, HDR behavior or the panel's physical white point.
 #
 # Needs real displays, like the other two tests here, so it is not in CI.
 #
@@ -35,9 +36,8 @@ param(
     # Require every display to be untinted instead.
     [switch]$ExpectNeutral,
 
-    # How far the delivered temperature may sit from the requested one. The
-    # white point table is sampled every 500 K and interpolated, so a couple of
-    # hundred kelvin is measurement, not error.
+    # Allowed difference between model-implied tint and the requested value.
+    # This tolerance covers table interpolation, not instrument uncertainty.
     [int]$ToleranceKelvin = 250
 )
 
@@ -117,7 +117,7 @@ foreach ($n in 1..16) {
     $g = Measure-Channel $ramp 1
     $b = Measure-Channel $ramp 2
 
-    # Encoded scale to emitted light.
+    # Encoded scale to a linear-light estimate under the gamma-2.2 assumption.
     $linearG = [math]::Pow($g.Scale, 2.2)
     $linearB = [math]::Pow($b.Scale, 2.2)
     $delivered = Get-KelvinFromBlue $linearB
@@ -138,6 +138,7 @@ if ($rows.Count -eq 0) { throw 'No display would report a gamma ramp.' }
 
 Write-Host ''
 Write-Host 'Gamma ramp actually loaded on each display' -ForegroundColor Cyan
+Write-Host 'Delivered below is model-implied tint, not measured colour temperature.' -ForegroundColor Yellow
 $rows | Format-Table Display, EncodedRGB, LinearGB, Delivered -AutoSize
 
 $fail = @()
@@ -149,14 +150,14 @@ foreach ($row in $rows) {
         $fail += ('{0}: red channel is scaled to {1} - not a LumenDeck ramp' -f $row.Display, $row.EncodedRGB)
     }
     if (-not $row.LinearShape) {
-        Write-Host ('{0}: ramp is not a scaled identity - a calibration LUT is loaded, so the temperature above is only the tint on top of it.' -f $row.Display) -ForegroundColor Yellow
+        Write-Host ('{0}: ramp is not a scaled identity; its origin is unknown and the simple tint estimate may be unreliable.' -f $row.Display) -ForegroundColor Yellow
     }
 }
 
 if ($ExpectNeutral) {
     foreach ($row in $rows) {
         if (-not $row.Neutral) {
-            $fail += ('{0}: expected neutral, delivering {1}' -f $row.Display, $row.Delivered)
+            $fail += ('{0}: expected neutral model tint, inferred {1}' -f $row.Display, $row.Delivered)
         }
     }
 }
@@ -164,7 +165,7 @@ elseif ($ExpectKelvin -gt 0) {
     foreach ($row in $rows) {
         $off = [math]::Abs($row.DeliveredK - $ExpectKelvin)
         if ($off -gt $ToleranceKelvin) {
-            $fail += ('{0}: asked for {1} K, delivering {2} K - {3} K out' -f $row.Display, $ExpectKelvin, $row.DeliveredK, $off)
+            $fail += ('{0}: asked for {1} K, model implies {2} K - {3} K out' -f $row.Display, $ExpectKelvin, $row.DeliveredK, $off)
         }
     }
 }
@@ -175,7 +176,7 @@ if ($fail.Count -gt 0) {
     exit 1
 }
 
-if ($ExpectNeutral) { Write-Host 'PASS  every display is untinted.' -ForegroundColor Green }
-elseif ($ExpectKelvin -gt 0) { Write-Host ("PASS  every display is delivering $ExpectKelvin K within $ToleranceKelvin K.") -ForegroundColor Green }
+if ($ExpectNeutral) { Write-Host 'PASS  all readback ramps meet the neutral model checks.' -ForegroundColor Green }
+elseif ($ExpectKelvin -gt 0) { Write-Host ("PASS  all readback ramps imply $ExpectKelvin K within $ToleranceKelvin K under the model.") -ForegroundColor Green }
 else { Write-Host 'Reported only - pass -ExpectKelvin or -ExpectNeutral to assert.' -ForegroundColor Gray }
 exit 0

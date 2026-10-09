@@ -29,34 +29,90 @@ $target = Join-Path $env:LOCALAPPDATA 'Programs\LumenDeck'
 $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
 $shortcut = Join-Path $startMenu 'LumenDeck.lnk'
 $desktopLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'LumenDeck.lnk'
+if ((Test-Path -LiteralPath $target) -and
+    ((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw 'Refusing to change files through a redirected app directory.'
+}
 
-function Remove-FromUserPath([string]$dir) {
-    $current = [Environment]::GetEnvironmentVariable('Path', 'User')
-    if (-not $current) { return }
-    $kept = @($current -split ';' | Where-Object { $_ -and ($_.TrimEnd('\') -ne $dir.TrimEnd('\')) })
-    [Environment]::SetEnvironmentVariable('Path', ($kept -join ';'), 'User')
+# Force termination bypasses the app's restore path for temporary blackouts.
+# Refuse before changing files, shortcuts, PATH or the startup entry instead.
+if (Get-Process LumenDeck -ErrorAction SilentlyContinue) {
+    throw 'Exit LumenDeck from its tray menu before installing or uninstalling. This lets it restore blanked screens safely.'
+}
+
+function Update-UserPathValue($Key, [string]$dir, [switch]$Remove) {
+    # Keep expandable registry text and its value kind intact. Environment's
+    # User setter rewrites REG_EXPAND_SZ as REG_SZ on .NET Framework.
+    $current = $Key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+    if ($null -ne $current -and $current -isnot [string]) { throw 'User PATH is not a string value.' }
+    $kind = if ($null -eq $current) { [Microsoft.Win32.RegistryValueKind]::ExpandString } else { $Key.GetValueKind('Path') }
+    if ($kind -notin @([Microsoft.Win32.RegistryValueKind]::String, [Microsoft.Win32.RegistryValueKind]::ExpandString)) {
+        throw 'User PATH has an unsupported registry value kind.'
+    }
+    $parts = if ($null -eq $current) { @() } else { @($current -split ';') }
+    $kept = @($parts | Where-Object { $_.TrimEnd('\') -ine $dir.TrimEnd('\') })
+    $found = $kept.Count -ne $parts.Count
+    if (($Remove -and -not $found) -or (-not $Remove -and $found)) { return $false }
+    if ($Remove) { $updated = $kept -join ';' }
+    elseif ([string]::IsNullOrEmpty($current)) { $updated = $dir }
+    else { $updated = $current + ';' + $dir }
+    $Key.SetValue('Path', $updated, $kind)
+    return $true
+}
+
+function Update-UserPath([string]$dir, [switch]$Remove) {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+    if ($null -eq $key) {
+        if ($Remove) { return $false }
+        $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+    }
+    try { $changed = Update-UserPathValue $key $dir -Remove:$Remove }
+    finally { $key.Dispose() }
+    if ($changed) {
+        if (-not ('LumenDeck.InstallEnvironment' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace LumenDeck {
+    public static class InstallEnvironment {
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern IntPtr SendMessageTimeout(IntPtr window, uint message,
+            UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);
+    }
+}
+'@
+        }
+        $result = [UIntPtr]::Zero
+        $null = [LumenDeck.InstallEnvironment]::SendMessageTimeout([IntPtr]0xffff, 0x1a,
+            [UIntPtr]::Zero, 'Environment', 2, 1000, [ref]$result)
+    }
+    return $changed
 }
 
 # ------------------------------------------------------------------ uninstall
 if ($Uninstall) {
-    foreach ($p in @($shortcut, $desktopLink)) {
-        if (Test-Path $p) { Remove-Item $p -Force; Write-Host ('removed ' + $p) }
+    $expectedTarget = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\LumenDeck'))
+    if ([IO.Path]::GetFullPath($target) -ne $expectedTarget) { throw 'Unexpected uninstall target.' }
+    if (Test-Path -LiteralPath $target) {
+        foreach ($name in @('LumenDeck.exe', 'lumendeck-cli.exe')) {
+            $ownedFile = Join-Path $target $name
+            if (Test-Path -LiteralPath $ownedFile) { Remove-Item -LiteralPath $ownedFile -Force }
+        }
+        if (@(Get-ChildItem -LiteralPath $target -Force).Count -eq 0) {
+            Remove-Item -LiteralPath $target -Force
+        } else { Write-Host 'Other files in the app directory were preserved.' }
     }
-
-    # Autostart is registered by the app itself, under HKCU Run. Clear it here
-    # too, or uninstalling leaves Windows trying to launch a deleted binary at
-    # every logon.
+    # Only remove launch entries after owned files were removed successfully.
+    # A file sharing/permission error must not first erase the user's entries.
+    foreach ($p in @($shortcut, $desktopLink)) {
+        if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force; Write-Host ('removed ' + $p) }
+    }
     $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
     if ((Get-ItemProperty -Path $run -ErrorAction SilentlyContinue).PSObject.Properties.Name -contains 'LumenDeck') {
         Remove-ItemProperty -Path $run -Name 'LumenDeck' -Force
         Write-Host 'removed the start-with-Windows entry'
     }
-
-    Get-Process LumenDeck -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 500
-
-    if (Test-Path $target) { Remove-Item $target -Recurse -Force; Write-Host ('removed ' + $target) }
-    Remove-FromUserPath $target
+    $null = Update-UserPath $target -Remove
     Write-Host ''
     Write-Host 'Uninstalled. Settings in %APPDATA%\LumenDeck were left alone - delete that folder to remove them too.'
     return
@@ -88,9 +144,45 @@ $gui = Join-Path $repo 'dist\gui\LumenDeck.exe'
 $cli = Join-Path $repo 'dist\cli\lumendeck-cli.exe'
 foreach ($p in @($gui, $cli)) { if (-not (Test-Path $p)) { throw ('Missing build output: ' + $p) } }
 
+# A skipped or interrupted build can leave a mixed pair. Reject it before
+# changing installed files, shortcuts or user PATH. This is not signature trust.
+$sourceVersions = @()
+foreach ($p in @($gui, $cli)) {
+    $sourceFile = Get-Item -LiteralPath $p
+    if ($sourceFile.PSIsContainer -or ($sourceFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Install source must be a regular executable file.'
+    }
+    $reader = New-Object IO.BinaryReader([IO.File]::OpenRead($p))
+    try {
+        if ($reader.BaseStream.Length -lt 64 -or $reader.ReadUInt16() -ne 0x5A4D) {
+            throw 'Install source requires a valid Windows x64 executable.'
+        }
+        $reader.BaseStream.Position = 0x3C
+        $peOffset = $reader.ReadInt32()
+        if ($peOffset -lt 64 -or $peOffset -gt ($reader.BaseStream.Length - 6)) {
+            throw 'Install source requires a valid Windows x64 executable.'
+        }
+        $reader.BaseStream.Position = $peOffset
+        if ($reader.ReadUInt32() -ne 0x4550 -or $reader.ReadUInt16() -ne 0x8664) {
+            throw 'Install source requires a valid Windows x64 executable.'
+        }
+    } finally { $reader.Dispose() }
+    $version = $sourceFile.VersionInfo
+    if ([string]::IsNullOrWhiteSpace($version.FileVersion) -or
+        [string]::IsNullOrWhiteSpace($version.ProductVersion)) {
+        throw 'Install source is missing version metadata.'
+    }
+    $sourceVersions += $version
+}
+if ($sourceVersions[0].FileVersion -cne $sourceVersions[1].FileVersion -or
+    $sourceVersions[0].ProductVersion -cne $sourceVersions[1].ProductVersion) {
+    throw 'GUI and CLI build versions differ. Rebuild both before installing.'
+}
+
 # -------------------------------------------------------------------- install
-Get-Process LumenDeck -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Milliseconds 500
+if (Get-Process LumenDeck -ErrorAction SilentlyContinue) {
+    throw 'LumenDeck started during the build. Exit it from its tray menu, then retry with -SkipBuild.'
+}
 
 New-Item -ItemType Directory -Path $target -Force | Out-Null
 Copy-Item $gui $target -Force
@@ -111,11 +203,7 @@ foreach ($link in @($shortcut, $(if ($Desktop) { $desktopLink }))) {
 }
 
 # ----------------------------------------------------------------- user PATH
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$already = $userPath -and (@($userPath -split ';' | ForEach-Object { $_.TrimEnd('\') }) -contains $target.TrimEnd('\'))
-if (-not $already) {
-    $joined = if ([string]::IsNullOrEmpty($userPath)) { $target } else { $userPath.TrimEnd(';') + ';' + $target }
-    [Environment]::SetEnvironmentVariable('Path', $joined, 'User')
+if (Update-UserPath $target) {
     Write-Host ('added to user PATH: ' + $target)
     Write-Host '  (open a NEW shell before `lumendeck-cli` resolves - the current one has the old PATH)'
 } else {
@@ -130,9 +218,9 @@ $installedCli = Join-Path $target 'lumendeck-cli.exe'
 if ($LASTEXITCODE -ne 0) { throw 'The installed CLI did not run.' }
 Write-Host '  CLI runs'
 
-$monitors = (& $installedCli --list --json | ConvertFrom-Json)
-Write-Host ('  ' + @($monitors).Count + ' monitor(s) detected, ' +
-            @($monitors | Where-Object { $_.backend -ne 'None' }).Count + ' controllable')
+& $installedCli --help | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'The installed CLI help did not run.' }
+Write-Host '  CLI help runs; monitor connection checks are available in the app'
 
 Write-Host ''
 Write-Host 'Done. Launch LumenDeck from the Start Menu; it lives in the notification area.'

@@ -32,6 +32,27 @@ internal sealed class Slider : Control
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public Func<int, string> Format { get; set; } = v => v.ToString();
 
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool Neutral { get; set; }
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<int, string> AccessibleValueFormat { get; set; }
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public string ExactValueUnit { get; set; } = "units";
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<ExactValueContext, ExactValueForm> CreateExactEditor { get; set; } = context => new ExactValueForm(context);
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public int SmallChange { get; set; } = 1;
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<int, int> EditValue { get; set; } = v => v;
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<int, int> FromEditValue { get; set; } = v => v;
+
     public Slider()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
@@ -55,11 +76,21 @@ internal sealed class Slider : Control
         public SliderAccessibleObject(Slider owner) : base(owner) => _owner = owner;
 
         public override AccessibleRole Role => AccessibleRole.Slider;
-        public override string Value => _owner.Format(_owner.Value);
+        public override string Value => (_owner.AccessibleValueFormat ?? _owner.Format)(_owner.Value);
         public override string Name => _owner.AccessibleName ?? _owner.Name;
+        // This custom control has no Alt mnemonic. The native default derives
+        // one from '&' in Name, including literal display and feature names.
+        public override string KeyboardShortcut => null;
 
-        public override string Description =>
-            $"{_owner.Value} of {_owner.Minimum} to {_owner.Maximum}";
+        public override string Description
+        {
+            get
+            {
+                int a = _owner.EditValue(_owner.Minimum), b = _owner.EditValue(_owner.Maximum);
+                return $"Current value {_owner.EditValue(_owner.Value)}; range {Math.Min(a, b)} to {Math.Max(a, b)}. " +
+                    _owner.AccessibleDescription;
+            }
+        }
 
         public override AccessibleStates State =>
             base.State | (_owner.Enabled ? AccessibleStates.None : AccessibleStates.Unavailable);
@@ -85,26 +116,34 @@ internal sealed class Slider : Control
         get => _value;
         set
         {
-            int v = Math.Clamp(value, _min, _max);
-            if (v == _value) return;
-            _value = v;
-            Invalidate();
+            UpdateValue(value);
         }
     }
 
     /// <summary>Set without raising ValueChanged - for syncing from hardware.</summary>
     public void SetValueSilently(int value)
     {
-        _value = Math.Clamp(value, _min, _max);
+        UpdateValue(value);
+    }
+
+    private bool UpdateValue(int value)
+    {
+        int v = Math.Clamp(value, _min, _max);
+        if (v == _value) return false;
+        _value = v;
         Invalidate();
+        // The accessible-object path also works around the reversed notification
+        // guard in Control.AccessibilityNotifyClients shipped with .NET 10.0.11.
+        if (IsHandleCreated) ((ControlAccessibleObject)AccessibilityObject).NotifyClients(AccessibleEvents.ValueChange, -1);
+        return true;
     }
 
     // Logical (96-dpi) metrics. Owner-drawn constants are device pixels and
     // WinForms does not touch them, so at 150% a 52px readout stays 52px while
     // the text inside it grows - "6500K" was getting clipped. Scale them from
     // DeviceDpi and re-scale when the window moves to another monitor.
-    private const int TrackHDip = 8;
-    private const int ThumbRDip = 8;
+    private const int TrackHDip = 6;
+    private const int ThumbRDip = 7;
     private const int ReadoutWDip = 52;
 
     private int _trackH = TrackHDip;
@@ -151,6 +190,9 @@ internal sealed class Slider : Control
 
         var track = TrackRect;
         Theme.FillRound(g, track, _trackH / 2, Theme.Sunken);
+        Theme.StrokeRound(g, track, _trackH / 2, Theme.Line);
+        Color accent = Neutral ? Theme.InkMuted : Theme.Amber;
+        Color light = Neutral ? Theme.Ink : Theme.AmberLight;
 
         int fillW = (int)Math.Round(track.Width * Fraction);
         if (fillW > 2)
@@ -160,7 +202,7 @@ internal sealed class Slider : Control
             {
                 using var brush = new LinearGradientBrush(
                     new Rectangle(track.X, track.Y, Math.Max(2, track.Width), track.Height),
-                    Theme.Amber, Theme.AmberLight, LinearGradientMode.Horizontal);
+                    accent, light, LinearGradientMode.Horizontal);
                 using var path = Theme.Round(fill, _trackH / 2);
                 g.FillPath(brush, path);
             }
@@ -177,8 +219,11 @@ internal sealed class Slider : Control
             int r = _dragging || _hover ? _thumbR + 1 : _thumbR;
             using var shadow = new SolidBrush(Color.FromArgb(90, 0, 0, 0));
             g.FillEllipse(shadow, cx - r, cy - r + 1, r * 2, r * 2);
-            using var thumb = new SolidBrush(Theme.AmberLight);
+            using var thumb = new SolidBrush(light);
             g.FillEllipse(thumb, cx - r, cy - r, r * 2, r * 2);
+            int center = Math.Max(1, LogicalToDeviceUnits(2));
+            using var grip = new SolidBrush(Color.FromArgb(150, Theme.Sunken));
+            g.FillEllipse(grip, cx - center, cy - center, center * 2, center * 2);
             if (Focused)
             {
                 using var ring = new Pen(Color.FromArgb(160, 255, 255, 255), 1.5f);
@@ -186,10 +231,12 @@ internal sealed class Slider : Control
             }
         }
 
-        var readout = new Rectangle(track.Right + _thumbR + 6, 0, _readoutW - 6, Height);
-        TextRenderer.DrawText(g, Format(_value), Theme.Value, readout,
+        int inset = LogicalToDeviceUnits(4);
+        var readout = new Rectangle(track.Right + _thumbR + inset, inset, _readoutW - inset, Math.Max(1, Height - inset * 2));
+        Theme.FillRound(g, readout, LogicalToDeviceUnits(5), Enabled ? Theme.Sunken : Theme.Card);
+        TextRenderer.DrawText(g, Enabled ? Format(_value) : "—", Theme.Value, readout,
             Enabled ? Theme.Ink : Theme.InkFaint,
-            TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding);
+            TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
     }
 
     private void SetFromX(int x)
@@ -198,9 +245,7 @@ internal sealed class Slider : Control
         double f = (x - track.X) / (double)Math.Max(1, track.Width);
         int v = _min + (int)Math.Round(f * (_max - _min));
         v = Math.Clamp(v, _min, _max);
-        if (v == _value) return;
-        _value = v;
-        Invalidate();
+        if (!UpdateValue(v)) return;
         ValueChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -209,7 +254,13 @@ internal sealed class Slider : Control
         base.OnMouseDown(e);
         if (!Enabled || e.Button != MouseButtons.Left) return;
         Focus();
+        if (e.X > TrackRect.Right + _thumbR)
+        {
+            EditExactValue();
+            return;
+        }
         _dragging = true;
+        Capture = true;
         SetFromX(e.X);
     }
 
@@ -226,6 +277,7 @@ internal sealed class Slider : Control
     {
         base.OnMouseUp(e);
         _dragging = false;
+        Capture = false;
         Invalidate();
     }
 
@@ -266,23 +318,29 @@ internal sealed class Slider : Control
         if (notches == 0) return;
         _wheelResidue -= notches * SystemInformation.MouseWheelScrollDelta;
 
-        int step = Math.Max(1, (_max - _min) / 50);
+        int step = Math.Max(1, SmallChange) * ((ModifierKeys & Keys.Shift) != 0 ? 10 : 1);
         int v = Math.Clamp(_value + notches * step, _min, _max);
-        if (v == _value) return;
-        _value = v;
-        Invalidate();
+        if (!UpdateValue(v)) return;
         ValueChanged?.Invoke(this, EventArgs.Empty);
     }
 
     protected override bool IsInputKey(Keys key) =>
-        key is Keys.Left or Keys.Right or Keys.Up or Keys.Down or Keys.Home or Keys.End || base.IsInputKey(key);
+        (key & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down or
+            Keys.Home or Keys.End or Keys.PageUp or Keys.PageDown || base.IsInputKey(key);
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (!Enabled) return;
+        if (e.Handled || e.SuppressKeyPress || IsDisposed || Disposing || !Enabled || e.Control || e.Alt) return;
 
-        int step = Math.Max(1, (_max - _min) / 50);
+        if (e.KeyCode is Keys.Enter or Keys.F2)
+        {
+            EditExactValue();
+            e.Handled = e.SuppressKeyPress = true;
+            return;
+        }
+
+        int step = Math.Max(1, SmallChange) * (e.Shift ? 10 : 1);
         int big = Math.Max(step, (_max - _min) / 10);
         int v = e.KeyCode switch
         {
@@ -295,11 +353,46 @@ internal sealed class Slider : Control
             _ => _value,
         };
         v = Math.Clamp(v, _min, _max);
-        if (v == _value) return;
-        _value = v;
-        Invalidate();
+        if (!UpdateValue(v)) return;
         ValueChanged?.Invoke(this, EventArgs.Empty);
         e.Handled = true;
+    }
+
+    private void EditExactValue()
+    {
+        if (!Enabled || IsDisposed || Disposing) return;
+        int minimum = _min, maximum = _max;
+        var toEdit = EditValue;
+        var fromEdit = FromEditValue;
+        bool TargetValid() => !IsDisposed && !Disposing && Enabled && _min == minimum && _max == maximum &&
+            ReferenceEquals(EditValue, toEdit) && ReferenceEquals(FromEditValue, fromEdit);
+        int a = toEdit(minimum), b = toEdit(maximum);
+        ExactValueForm dialog = null;
+        bool invalidated = false;
+        EventHandler invalidate = (_, _) =>
+        {
+            if (!TargetValid())
+            {
+                invalidated = true;
+                if (dialog != null) { dialog.DialogResult = DialogResult.Cancel; dialog.Close(); }
+            }
+        };
+        Disposed += invalidate;
+        EnabledChanged += invalidate;
+        try
+        {
+            using var created = CreateExactEditor(new ExactValueContext(AccessibleName ?? "Exact value", ExactValueUnit,
+                Math.Min(a, b), Math.Max(a, b), toEdit(_value)));
+            dialog = created;
+            if (invalidated || !TargetValid()) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK || invalidated || !TargetValid()) return;
+            int next = Math.Clamp(fromEdit(dialog.SelectedValue), _min, _max);
+            if (next == _value) return;
+            Value = next;
+            if (invalidated || !TargetValid()) return;
+            ValueChanged?.Invoke(this, EventArgs.Empty);
+        }
+        finally { Disposed -= invalidate; EnabledChanged -= invalidate; }
     }
 
     protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }

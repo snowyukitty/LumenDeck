@@ -26,6 +26,8 @@ internal static class FeatureControls
     public static int Build(TableLayoutPanel grid, int row, Monitor monitor,
                             DdcWorker worker, Action<string> report, ToolTip tips)
     {
+        string context = string.IsNullOrWhiteSpace(monitor.PositionLabel)
+            ? monitor.DisplayName : $"{monitor.DisplayName} ({monitor.PositionLabel})";
         foreach (var f in monitor.Features)
         {
             grid.RowCount = Math.Max(grid.RowCount, row + 1);
@@ -33,6 +35,8 @@ internal static class FeatureControls
             var caption = new Label
             {
                 Text = f.Name,
+                UseMnemonic = false,
+                AccessibleName = $"{context}: {f.Name}",
                 Font = FontBody,
                 ForeColor = f.Definition.Risky ? Warn : Ink,
                 AutoSize = true,
@@ -47,6 +51,7 @@ internal static class FeatureControls
                 VcpCatalog.Kind.Select => BuildDropdown(f, monitor, worker, report),
                 _ => BuildActionButton(f, monitor, worker, report),
             };
+            DescribeEditor(editor, f, context);
             grid.Controls.Add(editor, 1, row);
             // No separate value column any more: Slider carries its own readout.
 
@@ -60,6 +65,18 @@ internal static class FeatureControls
             row++;
         }
         return row;
+    }
+
+    private static void DescribeEditor(Control editor, VcpFeature feature, string context)
+    {
+        bool action = feature.Definition.Kind == VcpCatalog.Kind.Action;
+        editor.AccessibleName = $"{context}: {(action ? "Run " : "")}{feature.Name}";
+        string confirmation = action
+            ? "Requires confirmation. This cannot be undone from here."
+            : feature.Definition.Kind == VcpCatalog.Kind.Select && feature.Definition.Risky
+                ? "Changing this value requires confirmation." : "";
+        editor.AccessibleDescription = string.Join(" ", new[] { feature.Definition.Description, confirmation }
+            .Where(text => !string.IsNullOrWhiteSpace(text)));
     }
 
     private static Control BuildSlider(VcpFeature f, Monitor m, DdcWorker worker,
@@ -77,7 +94,7 @@ internal static class FeatureControls
             Value = Math.Clamp(f.Current, 0, max),
             Dock = DockStyle.Fill,
             Margin = new Padding(6, 0, 6, 0),
-            AccessibleName = f.Name,
+            ExactValueUnit = "hardware units",
         };
 
         bar.ValueChanged += (_, _) =>
@@ -131,7 +148,7 @@ internal static class FeatureControls
 
             f.Current = item.Value;
             worker.SetVcp(m, f.Code, item.Value);
-            report($"{m.DisplayName}: {f.Name} -> {item.Label}");
+            report($"{m.DisplayName}: {f.Name} -> {item.Label} requested.");
         };
 
         return box;
@@ -160,7 +177,7 @@ internal static class FeatureControls
 
             // MCCS defines these as write-1-to-trigger.
             worker.SetVcp(m, f.Code, 1);
-            report($"{m.DisplayName}: {f.Name} sent. Press Refresh once the monitor settles.");
+            report($"{m.DisplayName}: {f.Name} requested. Press Refresh once the monitor settles.");
         };
 
         return b;

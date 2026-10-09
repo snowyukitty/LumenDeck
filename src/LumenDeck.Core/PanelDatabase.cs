@@ -4,17 +4,17 @@ namespace LumenDeck;
 
 /// <summary>
 /// Luminance profiles per panel, so presets can match how bright screens
-/// actually look instead of setting the same number everywhere.
+/// might look instead of setting the same number everywhere.
 ///
 /// The point a plain slider tool misses: an identical DDC value means different
 /// light on different panels. On a 400-nit panel and a 250-nit panel, 43 and 76
-/// look the same to the eye. Matching the numbers is exactly what produces a
-/// desk where one screen glares and its neighbour looks dead.
+/// target similar estimated nits under suitable floor assumptions. Matching
+/// model values does not establish equal emitted or perceived light.
 ///
 /// Each panel is modelled as
 ///     nits ~= floor + (peak - floor) * percent/100
 /// where peak is the panel's rated luminance and floor is what a desktop LCD
-/// still emits at brightness 0 - typically 40-50 nits, never zero.
+/// still emits at brightness 0. Actual floors and curves depend on the panel.
 ///
 /// Nobody's specific hardware is baked in. Real profiles belong in the user's
 /// own file at
@@ -35,7 +35,8 @@ namespace LumenDeck;
 /// </summary>
 internal static class PanelDatabase
 {
-    public sealed record Profile(int PeakNits, int FloorNits, bool Measured = true, string Note = "");
+    // Measured describes user-declared endpoint provenance, never live output.
+    public sealed record Profile(int PeakNits, int FloorNits, bool Measured = false, string Note = "");
 
     /// <summary>
     /// A laptop's internal panel, which is worth separating from the desktop
@@ -58,22 +59,15 @@ internal static class PanelDatabase
     /// Load the user's own profiles. Any failure leaves the estimates in place:
     /// a broken optional file must never stop the app.
     /// </summary>
-    public static void Load()
+    public static void Load() => Load(UserFilePath);
+
+    internal static void Load(string filePath)
     {
+        // A reload must not retain a profile removed from the file or a prior
+        // successful load when the replacement is missing, null or malformed.
         try
         {
-            if (!File.Exists(UserFilePath)) return;
-            var parsed = JsonSerializer.Deserialize<Dictionary<string, Profile>>(File.ReadAllText(UserFilePath));
-            if (parsed == null) return;
-
-            var clean = new Dictionary<string, Profile>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (key, value) in parsed)
-            {
-                if (string.IsNullOrWhiteSpace(key) || value == null) continue;
-                if (value.PeakNits <= 0 || value.FloorNits < 0 || value.FloorNits >= value.PeakNits) continue;
-                clean[key] = value with { Measured = true };
-            }
-            _user = clean;
+            _user = File.Exists(filePath) ? ParseProfiles(File.ReadAllText(filePath)) : new(StringComparer.OrdinalIgnoreCase);
         }
         catch
         {
@@ -82,21 +76,23 @@ internal static class PanelDatabase
     }
 
     /// <summary>Write a commented example file so the format is discoverable without docs.</summary>
-    public static void WriteExampleIfMissing()
+    public static void WriteExampleIfMissing() => WriteExampleIfMissing(UserFilePath);
+
+    internal static void WriteExampleIfMissing(string filePath)
     {
         try
         {
-            if (File.Exists(UserFilePath)) return;
-            System.IO.Directory.CreateDirectory(AppSettings.Directory);
+            if (File.Exists(filePath)) return;
+            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
             var example = new Dictionary<string, Profile>
             {
                 ["EXAMPLE - delete this entry"] =
-                    new(350, 50, true, "Match on any part of the monitor name as LumenDeck shows it. " +
-                                       "PeakNits is the panel's rated brightness; FloorNits is what it " +
-                                       "still emits at brightness 0, usually 40-50."),
+                    new(350, 50, false, "Illustrative estimates only. Match a model-name substring. " +
+                                       "Record peak/floor sources and picture mode here. Set Measured true " +
+                                       "only for instrument-measured endpoints; calculated nits remain estimates."),
             };
-            File.WriteAllText(UserFilePath,
+            File.WriteAllText(filePath,
                 JsonSerializer.Serialize(example, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch
@@ -115,8 +111,26 @@ internal static class PanelDatabase
         var hit = BestMatch(_user, m?.FriendlyName ?? "");
         if (hit != null) return hit;
 
-        return m is { IsInternalPanel: true } ? InternalPanel : Fallback;
+        return FallbackFor(m is { IsInternalPanel: true });
     }
+
+    internal static Dictionary<string, Profile> ParseProfiles(string json)
+    {
+        var parsed = JsonSerializer.Deserialize<Dictionary<string, Profile>>(json);
+        var clean = new Dictionary<string, Profile>(StringComparer.OrdinalIgnoreCase);
+        if (parsed == null) return clean;
+        foreach (var (key, value) in parsed)
+            if (!string.IsNullOrWhiteSpace(key) && IsValid(value)) clean[key] = value;
+        return clean;
+    }
+
+    internal static void InstallProfiles(IReadOnlyDictionary<string, Profile> profiles) =>
+        _user = new Dictionary<string, Profile>(profiles, StringComparer.OrdinalIgnoreCase);
+
+    internal static Profile FallbackFor(bool internalPanel) => internalPanel ? InternalPanel : Fallback;
+
+    internal static bool IsValid(Profile profile) => profile is { PeakNits: > 0, FloorNits: >= 0 } &&
+        profile.FloorNits < profile.PeakNits;
 
     private static Profile BestMatch(Dictionary<string, Profile> table, string name)
     {
@@ -135,5 +149,5 @@ internal static class PanelDatabase
         return best;
     }
 
-    public static bool IsMeasured(Monitor m) => For(m).Measured;
+    public static bool HasUserProfile(Monitor m) => BestMatch(_user, m?.FriendlyName ?? "") != null;
 }

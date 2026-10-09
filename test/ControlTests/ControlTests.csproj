@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>LumenDeck.ControlTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/LumenDeck.Core/LumenDeck.Core.csproj" />
+    <Compile Include="../../src/LumenDeck/ScreenBlanker.cs" Link="ScreenBlanker.cs" />
+    <Compile Include="../../src/LumenDeck/NightSaver.cs" Link="NightSaver.cs" />
+    <Compile Include="../../src/LumenDeck/Slider.cs" Link="Slider.cs" />
+    <Compile Include="../../src/LumenDeck/ExactValueForm.cs" Link="ExactValueForm.cs" />
+    <Compile Include="../../src/LumenDeck/WholeNumberInput.cs" Link="WholeNumberInput.cs" />
+    <Compile Include="../../src/LumenDeck/Theme.cs" Link="Theme.cs" />
+    <Compile Include="../../src/LumenDeck/FlatButton.cs" Link="FlatButton.cs" />
+    <Compile Include="../../src/LumenDeck/CommandSection.cs" Link="CommandSection.cs" />
+    <Compile Include="../../src/LumenDeck/DeskCommandBar.cs" Link="DeskCommandBar.cs" />
+    <Compile Include="../../src/LumenDeck/ConnectionGuide.cs" Link="ConnectionGuide.cs" />
+    <Compile Include="../../src/LumenDeck/SupportReportView.cs" Link="SupportReportView.cs" />
+    <Compile Include="../../src/LumenDeck/MonitorCard.cs" Link="MonitorCard.cs" />
+    <Compile Include="../../src/LumenDeck/ProfileEditorView.cs" Link="ProfileEditorView.cs" />
+    <Compile Include="../../src/LumenDeck/ProfileEditorForm.cs" Link="ProfileEditorForm.cs" />
+    <Compile Include="../../src/LumenDeck/WindowChrome.cs" Link="WindowChrome.cs" />
+    <Compile Include="../../src/LumenDeck/PresetEditorView.cs" Link="PresetEditorView.cs" />
+    <Compile Include="../../src/LumenDeck/PresetScheduleView.cs" Link="PresetScheduleView.cs" />
+    <Compile Include="../../src/LumenDeck/AdjustmentNotice.cs" Link="AdjustmentNotice.cs" />
+    <Compile Include="../../src/LumenDeck/FeatureControls.cs" Link="FeatureControls.cs" />
+  </ItemGroup>
+</Project>

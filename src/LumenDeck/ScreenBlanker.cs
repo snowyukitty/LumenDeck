@@ -15,6 +15,7 @@ internal sealed class ScreenBlanker : IDisposable
     {
         public Monitor Monitor;
         public double? OriginalBrightnessPercent;
+        public int? OriginalBrightnessRaw;
         public BlankOverlay Overlay;
     }
 
@@ -34,7 +35,7 @@ internal sealed class ScreenBlanker : IDisposable
     public bool IsBlanked(string key) =>
         !string.IsNullOrEmpty(key) && _sessions.ContainsKey(key);
 
-    public bool Blank(Monitor monitor)
+    public bool Blank(Monitor monitor, bool activate = true)
     {
         if (monitor == null || string.IsNullOrEmpty(monitor.StableKey) ||
             monitor.Rect.Width <= 0 || monitor.Rect.Height <= 0)
@@ -47,11 +48,12 @@ internal sealed class ScreenBlanker : IDisposable
             ? Presets.RawToPercent(monitor, monitor.Brightness)
             : null;
 
-        var overlay = new BlankOverlay(monitor.DisplayName, BoundsOf(monitor));
+        var overlay = new BlankOverlay(monitor.DisplayName, BoundsOf(monitor), activate);
         var session = new Session
         {
             Monitor = monitor,
             OriginalBrightnessPercent = original,
+            OriginalBrightnessRaw = monitor.SupportsBrightness ? monitor.Brightness : null,
             Overlay = overlay,
         };
 
@@ -60,13 +62,20 @@ internal sealed class ScreenBlanker : IDisposable
 
         // Persist first. If the process is killed between lowering brightness
         // and drawing the overlay, the next launch still knows what to restore.
-        _settings.SetScreenBlank(monitor.StableKey, monitor.DisplayName, true, original);
-        _settings.Save();
+        _settings.SetScreenBlank(monitor.StableKey, monitor.DisplayName, true, original,
+            session.OriginalBrightnessRaw);
+        if (!_settings.Save())
+        {
+            _sessions.Remove(monitor.StableKey);
+            overlay.Dispose();
+            _settings.SetScreenBlank(monitor.StableKey, monitor.DisplayName, false, null);
+            return false;
+        }
 
         try
         {
             overlay.Show();
-            overlay.Activate();
+            if (activate) overlay.Activate();
         }
         catch
         {
@@ -78,7 +87,9 @@ internal sealed class ScreenBlanker : IDisposable
         }
 
         if (monitor.SupportsBrightness)
+        {
             _worker.Set(monitor, DdcWorker.Feature.Brightness, monitor.BrightnessMin);
+        }
 
         _stateChanged(monitor.StableKey, true, true);
         return true;
@@ -91,12 +102,30 @@ internal sealed class ScreenBlanker : IDisposable
 
         session.Overlay.CloseForRestore();
         bool restored = RestoreBrightness(
-            session.Monitor, session.OriginalBrightnessPercent);
+            session.Monitor, session.OriginalBrightnessPercent, session.OriginalBrightnessRaw);
         if (restored)
             _settings.SetScreenBlank(key, session.Monitor?.DisplayName, false, null);
         _settings.Save();
         _stateChanged(key, false, restored);
         return restored;
+    }
+
+    /// <summary>
+    /// Make a blackout restore an earlier brightness than the one it saved.
+    /// Night saver uses this when its dimmed work display was then blanked on
+    /// its own: the blackout recorded the dimmed level, but the brightness the
+    /// person should get back is the one from before the night began.
+    /// </summary>
+    public bool AdoptOriginal(string key, double? percent, int? raw)
+    {
+        if (string.IsNullOrEmpty(key) || !_settings.ScreenBlankActiveFor(key)) return false;
+        if (_sessions.TryGetValue(key, out var session))
+        {
+            session.OriginalBrightnessPercent = percent;
+            session.OriginalBrightnessRaw = raw;
+        }
+        _settings.SetScreenBlank(key, _settings.Find(key)?.LastSeenName, true, percent, raw);
+        return true;
     }
 
     /// <summary>Attach an existing blackout to the fresh Monitor after Refresh.</summary>
@@ -105,6 +134,13 @@ internal sealed class ScreenBlanker : IDisposable
         if (monitor == null || !_sessions.TryGetValue(monitor.StableKey, out var session)) return;
         session.Monitor = monitor;
         session.Overlay.Bounds = BoundsOf(monitor);
+        // A session begun without brightness is overlay-only. Newly discovered
+        // controls must not introduce a write that has no recovery snapshot.
+        if (monitor.SupportsBrightness &&
+            (session.OriginalBrightnessRaw.HasValue || session.OriginalBrightnessPercent.HasValue))
+        {
+            _worker.Set(monitor, DdcWorker.Feature.Brightness, monitor.BrightnessMin);
+        }
     }
 
     /// <summary>
@@ -119,7 +155,8 @@ internal sealed class ScreenBlanker : IDisposable
             return false;
 
         bool restored = RestoreBrightness(
-            monitor, _settings.ScreenBlankBrightnessFor(monitor.StableKey));
+            monitor, _settings.ScreenBlankBrightnessFor(monitor.StableKey),
+            _settings.Find(monitor.StableKey)?.ScreenBlankBrightnessRaw);
         if (!restored) return false;
 
         _settings.SetScreenBlank(monitor.StableKey, monitor.DisplayName, false, null);
@@ -133,16 +170,17 @@ internal sealed class ScreenBlanker : IDisposable
         foreach (string key in _sessions.Keys.ToArray()) Restore(key);
     }
 
-    private static bool RestoreBrightness(Monitor monitor, double? percent)
+    private bool RestoreBrightness(Monitor monitor, double? percent, int? originalRaw)
     {
         // Null means this was an overlay-only display, so there is no hardware
         // state to recover. A saved value plus unavailable DDC is different:
         // keep the persisted marker and retry after the monitor responds again.
-        if (percent is not double p) return true;
+        if (percent == null && originalRaw == null) return true;
         if (monitor == null || !monitor.SupportsBrightness) return false;
-        int raw = Presets.PercentToRaw(monitor, p);
-        monitor.Brightness = raw;
-        return DdcWorker.SetBrightnessImmediate(monitor, raw);
+        int raw = originalRaw is int saved
+            ? Math.Clamp(saved, monitor.BrightnessMin, monitor.BrightnessMax)
+            : Presets.PercentToRaw(monitor, percent.Value);
+        return _worker.RestoreBrightness(monitor, raw);
     }
 
     private static Rectangle BoundsOf(Monitor monitor) =>
@@ -153,11 +191,14 @@ internal sealed class ScreenBlanker : IDisposable
     private sealed class BlankOverlay : Form
     {
         private bool _closingForRestore;
+        private readonly bool _activate;
+        protected override bool ShowWithoutActivation => !_activate;
 
         public event Action RestoreRequested;
 
-        public BlankOverlay(string monitorName, Rectangle bounds)
+        public BlankOverlay(string monitorName, Rectangle bounds, bool activate)
         {
+            _activate = activate;
             Text = $"{monitorName} — click or press a key to restore";
             Name = "LumenDeckScreenBlank";
             AccessibleName = $"Blanked {monitorName}; click or press a key to restore";

@@ -21,6 +21,7 @@ internal sealed class MonitorCard : Panel
 
     private readonly DdcWorker _worker;
     private readonly AppSettings _settings;
+    private readonly string _displayContext;
 
     /// <summary>Raised after any change. The flag says whether a person moved a control by hand.</summary>
     private readonly Action<MonitorCard, bool> _onChanged;
@@ -40,6 +41,7 @@ internal sealed class MonitorCard : Panel
     private readonly LinkLabel _disclosure;
     private readonly LinkLabel _screenBlankShortcut;
     private readonly FlatButton _screenBlankButton;
+    private readonly AdjustmentNotice _adjustmentNotice;
 
     private bool _suppress;
     private bool _highlighted;
@@ -51,6 +53,7 @@ internal sealed class MonitorCard : Panel
     // change and every Refresh, so each rebuild stranded a handful of native
     // tooltip windows that nothing ever released.
     private readonly ToolTip _tips = new();
+    private readonly Dictionary<string, FlatButton> _presetButtons = new(StringComparer.OrdinalIgnoreCase);
 
     // One reusable timer for the highlight pulse, for the same reason - and so
     // a second click cannot leave an earlier timer running against a card that
@@ -61,7 +64,8 @@ internal sealed class MonitorCard : Panel
                        Action<MonitorCard, bool> onChanged, Action<string> report,
                        Action<MonitorCard> onScreenBlankToggle,
                        Action<MonitorCard> onConfigureScreenBlankHotkey,
-                       Action<MonitorCard> onFeaturesRequested)
+                       Action<MonitorCard> onFeaturesRequested, Action onConnectionHelp = null,
+                       Action<MonitorCard> onProfileRequested = null)
     {
         Monitor = m;
         _settings = settings;
@@ -105,12 +109,23 @@ internal sealed class MonitorCard : Panel
         _grid.SetColumnSpan(header, 2);
 
         // ---- the three everyday controls ---------------------------------
-        int row = 1;
+        _displayContext = string.IsNullOrWhiteSpace(m.PositionLabel) ? m.DisplayName : $"{m.DisplayName} ({m.PositionLabel})";
+        _adjustmentNotice = new AdjustmentNotice(_displayContext, onConnectionHelp != null);
+        _adjustmentNotice.ConnectionHelpRequested += () => onConnectionHelp?.Invoke();
+        _grid.Controls.Add(_adjustmentNotice, 0, 1);
+        _grid.SetColumnSpan(_adjustmentNotice, 2);
+        int row = 2;
 
         _brightness = MakeSlider(m.SupportsBrightness, m.BrightnessMin, m.BrightnessMax, m.Brightness);
+        _brightness.Name = "brightness";
         _brightness.Format = v => $"{Presets.RawToPercent(Monitor, v):0}%";
+        _brightness.AccessibleName = $"{_displayContext}: Brightness (hardware units)";
+        _brightness.ExactValueUnit = "hardware units";
+        _brightness.AccessibleValueFormat = v => $"{v} hardware units; displayed {Presets.RawToPercent(Monitor, v):0}% brightness";
+        _brightness.AccessibleDescription = "Range and exact entry use hardware units; the visual readout is a mapped percentage. Arrows change one unit, Shift changes ten. Press F2 or Enter for exact entry.";
+        _tips.SetToolTip(_brightness, "Click the number or press F2 to enter an exact hardware value. Arrows: one unit; Shift: ten units.");
         _brightness.ValueChanged += (_, _) => OnBrightness();
-        AddRow(row++, "Brightness", _brightness, m.SupportsBrightness ? null : "no DDC");
+        AddRow(row++, "Brightness", _brightness, m.SupportsBrightness ? null : "unavailable");
 
         _nits = new Label
         {
@@ -122,10 +137,45 @@ internal sealed class MonitorCard : Panel
             BackColor = Color.Transparent,
         };
         _grid.Controls.Add(_nits, 1, row++);
+        if (onProfileRequested != null)
+        {
+            var edit = new LinkLabel
+            {
+                Text = "Edit brightness estimate…", AutoSize = true, LinkColor = Theme.Info,
+                Name = "brightness-profile",
+                ActiveLinkColor = Theme.AmberLight, VisitedLinkColor = Theme.Info,
+                Margin = new Padding(0, 0, 0, 8), AccessibleName = $"{_displayContext}: Edit brightness estimate profile",
+            };
+            edit.LinkClicked += (_, _) => onProfileRequested(this);
+            _grid.Controls.Add(edit, 1, row++);
+        }
 
         _contrast = MakeSlider(m.SupportsContrast, m.ContrastMin, m.ContrastMax, m.Contrast);
+        _contrast.Neutral = true;
+        _contrast.Name = "contrast";
+        _contrast.AccessibleName = $"{_displayContext}: Contrast (hardware units)";
+        _contrast.ExactValueUnit = "hardware units";
+        _contrast.AccessibleValueFormat = v => $"{v} hardware units";
+        _contrast.AccessibleDescription = "The readout, range and exact entry use hardware units. Arrows change one unit, Shift changes ten. Press F2 or Enter for exact entry.";
+        _tips.SetToolTip(_contrast, "Click the number or press F2 to enter an exact hardware value. Arrows: one unit; Shift: ten units.");
         _contrast.ValueChanged += (_, _) => OnContrast();
-        AddRow(row++, "Contrast", _contrast, m.SupportsContrast ? null : "no DDC");
+        AddRow(row++, "Contrast", _contrast, m.SupportsContrast ? null : "unavailable");
+
+        if ((!m.SupportsBrightness || !m.SupportsContrast) && onConnectionHelp != null)
+        {
+            var help = new LinkLabel
+            {
+                Text = "Why are controls unavailable?", AutoSize = true,
+                AccessibleName = $"{_displayContext}: Why are controls unavailable?",
+                Name = "connection-help",
+                LinkColor = Theme.Info, ActiveLinkColor = Theme.AmberLight,
+                VisitedLinkColor = Theme.Info, Font = Theme.Small,
+                BackColor = Color.Transparent, Margin = new Padding(2, 0, 0, 8),
+            };
+            help.LinkClicked += (_, _) => onConnectionHelp();
+            _grid.Controls.Add(help, 1, row++);
+            _tips.SetToolTip(help, DisplaySupport.Describe(m).Guidance);
+        }
 
         // Always enabled: warmth is a GPU gamma ramp, so it works even on a
         // monitor that answers no DDC at all.
@@ -139,6 +189,15 @@ internal sealed class MonitorCard : Panel
         _warmth = MakeSlider(true, 0, GammaControl.NeutralKelvin - GammaControl.MinKelvin,
                              WarmthFromKelvin(m.Kelvin));
         _warmth.Format = v => v <= 0 ? "off" : KelvinFromWarmth(v) + "K";
+        _warmth.Name = "warmth";
+        _warmth.AccessibleName = $"{_displayContext}: Colour temperature (kelvin)";
+        _warmth.ExactValueUnit = "kelvin";
+        _warmth.AccessibleValueFormat = v => v == 0 ? "6500 kelvin; neutral colour requested" : $"{KelvinFromWarmth(v)} kelvin requested";
+        _warmth.AccessibleDescription = "Range and exact entry use kelvin. Right or Up requests warmer colour, 50 kelvin lower; Left or Down requests cooler colour, 50 kelvin higher. Shift changes 500 kelvin. Home requests neutral 6500 kelvin; End requests the warmest 3000 kelvin. Press F2 or Enter for exact entry. Values are requests, not colour measurements.";
+        _warmth.SmallChange = 50;
+        _warmth.EditValue = KelvinFromWarmth;
+        _warmth.FromEditValue = WarmthFromKelvin;
+        _tips.SetToolTip(_warmth, "Click the number or press F2 to enter Kelvin. Arrows: 50 K; Shift: 500 K. 6500 K restores neutral colour.");
         _warmth.ValueChanged += (_, _) => OnWarmth();
         AddRow(row++, "Warmth", _warmth, null);
 
@@ -149,21 +208,23 @@ internal sealed class MonitorCard : Panel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = false,
+            WrapContents = true,
             Margin = new Padding(0, 5, 0, 3),
             BackColor = Color.Transparent,
         };
         _screenBlankButton = new FlatButton("Blank screen")
         {
+            Name = "screen-blank",
             Width = 126,
             Enabled = true,
-            Margin = new Padding(0, 0, 12, 0),
+            Margin = new Padding(0, 0, 12, 6),
         };
         _screenBlankButton.Click += (_, _) => _onScreenBlankToggle(this);
         blankRow.Controls.Add(_screenBlankButton);
 
         _screenBlankShortcut = new LinkLabel
         {
+            Name = "screen-shortcut",
             Font = Theme.Small,
             LinkColor = Theme.Info,
             ActiveLinkColor = Theme.AmberLight,
@@ -172,13 +233,19 @@ internal sealed class MonitorCard : Panel
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Enabled = true,
-            Margin = new Padding(0, 8, 0, 0),
+            Margin = new Padding(0, 8, 0, 6),
             BackColor = Color.Transparent,
         };
         _screenBlankShortcut.LinkClicked += (_, _) => _onConfigureScreenBlankHotkey(this);
         SetScreenBlankShortcutText(_settings?.ScreenBlankHotkeyFor(m.StableKey));
         blankRow.Controls.Add(_screenBlankShortcut);
-        AddRow(row++, "Screen", blankRow, m.SupportsBrightness ? "min brightness" : "blackout only");
+        blankRow.Controls.Add(new Label
+        {
+            Text = m.SupportsBrightness ? "min brightness" : "blackout only",
+            AutoSize = true, Font = Theme.Small, ForeColor = Theme.Warn,
+            Margin = new Padding(8, 8, 0, 6), BackColor = Color.Transparent,
+        });
+        AddRow(row++, "Screen", blankRow, null);
         SetScreenBlankState(false);
 
         // ---- per-monitor presets ------------------------------------------
@@ -186,34 +253,38 @@ internal sealed class MonitorCard : Panel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = false,
+            WrapContents = true,
             Margin = new Padding(0, 8, 0, 0),
             BackColor = Color.Transparent,
         };
         foreach (var level in Presets.Levels)
         {
-            var captured = level;
-            var b = new FlatButton(captured.Name) { Width = 78, Margin = new Padding(0, 0, 6, 0) };
+            string name = level.Name;
+            var b = new FlatButton(name) { Name = "preset-" + name,
+                AccessibleName = $"{_displayContext}: {name}", Width = 78, Margin = new Padding(0, 0, 6, 6) };
             b.Click += (_, _) =>
             {
-                ApplyBrightness(Presets.BrightnessFor(Monitor, captured.Nits));
-                ApplyWarmth(captured.Kelvin);
+                // Resolve at click time: targets can change while this card lives.
+                var target = _settings?.PresetLevel(name) ?? Presets.ByName(name);
+                ApplyBrightness(Presets.BrightnessFor(Monitor, target.Nits));
+                ApplyWarmth(target.Kelvin);
                 _onChanged(this, false);
-                _report($"{Monitor.DisplayName}: {captured.Name} - about {captured.Nits} nits, {captured.Kelvin}K.");
+                _report($"{Monitor.DisplayName}: {name} - estimated {target.Nits}-nit target and {target.Kelvin}K tint requested. Check any card warnings.");
             };
-            _tips.SetToolTip(b, $"{captured.Description}\nThis monitor only.");
+            _presetButtons[name] = b;
             presets.Controls.Add(b);
         }
 
         // Set apart from the three above, because it is not a fourth level: it
         // is the way back from them.
-        var custom = new FlatButton(Presets.CustomName) { Width = 78, Margin = new Padding(10, 0, 0, 0) };
+        var custom = new FlatButton(Presets.CustomName) { Name = "preset-custom",
+            AccessibleName = $"{_displayContext}: {Presets.CustomName}", Width = 78, Margin = new Padding(10, 0, 0, 6) };
         custom.Click += (_, _) =>
         {
             if (RestoreCustom())
             {
                 _onChanged(this, false);
-                _report($"{Monitor.DisplayName}: back to your own settings.");
+                _report($"{Monitor.DisplayName}: your own settings requested. Check any card warnings.");
             }
             else
             {
@@ -221,10 +292,12 @@ internal sealed class MonitorCard : Panel
                         "move a slider and they are remembered.");
             }
         };
-        _tips.SetToolTip(custom,
-            "Your own brightness, contrast and warmth for this monitor.\n" +
-            "Saved whenever you move one of its sliders, and never touched by a preset.");
+        custom.SetHelp(_tips,
+            "Request this monitor's remembered manual levels.\n" +
+            "Slider edits replace them; presets keep them.\n" +
+            "Changes save in the background; check Settings for save status.");
         presets.Controls.Add(custom);
+        SetPresetHelp(_settings?.PresetLevels ?? Presets.Levels);
 
         _grid.Controls.Add(presets, 1, row++);
 
@@ -232,6 +305,7 @@ internal sealed class MonitorCard : Panel
         _disclosure = new LinkLabel
         {
             Text = m.HasPhysicalHandle ? "Show this monitor's other controls" : "",
+            Name = "other-controls",
             Font = Theme.Small,
             LinkColor = Theme.Info,
             ActiveLinkColor = Theme.AmberLight,
@@ -243,6 +317,7 @@ internal sealed class MonitorCard : Panel
             Margin = new Padding(2, 10, 0, 0),
             BackColor = Color.Transparent,
         };
+        SetDisclosureText(_disclosure.Text);
         if (m.HasPhysicalHandle)
             _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
         _disclosure.LinkClicked += (_, _) =>
@@ -276,7 +351,7 @@ internal sealed class MonitorCard : Panel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = false,
+            WrapContents = true,
             Margin = new Padding(0, 0, 0, 10),
             BackColor = Color.Transparent,
         };
@@ -284,6 +359,7 @@ internal sealed class MonitorCard : Panel
         host.Controls.Add(new Label
         {
             Text = m.DisplayName,
+            UseMnemonic = false,
             Font = Theme.H2,
             ForeColor = Theme.Ink,
             AutoSize = true,
@@ -299,7 +375,7 @@ internal sealed class MonitorCard : Panel
         if (m.IsInternalPanel)
             host.Controls.Add(Chip("built-in", Theme.InkMuted));
         else if (!m.SupportsBrightness)
-            host.Controls.Add(Chip("no DDC/CI", Theme.Warn));
+            host.Controls.Add(Chip("brightness unavailable", Theme.Warn));
 
         return host;
     }
@@ -368,11 +444,18 @@ internal sealed class MonitorCard : Panel
 
     // ------------------------------------------------------------- behaviour
 
+    /// <summary>
+    /// This card requested a brightness: a slider, exact entry, preset, Custom
+    /// or the schedule. Lets the window tell a person's choice from its own
+    /// temporary levels, such as Night saver's dim.
+    /// </summary>
+    public event Action<MonitorCard> BrightnessRequested;
+
     private void OnBrightness()
     {
         if (_suppress || !Monitor.SupportsBrightness) return;
-        Monitor.Brightness = _brightness.Value;
         _worker.Set(Monitor, DdcWorker.Feature.Brightness, _brightness.Value);
+        BrightnessRequested?.Invoke(this);
         RefreshLabels();
         ManualEdit();
     }
@@ -380,7 +463,6 @@ internal sealed class MonitorCard : Panel
     private void OnContrast()
     {
         if (_suppress || !Monitor.SupportsContrast) return;
-        Monitor.Contrast = _contrast.Value;
         _worker.Set(Monitor, DdcWorker.Feature.Contrast, _contrast.Value);
         ManualEdit();
     }
@@ -419,18 +501,21 @@ internal sealed class MonitorCard : Panel
     private void ApplyGamma()
     {
         if (!DisplayGamma.Apply(Monitor))
+        {
+            ShowWarmthFailure();
             _report($"{Monitor.DisplayName}: the graphics driver refused the colour change.");
+        }
     }
 
     public void ApplyBrightness(int raw)
     {
-        if (!Monitor.SupportsBrightness) return;
+        if (!Monitor.SupportsBrightness || _settings.ScreenBlankActiveFor(Monitor.StableKey)) return;
         int v = Math.Clamp(raw, _brightness.Minimum, _brightness.Maximum);
         _suppress = true;
         _brightness.SetValueSilently(v);
         _suppress = false;
-        Monitor.Brightness = v;
         _worker.Set(Monitor, DdcWorker.Feature.Brightness, v);
+        BrightnessRequested?.Invoke(this);
         RefreshLabels();
     }
 
@@ -441,7 +526,6 @@ internal sealed class MonitorCard : Panel
         _suppress = true;
         _contrast.SetValueSilently(v);
         _suppress = false;
-        Monitor.Contrast = v;
         _worker.Set(Monitor, DdcWorker.Feature.Contrast, v);
     }
 
@@ -487,22 +571,46 @@ internal sealed class MonitorCard : Panel
         RefreshLabels();
     }
 
+    public void ShowWriteFailure(DdcWorker.Feature feature)
+    {
+        var control = feature switch
+        {
+            DdcWorker.Feature.Brightness => AdjustmentControl.Brightness,
+            DdcWorker.Feature.Contrast => AdjustmentControl.Contrast,
+            _ => AdjustmentControl.ExtraControls,
+        };
+        if (feature is DdcWorker.Feature.Brightness or DdcWorker.Feature.Contrast)
+            SyncFromMonitor();
+        _adjustmentNotice.RecordFailure(control);
+    }
+
+    public void ShowWarmthFailure() => _adjustmentNotice.RecordFailure(AdjustmentControl.Warmth);
+
     private void RefreshLabels()
     {
         if (Monitor.SupportsBrightness)
         {
-            // Say when the figure is a guess. An unqualified number reads as a
-            // measurement, and nothing here was measured with a colorimeter.
-            string note = Presets.IsKnown(Monitor) ? "" : ", estimated panel";
-            _nits.Text = $"about {Presets.NitsFor(Monitor, Monitor.Brightness)} nits{note}";
+            var estimate = Presets.EstimateFor(Monitor, Monitor.Brightness);
+            _nits.Text = estimate.DisplayText;
+            _nits.AccessibleDescription = estimate.Explanation;
+            _tips.SetToolTip(_nits, estimate.Explanation);
         }
         else
         {
             _nits.Text = "";
+            _nits.AccessibleDescription = "";
+            _tips.SetToolTip(_nits, null);
         }
     }
 
     // ---------------------------------------------------------------- extras
+
+    internal void SetPresetHelp(IEnumerable<Presets.Level> levels)
+    {
+        foreach (var level in levels)
+            if (_presetButtons.TryGetValue(level.Name, out var button))
+                button.SetHelp(_tips, DeskCommandBar.PresetHelp(level, "on this monitor only"));
+    }
 
     public void SetScreenBlankShortcutText(string shortcut)
     {
@@ -512,17 +620,29 @@ internal sealed class MonitorCard : Panel
             : shortcut.Trim();
         _screenBlankShortcut.Links.Clear();
         _screenBlankShortcut.LinkArea = new LinkArea(0, _screenBlankShortcut.Text.Length);
+        _screenBlankShortcut.AccessibleName = $"{_displayContext}: Configure blank-screen shortcut";
+        string help = string.IsNullOrWhiteSpace(shortcut)
+            ? "No shortcut assigned. Choose a blank-screen shortcut for this display."
+            : $"Saved shortcut: {shortcut.Trim()}. Change or clear the blank-screen shortcut for this display.";
+        _screenBlankShortcut.AccessibleDescription = help;
+        _tips.SetToolTip(_screenBlankShortcut, help);
     }
 
     public void SetScreenBlankState(bool blanked)
     {
         if (_screenBlankButton == null || _screenBlankShortcut == null) return;
         _screenBlankButton.Text = blanked ? "Restore screen" : "Blank screen";
+        _screenBlankButton.AccessibleName = $"{_displayContext}: {_screenBlankButton.Text}";
         _screenBlankButton.Enabled = true;
         _screenBlankShortcut.Enabled = true;
-        _tips.SetToolTip(_screenBlankButton, blanked
-            ? "Close the blackout and restore the exact brightness saved before it."
-            : "Temporarily cover this display in black and use its lowest supported brightness. Click it to restore.");
+        _brightness.Enabled = !blanked && Monitor.SupportsBrightness;
+        _screenBlankButton.SetHelp(_tips, blanked
+            ? Monitor.SupportsBrightness
+                ? "Close the blackout and retry any saved brightness recovery. Check the status message if recovery cannot be confirmed."
+                : "Close the blackout. Hardware brightness control is unavailable; any pending brightness recovery needs working monitor controls."
+            : Monitor.SupportsBrightness
+                ? "Temporarily cover this display in black and use its lowest supported brightness. Click it to restore."
+                : "Temporarily cover this display in black. Hardware brightness control is unavailable. Click it to restore.");
     }
 
     public void BeginFeatureLoad()
@@ -530,7 +650,7 @@ internal sealed class MonitorCard : Panel
         if (_featuresLoading || Monitor.FeaturesLoaded) return;
         _featuresLoading = true;
         _disclosure.Enabled = false;
-        _disclosure.Text = "Reading this monitor's other controls...";
+        SetDisclosureText("Reading this monitor's other controls...");
     }
 
     /// <summary>Called once the background capability probe finishes for this monitor.</summary>
@@ -543,9 +663,9 @@ internal sealed class MonitorCard : Panel
         int n = Monitor.Features.Count;
         if (n == 0)
         {
-            _disclosure.Text = Monitor.HasPhysicalHandle
+            SetDisclosureText(Monitor.HasPhysicalHandle
                 ? "This monitor advertises no other adjustable controls."
-                : "";
+                : "");
             _disclosure.Enabled = false;
             _disclosure.LinkColor = Theme.InkFaint;
             return;
@@ -553,7 +673,7 @@ internal sealed class MonitorCard : Panel
 
         _disclosure.Enabled = true;
         _disclosure.Links.Clear();
-        _disclosure.Text = $"Show {n} more control{(n == 1 ? "" : "s")} on this monitor";
+        SetDisclosureText($"Show {n} more control{(n == 1 ? "" : "s")} on this monitor");
         _disclosure.LinkColor = Theme.Info;
         _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
 
@@ -582,21 +702,105 @@ internal sealed class MonitorCard : Panel
 
         _extras.Visible = !_extras.Visible;
         int n = Monitor.Features.Count;
-        _disclosure.Text = _extras.Visible
+        SetDisclosureText(_extras.Visible
             ? "Hide the other controls"
-            : $"Show {n} more control{(n == 1 ? "" : "s")} on this monitor";
+            : $"Show {n} more control{(n == 1 ? "" : "s")} on this monitor");
         _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
     }
 
+    private void SetDisclosureText(string text)
+    {
+        _disclosure.Text = text;
+        _disclosure.AccessibleName = string.IsNullOrEmpty(text) ? "" : $"{_displayContext}: {text}";
+    }
+
     // ------------------------------------------------------------- highlight
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        if (_grid == null) return base.GetPreferredSize(proposedSize);
+        // Panel's unconstrained preferred width makes percentage-column flows
+        // wrap during measurement even when they fit at the pinned card width.
+        int width = MaximumSize.Width > 0 ? MaximumSize.Width
+            : Math.Max(MinimumSize.Width, proposedSize.Width > 0 ? proposedSize.Width : Width);
+        int contentWidth = Math.Max(1, width - Padding.Horizontal);
+        return new Size(width, _grid.GetPreferredSize(new Size(contentWidth, 0)).Height + Padding.Vertical);
+    }
+
+    /// <summary>Width and content signature of the last complete constraint pass.</summary>
+    private int _laidOutWidth = -1;
+    private int _laidOutContent;
+
+    /// <summary>
+    /// What a constraint pass depends on besides width: which controls exist,
+    /// which are visible and how long their text is. Walking ~60 controls costs
+    /// microseconds; the pass it can skip costs tens of milliseconds.
+    /// </summary>
+    private int ContentSignature()
+    {
+        var hash = new HashCode();
+        void Add(Control parent)
+        {
+            foreach (Control child in parent.Controls)
+            {
+                hash.Add(child.Visible);
+                hash.Add(child.Text?.Length ?? 0);
+                Add(child);
+            }
+        }
+        Add(_grid);
+        return hash.ToHashCode();
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        _laidOutWidth = -1;
+        base.OnFontChanged(e);
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        _laidOutWidth = -1;
+        base.OnDpiChangedAfterParent(e);
+    }
 
     /// <summary>Set the card's width and hold it there against AutoSize.</summary>
     public void SetWidth(int width)
     {
         int w = Math.Max(320, width);
+        // A full pass measures every row and costs tens of milliseconds per
+        // card. Restoring a window raises several resizes at an unchanged
+        // width; repeating the pass for each is what made restoring stall.
+        int content = ContentSignature();
+        if (w == _laidOutWidth && Width == w && content == _laidOutContent) return;
         MinimumSize = new Size(w, 0);
         MaximumSize = new Size(w, 0);
         Width = w;
+        // AutoSize flows otherwise measure one unbounded line and can push
+        // their children past the fixed card edge. Constrain before measuring
+        // height, including labels whose preferred width can exceed a cell.
+        int gridWidth = ClientSize.Width - Padding.Horizontal;
+        foreach (Control control in _grid.Controls)
+        {
+            int available = gridWidth - (_grid.GetColumnSpan(control) == 2
+                ? 0 : (int)_grid.ColumnStyles[0].Width) - control.Margin.Horizontal;
+            if (_grid.GetColumn(control) == 0 && _grid.GetColumnSpan(control) == 1) continue;
+            if (control is FlowLayoutPanel flow)
+            {
+                flow.MaximumSize = new Size(Math.Max(1, available), 0);
+                flow.Width = Math.Max(1, available);
+                foreach (Control child in flow.Controls)
+                    if (child is Label)
+                        child.MaximumSize = new Size(Math.Max(1, available - child.Margin.Horizontal), 0);
+                flow.PerformLayout();
+            }
+            else if (control is Label)
+                control.MaximumSize = new Size(Math.Max(1, available), 0);
+        }
+        _grid.PerformLayout();
+        PerformLayout();
+        _laidOutWidth = w;
+        _laidOutContent = content;
     }
 
     public void Highlight()
@@ -632,6 +836,9 @@ internal sealed class MonitorCard : Panel
         base.Dispose(disposing);
     }
 
+    protected override void OnEnter(EventArgs e) { base.OnEnter(e); Invalidate(); }
+    protected override void OnLeave(EventArgs e) { base.OnLeave(e); Invalidate(); }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
@@ -639,10 +846,26 @@ internal sealed class MonitorCard : Panel
         g.Clear(Theme.Base);
 
         var r = new Rectangle(0, 0, Width - 1, Height - 1);
-        Theme.FillRound(g, r, Theme.Radius, Theme.Card);
+        using (var surface = new LinearGradientBrush(r, Theme.CardTop, Theme.Card, LinearGradientMode.Vertical))
+        using (var shape = Theme.Round(r, Theme.Radius))
+            g.FillPath(surface, shape);
+        bool selected = _highlighted || ContainsFocus;
         Theme.StrokeRound(g, r, Theme.Radius,
-            _highlighted ? Theme.AmberLight : Theme.Line,
-            _highlighted ? 2f : 1f);
+            selected ? Theme.Amber : Theme.Line,
+            selected ? 1.5f : 1f);
+        var header = _grid.GetControlFromPosition(0, 0);
+        if (header != null)
+        {
+            int dividerY = _grid.Top + header.Bottom + LogicalToDeviceUnits(3);
+            using var divider = new Pen(Color.FromArgb(100, Theme.Line));
+            g.DrawLine(divider, Padding.Left, dividerY, Width - Padding.Right, dividerY);
+        }
+        if (selected)
+        {
+            int inset = LogicalToDeviceUnits(12);
+            Theme.FillRound(g, new Rectangle(LogicalToDeviceUnits(4), inset,
+                LogicalToDeviceUnits(3), Math.Max(1, Height - inset * 2)), LogicalToDeviceUnits(1), Theme.Amber);
+        }
 
         base.OnPaint(e);
     }
@@ -681,97 +904,3 @@ internal sealed class ChipLabel : Control
 }
 
 /// <summary>A flat button that actually honours its colours, unlike the stock one.</summary>
-internal sealed class FlatButton : Control
-{
-    private bool _hover;
-    private bool _down;
-    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-    public bool Primary { get; set; }
-
-    public FlatButton(string text)
-    {
-        Text = text;
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
-                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw |
-                 ControlStyles.SupportsTransparentBackColor, true);
-        BackColor = Color.Transparent;
-        Font = Theme.Body;
-        Height = 30;
-        Width = 84;
-        Cursor = Cursors.Hand;
-        TabStop = true;
-    }
-
-    // A custom Control is not a Button: it gets no Space/Enter handling, no
-    // focus rectangle and no accessible role for free. Without these, every
-    // preset - global and per-monitor - plus Identify, Refresh and Warmth off
-    // was mouse-only, and Narrator announced them as anonymous client areas.
-    protected override bool IsInputKey(Keys key) =>
-        key is Keys.Space or Keys.Enter || base.IsInputKey(key);
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (!Enabled || (e.KeyCode != Keys.Space && e.KeyCode != Keys.Enter)) return;
-        _down = true;
-        Invalidate();
-        e.Handled = true;
-    }
-
-    protected override void OnKeyUp(KeyEventArgs e)
-    {
-        base.OnKeyUp(e);
-        if (!Enabled || (e.KeyCode != Keys.Space && e.KeyCode != Keys.Enter)) return;
-        _down = false;
-        Invalidate();
-        OnClick(EventArgs.Empty);
-        e.Handled = true;
-    }
-
-    protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
-    protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); _down = false; Invalidate(); }
-
-    protected override AccessibleObject CreateAccessibilityInstance() =>
-        new ButtonAccessibleObject(this);
-
-    /// <summary>Lets assistive tech press the button, not merely describe it.</summary>
-    internal void PerformClick() => OnClick(EventArgs.Empty);
-
-    private sealed class ButtonAccessibleObject : ControlAccessibleObject
-    {
-        private readonly FlatButton _owner;
-        public ButtonAccessibleObject(FlatButton owner) : base(owner) => _owner = owner;
-        public override AccessibleRole Role => AccessibleRole.PushButton;
-        public override string DefaultAction => "Press";
-        public override void DoDefaultAction() => _owner.PerformClick();
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        var r = new Rectangle(0, 0, Width - 1, Height - 1);
-
-        Color face = Primary
-            ? (_down ? Theme.Amber : _hover ? Theme.AmberLight : Theme.Amber)
-            : (_down ? Theme.Sunken : _hover ? Theme.CardHover : Theme.Card);
-        Color text = Primary ? Color.FromArgb(28, 20, 8) : (Enabled ? Theme.Ink : Theme.InkFaint);
-        Color edge = Primary ? Color.FromArgb(0, 0, 0, 0) : (_hover ? Theme.AmberDim : Theme.Line);
-
-        Theme.FillRound(g, r, 7, Enabled ? face : Theme.Card);
-        if (edge.A > 0) Theme.StrokeRound(g, r, 7, edge);
-        if (Focused)
-        {
-            var inner = Rectangle.Inflate(r, -3, -3);
-            Theme.StrokeRound(g, inner, 5, Color.FromArgb(190, Theme.AmberLight), 1.5f);
-        }
-        TextRenderer.DrawText(g, Text, Font, r, text,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-    }
-
-    protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; _down = false; Invalidate(); }
-    protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); _down = true; Invalidate(); }
-    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _down = false; Invalidate(); }
-    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
-}

@@ -43,6 +43,7 @@ internal static class IdentifyOverlay
             var name = new Label
             {
                 Text = m.DisplayName,
+                UseMnemonic = false,
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", ScaleFont(m, 46f), FontStyle.Bold),
                 AutoSize = false,

@@ -100,6 +100,12 @@ internal readonly record struct ScreenBlankHotkey(uint Modifiers, uint VirtualKe
 /// <summary>Small key-capture dialog for one monitor's blackout shortcut.</summary>
 internal sealed class ScreenBlankHotkeyDialog : Form
 {
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        WindowChrome.Apply(this);
+    }
+
     private readonly Label _captured;
     private readonly Button _save;
 
