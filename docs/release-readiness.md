@@ -1,6 +1,6 @@
 # Release readiness
 
-Updated 2026-10-10. Version 1.2.1 is a verified source checkpoint and a local
+Updated 2026-10-13. Version 1.3.0 is a verified source checkpoint and a local
 installation candidate. This page records executable evidence separately from
 public release approval.
 
@@ -8,30 +8,32 @@ public release approval.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `12ab33e9e5b2cc0c4549b0f78473e3a36685d44f` - mixed-DPI dragging repair and regression coverage |
-| GUI recorded build | `1.2.1+12ab33e9e5b2cc0c4549b0f78473e3a36685d44f` |
-| Package | `LumenDeck-1.2.1-win-x64.zip` |
-| SHA-256 | `f5ce096106c3196dd3e8666764a880f75adc55d5945582fe66aa686fcd733cca` |
+| Source commit | `e34bffc2e57d63ed8f30ad28dbb2eae328e54c98` - versioned native interface and Mica test candidate |
+| GUI recorded build | `1.3.0+e34bffc2e57d63ed8f30ad28dbb2eae328e54c98` |
+| Package | `LumenDeck-1.3.0-win-x64.zip` |
+| SHA-256 | `2acc497de41bfdc3a782bf3e519ed8bf537622d10a99e296f9d89869aa34a2c1` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
-| File version | `1.2.1.0` for both executables |
+| File version | `1.3.0.0` for both executables |
 | Version status | Installed local candidate; source features remain Unreleased |
 
-The recorded source is the clean snapshot used for both executables. The newer
-development material refinement and optional Mica title bar are not included in
-this installed candidate; they require a new source-bound build before release.
-Builder verification
-passed on the actual ZIP. The old app exited normally before the owner-profile
-update. Installed GUI/CLI hashes match the exact payload and their source/build
+The recorded source is the clean snapshot used for both executables. It includes
+the material refinement, optional Mica title bar and deterministic post-modal
+settings-save lifecycle checks. Builder verification passed on the actual ZIP.
+No old app was running at installation. Installed GUI/CLI hashes match the exact payload and their source/build
 versions match this record. Desktop and Start Menu shortcuts target the installed
 GUI, CLI help/version pass, and all three application JSON files retained their
-pre-install hashes. Previous binaries and the desktop shortcut were backed up.
+pre-install hashes before normal startup. Previous installed/publish binaries,
+both shortcuts and the three JSON files were backed up privately.
+The installed main window was launched and verified visible and responding with
+the expected 1.3.0 build, without new error-log content. This is startup evidence,
+not completed physical-display or Mica visual acceptance.
 No GitHub release or tag has been created.
 
 ## Source verification
 
 - Release solution and both test projects: warnings-as-errors builds, zero
   warnings/errors.
-- Full suites: 4,225 ControlTests and 1,746 AppTests, using synthetic displays,
+- Full suites: 4,230 ControlTests and 1,765 AppTests, using synthetic displays,
   fake transport and isolated settings.
 - Desk-map selection: old focus behavior reproduced before repair; three window
   sizes, repeated selection, visible adjustment bars, correctly targeted adjustment
@@ -43,6 +45,9 @@ No GitHub release or tag has been created.
 - Mixed DPI: 64 focused checks, six native 100%/125% crossings on a private
   desktop, bounded layout counts and stable dimensions. Timings improved from
   2.4–3.3 seconds to approximately 0.3–0.6 seconds; see [DPI repair](cross-display-dpi.md).
+- Native material: saved/off/refused-save preference behavior, native DWM
+  request readback and unchanged opaque client rendering. Physical composition
+  remains owner acceptance.
 
 These establish their tested software behavior. Physical monitor control,
 foreground pointer dragging, other DPI combinations and screen readers remain

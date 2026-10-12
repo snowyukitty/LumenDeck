@@ -1,8 +1,8 @@
 # Current checkpoint
 
-Updated 2026-10-13. The current source includes a native interface refinement and
-optional Mica title bar. The installed 1.2.1 candidate predates these changes;
-its exact identity remains in [release readiness](release-readiness.md). This is
+Updated 2026-10-13. Version 1.3.0 includes the native interface refinement and
+optional Mica title bar and is installed for owner testing. Its exact source,
+archive and build identity are in [release readiness](release-readiness.md). This is
 a source handoff, not a GitHub release announcement.
 
 ## Delivered behavior
@@ -59,13 +59,14 @@ lifecycle checks pass 108 assertions.
 
 ## Distribution and repository state
 
-The source snapshot `12ab33e` produces the verified 1.2.1 Windows x64 portable
+The source snapshot `e34bffc` produces the verified 1.3.0 Windows x64 portable
 candidate in release readiness. Package and installer regressions pass. The
 owner-profile GUI/CLI now match that exact payload, and Desktop/Start Menu
 shortcuts target the installed GUI. Installed CLI help/version pass; all three
-application JSON files kept their pre-install hashes. The previous binaries and
-desktop shortcut were preserved as a local backup. The old app exited normally
-before replacement.
+application JSON files kept their pre-install hashes before normal startup. The
+previous installed/publish binaries, both shortcuts and JSON files were preserved
+as a private local backup. No old app was running during replacement. The installed
+1.3.0 window was opened, visible and responding, with no new startup error log.
 
 The source and documentation checkpoint is published to GitHub `main`.
 The private development history remains local; the public checkpoint begins
@@ -85,9 +86,8 @@ No independent whole-app approval or physical display pass is claimed.
 
 ## Resuming
 
-Read this page and the candidate identity in release readiness first. Build a new
-candidate from the current source before installing or releasing the UI refinement.
-Inspect the
+Read this page and the candidate identity in release readiness first. Use the
+installed source-bound 1.3.0 candidate for owner acceptance. Inspect the
 worktree and any active project lease, preserve unrelated edits and stage explicit
 paths. Use the verified source-bound binaries for further acceptance. The next
 work is physical display/reader acceptance and clean-machine release readiness,
