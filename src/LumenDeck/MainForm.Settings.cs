@@ -46,6 +46,7 @@ internal partial class MainForm
             AppPreference.StartMinimised => _settings.StartMinimised,
             AppPreference.KeepRunning => _settings.MinimiseToTray,
             AppPreference.ReapplyWarmth => _settings.ReapplyColourOnStart,
+            AppPreference.MicaTitleBar => _settings.UseMicaTitleBar,
             _ => false,
         };
         SettingsSaveOperation operation = null;
@@ -80,6 +81,7 @@ internal partial class MainForm
             if (!IsDisposed && !Disposing && !_reallyClosing && result == SettingsSaveResult.Saved)
             {
                 if (preference.HasValue) SetPreference(preference.Value, wanted);
+                if (preference == AppPreference.MicaTitleBar) WindowChrome.Apply(this, wanted);
                 if (shortcut != null) _settings.SetScreenBlankHotkey(shortcut.Key, shortcut.Name, shortcut.Wanted);
                 draft?.Install();
             }
@@ -102,6 +104,9 @@ internal partial class MainForm
             {
                 AppPreference.StartMinimised => wanted ? (_settings.MinimiseToTray ? "Next launch starts in the notification area." : "Next launch starts minimised on the taskbar.") : "Next launch shows the control window.",
                 AppPreference.KeepRunning => wanted ? "Closing or minimising keeps LumenDeck running. Use tray Exit to quit." : "Closing exits LumenDeck; minimising keeps it on the taskbar.",
+                AppPreference.MicaTitleBar => wanted
+                    ? "Mica title bar preference saved. Windows uses the material where supported, with a solid fallback."
+                    : "Mica title bar is off. The slate title bar is restored.",
                 _ => wanted ? "Reapply warmth is on for the next scan. Current warmth is unchanged." : "Warmth reapplication is off. Current warmth is unchanged.",
             });
         else if (shortcut != null)

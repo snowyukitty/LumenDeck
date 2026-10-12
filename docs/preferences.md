@@ -45,6 +45,7 @@ packaged file locations; it does not open files or submit a report.
 | Start minimised | Minimise the next launch. With keep-running enabled it goes to the notification area; otherwise it stays on the taskbar. The current window stays as it is. | settings.json |
 | Keep running when closed or minimised | Hide to the notification area instead of exiting on ordinary close. Use tray Exit to quit. Turning it off makes ordinary close exit and minimising stay on the taskbar. | settings.json |
 | Reapply saved warmth after a display scan | Use saved warmth on startup, Refresh and display-configuration scans. Toggling neither applies warmth nor restores neutral output immediately. | settings.json |
+| Use Windows Mica title bar | Optional main-window title-bar material on Windows 11 22H2 or later, with Windows solid fallbacks. Off by default; activates after a successful save. Content remains opaque and displays are not adjusted. | settings.json |
 
 Settings opening reads the current startup registration but does not repair it,
 write preferences or adjust a display. Existing startup repair still happens

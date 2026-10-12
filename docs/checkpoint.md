@@ -1,8 +1,9 @@
 # Current checkpoint
 
-Updated 2026-10-10. This is the source and local-install handoff for version 1.2.1.
-It is not a GitHub release announcement. The exact portable candidate is recorded
-in [release readiness](release-readiness.md).
+Updated 2026-10-13. The current source includes a native interface refinement and
+optional Mica title bar. The installed 1.2.1 candidate predates these changes;
+its exact identity remains in [release readiness](release-readiness.md). This is
+a source handoff, not a GitHub release announcement.
 
 ## Delivered behavior
 
@@ -14,10 +15,15 @@ in [release readiness](release-readiness.md).
   bar, or warmth when brightness is unavailable. Repeated selections realign the
   viewport. Adjustment keys then affect the selected display. Focus callbacks
   that start a scan cannot apply stale navigation or overwrite the scan status.
-- The native interface uses layered slate cards, quiet amber luminance/warmth
-  controls, neutral contrast tracks, framed value readouts and desk-map brightness
-  rails. Focused cards retain an amber edge and side marker. Minimum-size and
-  narrow-window layouts keep their existing wrapping and scrolling behavior.
+- The native interface uses larger display headings, shaded slate cards with
+  cached surfaces, quiet help/settings commands, framed amber/neutral readouts
+  and a sunken desk-map well. Primary focus and pressed feedback are distinct;
+  unavailable sliders have no misleading value fill. Empty positions have no
+  chip. Minimum-size and narrow-window layouts preserve wrapping and scrolling.
+- The optional Windows 11 Mica title bar is off by default and activates only
+  after its setting is saved. Content remains opaque; disabling clears the DWM
+  request and refused persistence preserves the previous frame. This changes no
+  monitor values, gamma or startup registration.
 - Night saver dims the work display toward the configured Night target only when
   initially brighter, including a kept primary display. Recovery is saved before
   changing brightness. Restore, exit, Refresh and newer manual brightness choices
@@ -30,7 +36,7 @@ in [release readiness](release-readiness.md).
 ## Verification
 
 Solution and both test projects build in Release with warnings treated as errors:
-zero warnings and errors. The full suites pass 4,225 ControlTests and 1,746
+zero warnings and errors. The full suites pass 4,230 ControlTests and 1,762
 AppTests. The navigation regression was reproduced before the fix. Focused checks
 pass 236 navigation checks, 45 night-saver checks and 14 work-display dim checks.
 
@@ -40,6 +46,11 @@ Rendering uses synthetic displays and temporary settings. The 64 focused DPI
 checks include six native 100%/125% crossings on a private desktop and inspected
 destination-DPI renders. Continuous foreground pointer dragging, physical display
 control, other DPI combinations and screen-reader output remain manual acceptance.
+The latest six full-suite DPI transitions took 0.48-0.63 seconds, with 19-20
+command layouts and 176 card layouts per transition and stable repeated dimensions.
+Source-path privacy checks pass for all three product assemblies and injected
+UTF-8/UTF-16/JSON-escaped canaries. Mica tests prove DWM intent, persistence and
+unchanged opaque client rendering; composited wallpaper appearance remains manual.
 
 ## Distribution and repository state
 
@@ -51,7 +62,7 @@ application JSON files kept their pre-install hashes. The previous binaries and
 desktop shortcut were preserved as a local backup. The old app exited normally
 before replacement.
 
-The completed 1.2.1 source and documentation checkpoint is published to GitHub `main`.
+The source and documentation checkpoint is published to GitHub `main`.
 The private development history remains local; the public checkpoint begins
 from the previous public main and includes the current implementation, tests and
 maintainer-facing documentation. Inspect the actual
@@ -69,7 +80,9 @@ No independent whole-app approval or physical display pass is claimed.
 
 ## Resuming
 
-Read this page and the candidate identity in release readiness first. Inspect the
+Read this page and the candidate identity in release readiness first. Build a new
+candidate from the current source before installing or releasing the UI refinement.
+Inspect the
 worktree and any active project lease, preserve unrelated edits and stage explicit
 paths. Use the verified source-bound binaries for further acceptance. The next
 work is physical display/reader acceptance and clean-machine release readiness,

@@ -15,6 +15,11 @@ internal static class WindowChrome
     private const int DWMWA_BORDER_COLOR = 34;                // Windows 11
     private const int DWMWA_CAPTION_COLOR = 35;
     private const int DWMWA_TEXT_COLOR = 36;
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+    private const int DWMSBT_NONE = 1;
+    private const int DWMSBT_MAINWINDOW = 2;
+    private const int DWMWA_COLOR_DEFAULT = -1;
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -26,7 +31,7 @@ internal static class WindowChrome
     private static extern int SetWindowTheme(IntPtr hwnd, string subAppName, string subIdList);
 
     /// <summary>Call from OnHandleCreated; the frame belongs to that handle.</summary>
-    public static void Apply(Form form)
+    public static void Apply(Form form, bool micaTitleBar = false)
     {
         if (form == null || !form.IsHandleCreated) return;
         IntPtr hwnd = form.Handle;
@@ -36,12 +41,38 @@ internal static class WindowChrome
             if (DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref on, sizeof(int)) != 0)
                 DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, ref on, sizeof(int));
             int caption = ColorRef(Theme.Bar), text = ColorRef(Theme.Ink), border = ColorRef(Theme.Line);
+            int round = 2; // DWMWCP_ROUND; unsupported systems keep their frame.
+            DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
+            if (Environment.OSVersion.Version.Build >= 22621)
+            {
+                int material = micaTitleBar && SupportsMica(Environment.OSVersion.Version, SystemInformation.HighContrast)
+                    ? DWMSBT_MAINWINDOW : DWMSBT_NONE;
+                if (DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref material, sizeof(int)) == 0 &&
+                    material == DWMSBT_MAINWINDOW)
+                    caption = text = DWMWA_COLOR_DEFAULT;
+            }
             DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref caption, sizeof(int));
             DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, ref text, sizeof(int));
             DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref border, sizeof(int));
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { }
         DarkenSystemParts(form);
+    }
+
+    // No frame extension or alpha tricks: WinForms content remains opaque.
+    internal static bool SupportsMica(Version version, bool highContrast) =>
+        version.Major >= 10 && version.Build >= 22621 && !highContrast;
+
+    /// <summary>DWM's configured intent, not proof of the material's visible appearance.</summary>
+    internal static int? BackdropType(Form form)
+    {
+        if (!form.IsHandleCreated) return null;
+        try
+        {
+            return DwmGetWindowAttribute(form.Handle, DWMWA_SYSTEMBACKDROP_TYPE, out int value, sizeof(int)) == 0
+                ? value : null;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return null; }
     }
 
     /// <summary>True when Windows reports the dark frame for this window.</summary>

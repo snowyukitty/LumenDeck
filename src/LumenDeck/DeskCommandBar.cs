@@ -8,8 +8,8 @@ internal sealed class DeskCommandBar : Panel
     public FlatButton IdentifyButton { get; } = new("Identify") { Width = 84 };
     public FlatButton RefreshButton { get; } = new("Refresh") { Width = 82 };
     public FlatButton WarmthOffButton { get; } = new("Warmth off") { Width = 100 };
-    public FlatButton HelpButton { get; } = new("Connection help") { Width = 136 };
-    public FlatButton SettingsButton { get; } = new("Settings") { Width = 90 };
+    public FlatButton HelpButton { get; } = new("Connection help") { Width = 136, Quiet = true };
+    public FlatButton SettingsButton { get; } = new("Settings") { Width = 90, Quiet = true };
     public FlatButton NightButton { get; } = new("Night saver") { Width = 148 };
     public ComboBox WorkMonitor { get; } = new()
     {

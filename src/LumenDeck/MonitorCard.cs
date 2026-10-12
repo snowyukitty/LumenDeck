@@ -47,6 +47,8 @@ internal sealed class MonitorCard : Panel
     private bool _highlighted;
     private bool _extrasBuilt;
     private bool _featuresLoading;
+    private Bitmap _surface;
+    private (Size Size, int State, int Dpi, int Divider, Padding Padding) _surfaceKey;
 
     // One ToolTip for the whole card, disposed with it. A `new ToolTip()` per
     // button looks harmless and is not: cards are rebuilt on every display
@@ -242,7 +244,7 @@ internal sealed class MonitorCard : Panel
         blankRow.Controls.Add(new Label
         {
             Text = m.SupportsBrightness ? "min brightness" : "blackout only",
-            AutoSize = true, Font = Theme.Small, ForeColor = Theme.Warn,
+            AutoSize = true, Font = Theme.Small, ForeColor = Theme.InkMuted,
             Margin = new Padding(8, 8, 0, 6), BackColor = Color.Transparent,
         });
         AddRow(row++, "Screen", blankRow, null);
@@ -360,7 +362,7 @@ internal sealed class MonitorCard : Panel
         {
             Text = m.DisplayName,
             UseMnemonic = false,
-            Font = Theme.H2,
+            Font = Theme.H1,
             ForeColor = Theme.Ink,
             AutoSize = true,
             Margin = new Padding(0, 1, 10, 0),
@@ -370,7 +372,8 @@ internal sealed class MonitorCard : Panel
         if (!string.IsNullOrEmpty(m.SizeLabel))
             host.Controls.Add(Chip(m.SizeLabel, Theme.InkMuted));
 
-        host.Controls.Add(Chip(m.PositionLabel, Theme.Info));
+        if (!string.IsNullOrWhiteSpace(m.PositionLabel))
+            host.Controls.Add(Chip(m.PositionLabel, Theme.Info));
 
         if (m.IsInternalPanel)
             host.Controls.Add(Chip("built-in", Theme.InkMuted));
@@ -844,6 +847,8 @@ internal sealed class MonitorCard : Panel
             _highlightTimer?.Stop();
             _highlightTimer?.Dispose();
             _tips.Dispose();
+            _surface?.Dispose();
+            _surface = null;
         }
         base.Dispose(disposing);
     }
@@ -853,22 +858,42 @@ internal sealed class MonitorCard : Panel
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics;
+        if (Width < 4 || Height < 5) { base.OnPaint(e); return; }
+        var header = _grid.GetControlFromPosition(0, 0);
+        int dividerY = header == null ? -1 : _grid.Top + header.Bottom + LogicalToDeviceUnits(3);
+        var key = (Size, (_highlighted ? 2 : 0) | (ContainsFocus ? 1 : 0), DeviceDpi, dividerY, Padding);
+        // Transparent children repaint the parent. Cache one current surface per
+        // card so they reuse a blit rather than rebuilding paths and gradients.
+        if (_surface == null || _surfaceKey != key)
+        {
+            _surface?.Dispose();
+            _surface = new Bitmap(Width, Height);
+            using var graphics = Graphics.FromImage(_surface);
+            PaintSurface(graphics, dividerY);
+            _surfaceKey = key;
+        }
+        e.Graphics.DrawImageUnscaled(_surface, Point.Empty);
+        base.OnPaint(e);
+    }
+
+    private void PaintSurface(Graphics g, int dividerY)
+    {
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Theme.Base);
 
-        var r = new Rectangle(0, 0, Width - 1, Height - 1);
-        using (var surface = new LinearGradientBrush(r, Theme.CardTop, Theme.Card, LinearGradientMode.Vertical))
-        using (var shape = Theme.Round(r, Theme.Radius))
-            g.FillPath(surface, shape);
+        int radius = LogicalToDeviceUnits(Theme.Radius);
+        var r = new Rectangle(1, 1, Width - 3, Height - 4);
+        var shadow = r;
+        shadow.Offset(0, LogicalToDeviceUnits(2));
+        Theme.FillRound(g, shadow, radius, Theme.Shadow);
+        Theme.FillSurface(g, r, radius, Theme.CardTop, Theme.Card);
+        Theme.SurfaceRim(g, r, radius);
         bool selected = _highlighted || ContainsFocus;
-        Theme.StrokeRound(g, r, Theme.Radius,
-            selected ? Theme.Amber : Theme.Line,
+        Theme.StrokeRound(g, r, radius,
+            selected ? _highlighted ? Theme.AmberLight : Theme.Amber : Color.FromArgb(160, Theme.Line),
             selected ? 1.5f : 1f);
-        var header = _grid.GetControlFromPosition(0, 0);
-        if (header != null)
+        if (dividerY >= 0)
         {
-            int dividerY = _grid.Top + header.Bottom + LogicalToDeviceUnits(3);
             using var divider = new Pen(Color.FromArgb(100, Theme.Line));
             g.DrawLine(divider, Padding.Left, dividerY, Width - Padding.Right, dividerY);
         }
@@ -878,8 +903,6 @@ internal sealed class MonitorCard : Panel
             Theme.FillRound(g, new Rectangle(LogicalToDeviceUnits(4), inset,
                 LogicalToDeviceUnits(3), Math.Max(1, Height - inset * 2)), LogicalToDeviceUnits(1), Theme.Amber);
         }
-
-        base.OnPaint(e);
     }
 }
 
@@ -899,9 +922,25 @@ internal sealed class ChipLabel : Control
         // Purely a label. Control.TabStop defaults to true, so without this the
         // Tab order stops on something with no focus cue and no key handling.
         TabStop = false;
-        var size = TextRenderer.MeasureText(text, Theme.Small);
-        Size = new Size(size.Width + 16, 20);
+        UpdateChipSize();
         Margin = new Padding(0, 2, 6, 0);
+    }
+
+    private string LabelText => _color == Theme.Warn ? "! " + Text : Text;
+
+    private void UpdateChipSize()
+    {
+        var text = TextRenderer.MeasureText(LabelText, Font);
+        Size = new Size(text.Width + LogicalToDeviceUnits(16),
+            Math.Max(LogicalToDeviceUnits(20), text.Height + LogicalToDeviceUnits(4)));
+    }
+
+    protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); UpdateChipSize(); }
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); UpdateChipSize(); }
+    protected override void RescaleConstantsForDpi(int oldDpi, int newDpi)
+    {
+        base.RescaleConstantsForDpi(oldDpi, newDpi);
+        UpdateChipSize();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -910,8 +949,9 @@ internal sealed class ChipLabel : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         var r = new Rectangle(0, 0, Width - 1, Height - 1);
         Theme.FillRound(g, r, Height / 2, Color.FromArgb(38, _color));
-        TextRenderer.DrawText(g, Text, Font, r, _color,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        Theme.StrokeRound(g, r, Height / 2, Color.FromArgb(60, _color));
+        TextRenderer.DrawText(g, LabelText, Font, r, _color,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 }
 

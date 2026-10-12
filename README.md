@@ -74,9 +74,12 @@ within their available width.
 Clicking a display on the desk map aligns its card's adjustment area and focuses
 its brightness bar, or warmth when brightness is unavailable. Keyboard adjustment
 then applies to that selected display.
-The 1.2.1 interface uses layered slate cards, quiet amber controls and framed
-value readouts. Contrast stays neutral, and the focused card retains an amber
-edge and marker. See the [interface design notes](docs/ui-design.md).
+The development interface uses layered slate cards, stronger display headings,
+quiet help/settings commands and framed amber readouts. Contrast stays neutral,
+and the focused card retains an amber edge and marker. **Settings > Use Windows
+Mica title bar** optionally adds the Windows 11 title-bar material; the content
+stays opaque and older systems keep the slate frame. See the
+[interface design notes](docs/ui-design.md).
 Moving between monitors with different scaling batches DPI layout to avoid
 repeated card measurement and command-bar flickering; see the
 [repair and verification notes](docs/cross-display-dpi.md).

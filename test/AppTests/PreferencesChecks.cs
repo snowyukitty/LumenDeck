@@ -101,6 +101,56 @@ internal static partial class Program
         }
         CheckPreferenceSaveFailure(directory);
         CheckSettingsPreferenceStorage(directory);
+        CheckMicaPreference(directory);
+    }
+
+    private static void CheckMicaPreference(string directory)
+    {
+        Assert(!WindowChrome.SupportsMica(new Version(10, 0, 19045), false) &&
+            !WindowChrome.SupportsMica(new Version(10, 0, 22000), false) &&
+            WindowChrome.SupportsMica(new Version(10, 0, 22621), false) &&
+            !WindowChrome.SupportsMica(new Version(10, 0, 26100), true),
+            "Mica requires the documented Windows build and avoids high contrast");
+        using (var fixture = new Fixture(directory))
+        {
+            var menu = Private<PreferencesMenu>(fixture.Form, "_preferencesMenu");
+            var choice = MenuChoice(menu, "Use Windows Mica");
+            var list = Private<FlowLayoutPanel>(fixture.Form, "_list");
+            int writes = fixture.Transport.Writes, gamma = fixture.GammaSaves, startup = fixture.StartupWrites;
+            using var before = new Bitmap(list.Width, list.Height);
+            list.DrawToBitmap(before, list.ClientRectangle);
+            Assert(!fixture.Settings.UseMicaTitleBar && !choice.Checked, "Mica title bar is opt-in for existing settings");
+            choice.PerformClick();
+            SettleSettings(fixture);
+            Assert(fixture.Settings.UseMicaTitleBar && choice.Checked && AppSettings.Load(fixture.SettingsPath).UseMicaTitleBar,
+                "Mica activates only after its preference is saved and survives reload");
+            if (WindowChrome.SupportsMica(Environment.OSVersion.Version, SystemInformation.HighContrast))
+                Assert(WindowChrome.BackdropType(fixture.Form) == 2, "DWM reports the requested main-window backdrop intent");
+            using var after = new Bitmap(list.Width, list.Height);
+            list.DrawToBitmap(after, list.ClientRectangle);
+            bool same = true;
+            for (int y = 0; same && y < before.Height; y++)
+                for (int x = 0; same && x < before.Width; x++)
+                    same = before.GetPixel(x, y) == after.GetPixel(x, y);
+            Assert(same, "Mica does not alter the opaque client control rendering");
+            choice.PerformClick();
+            SettleSettings(fixture);
+            Assert(!fixture.Settings.UseMicaTitleBar && !choice.Checked && !AppSettings.Load(fixture.SettingsPath).UseMicaTitleBar,
+                "Mica can be disabled and the preference persists");
+            if (Environment.OSVersion.Version.Build >= 22621)
+                Assert(WindowChrome.BackdropType(fixture.Form) == 1, "disabling Mica clears DWM's backdrop request");
+            Assert(fixture.Transport.Writes == writes && fixture.GammaSaves == gamma && fixture.StartupWrites == startup,
+                "title-bar preferences perform no display, gamma or startup-registration writes");
+        }
+        using (var refused = new Fixture(directory, refuseSettingsSave: true))
+        {
+            var choice = MenuChoice(Private<PreferencesMenu>(refused.Form, "_preferencesMenu"), "Use Windows Mica");
+            int? before = WindowChrome.BackdropType(refused.Form);
+            choice.PerformClick();
+            SettleSettings(refused);
+            Assert(!refused.Settings.UseMicaTitleBar && !choice.Checked && WindowChrome.BackdropType(refused.Form) == before,
+                "refused Mica save preserves the previous preference and native frame");
+        }
     }
 
     private static void CheckPreferenceSaveFailure(string directory)

@@ -336,7 +336,7 @@ internal partial class MainForm : Form
             _minimisedPreference.AccessibleDescription = _minimisedPreference.ToolTipText =
                 SettingsSaveFeedback.Explanation(CurrentSettingsSaveState());
         _preferencesMenu.Synchronize(new PreferenceState(startup, _settings.StartMinimised,
-            _settings.MinimiseToTray, _settings.ReapplyColourOnStart), _settingsWriteRunning);
+            _settings.MinimiseToTray, _settings.ReapplyColourOnStart, _settings.UseMicaTitleBar), _settingsWriteRunning);
         UpdateSettingsSaveFeedback();
     }
 
@@ -371,6 +371,7 @@ internal partial class MainForm : Form
         if (preference == AppPreference.StartMinimised) _settings.StartMinimised = value;
         else if (preference == AppPreference.KeepRunning) _settings.MinimiseToTray = value;
         else if (preference == AppPreference.ReapplyWarmth) _settings.ReapplyColourOnStart = value;
+        else if (preference == AppPreference.MicaTitleBar) _settings.UseMicaTitleBar = value;
         else throw new ArgumentOutOfRangeException(nameof(preference));
     }
 
@@ -883,7 +884,7 @@ internal partial class MainForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        WindowChrome.Apply(this);
+        WindowChrome.Apply(this, _settings.UseMicaTitleBar);
         if (_cards.Count > 0) RegisterScreenBlankHotkeys();
     }
 

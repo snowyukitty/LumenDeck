@@ -9,6 +9,8 @@ internal sealed class BrandHeader : Control
 {
     private readonly Icon _icon;
     private readonly string _version;
+    private Icon _sizedIcon;
+    private Font _smallFont;
 
     public BrandHeader(Icon icon, string version)
     {
@@ -19,7 +21,8 @@ internal sealed class BrandHeader : Control
         _version = version;
         Dock = DockStyle.Top;
         BackColor = Theme.Bar;
-        Height = 40;
+        Font = Theme.Brand;
+        Height = 48;
         TabStop = false;
         AccessibleRole = AccessibleRole.StaticText;
         AccessibleName = $"LumenDeck version {version}";
@@ -32,21 +35,26 @@ internal sealed class BrandHeader : Control
         var g = e.Graphics;
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         int pad = LogicalToDeviceUnits(16);
-        int iconSize = LogicalToDeviceUnits(20);
+        int iconSize = LogicalToDeviceUnits(24);
         int x = pad;
         if (_icon != null)
         {
-            using var sized = new Icon(_icon, iconSize, iconSize);
-            g.DrawIcon(sized, new Rectangle(x, (Height - iconSize) / 2, iconSize, iconSize));
+            if (_sizedIcon?.Width != iconSize)
+            {
+                _sizedIcon?.Dispose();
+                _sizedIcon = new Icon(_icon, iconSize, iconSize);
+            }
+            g.DrawIcon(_sizedIcon, new Rectangle(x, (Height - iconSize) / 2, iconSize, iconSize));
             x += iconSize + LogicalToDeviceUnits(10);
         }
         var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
-        var name = TextRenderer.MeasureText(g, "LumenDeck", Theme.Brand, Size.Empty, flags);
-        TextRenderer.DrawText(g, "LumenDeck", Theme.Brand, new Rectangle(x, 0, name.Width, Height), Theme.Ink, flags);
+        var name = TextRenderer.MeasureText(g, "LumenDeck", Font, Size.Empty, flags);
+        TextRenderer.DrawText(g, "LumenDeck", Font, new Rectangle(x, 0, name.Width, Height), Theme.Ink, flags);
         x += name.Width + LogicalToDeviceUnits(8);
 
         // The version sits in a quiet pill so it reads as metadata, not a title.
-        var text = TextRenderer.MeasureText(g, VersionLabel, Theme.Small, Size.Empty, flags);
+        var small = _smallFont ?? Theme.Small;
+        var text = TextRenderer.MeasureText(g, VersionLabel, small, Size.Empty, flags);
         int chipHeight = text.Height + LogicalToDeviceUnits(4);
         var chip = new Rectangle(x, (Height - chipHeight) / 2, text.Width + LogicalToDeviceUnits(12), chipHeight);
         using (var path = Rounded(chip, chipHeight / 2))
@@ -56,16 +64,30 @@ internal sealed class BrandHeader : Control
             g.FillPath(fill, path);
             g.DrawPath(line, path);
         }
-        TextRenderer.DrawText(g, VersionLabel, Theme.Small, chip, Theme.InkMuted,
+        TextRenderer.DrawText(g, VersionLabel, small, chip, Theme.InkMuted,
             flags | TextFormatFlags.HorizontalCenter);
 
         if (Width > LogicalToDeviceUnits(640))
-            TextRenderer.DrawText(g, "Display control", Theme.Small,
+            TextRenderer.DrawText(g, "Your displays, in balance.", small,
                 new Rectangle(chip.Right + pad, 0, Math.Max(0, Width - chip.Right - pad * 2), Height),
                 Theme.InkMuted, flags | TextFormatFlags.Right);
 
         using var divider = new Pen(Theme.Line);
         g.DrawLine(divider, 0, Height - 1, Width, Height - 1);
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        _smallFont?.Dispose();
+        _smallFont = new Font(Theme.Small.FontFamily, Theme.Small.Size * Font.Size / Theme.Brand.Size);
+        Invalidate();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { _sizedIcon?.Dispose(); _smallFont?.Dispose(); }
+        base.Dispose(disposing);
     }
 
     private static System.Drawing.Drawing2D.GraphicsPath Rounded(Rectangle r, int radius)

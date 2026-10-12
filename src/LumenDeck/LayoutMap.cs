@@ -93,7 +93,7 @@ internal sealed class LayoutMap : Control
         float spanX = Math.Max(1, maxX - minX);
         float spanY = Math.Max(1, maxY - minY);
 
-        const int pad = 10;
+        int pad = LogicalToDeviceUnits(10);
         float availW = Math.Max(1, Width - pad * 2);
         float availH = Math.Max(1, Height - _caption.Height - pad * 2);
         float scale = Math.Min(availW / spanX, availH / spanY);
@@ -127,6 +127,11 @@ internal sealed class LayoutMap : Control
             return;
         }
 
+        var well = Rectangle.Round(boxes.Aggregate(RectangleF.Union));
+        well.Inflate(LogicalToDeviceUnits(8), LogicalToDeviceUnits(8));
+        Theme.FillRound(g, well, LogicalToDeviceUnits(10), Theme.Sunken);
+        Theme.StrokeRound(g, well, LogicalToDeviceUnits(10), Color.FromArgb(100, Theme.Line));
+
         for (int i = 0; i < boxes.Count; i++)
         {
             var m = _monitors[i];
@@ -143,15 +148,18 @@ internal sealed class LayoutMap : Control
                 ? Color.FromArgb(alpha, Theme.Amber)
                 : Color.FromArgb(46, Theme.InkFaint);
 
-            Theme.FillRound(g, r, 4, Theme.Sunken);
-            using (var surface = new LinearGradientBrush(r, fill, Color.FromArgb(20, Theme.Amber), LinearGradientMode.Vertical))
-            using (var shape = Theme.Round(r, 4))
+            int radius = LogicalToDeviceUnits(4);
+            Theme.FillRound(g, r, radius, Theme.Sunken);
+            using (var surface = new LinearGradientBrush(r, fill,
+                Color.FromArgb(20, m.SupportsBrightness ? Theme.Amber : Theme.InkFaint), LinearGradientMode.Vertical))
+            using (var shape = Theme.Round(r, radius))
                 g.FillPath(surface, shape);
 
-            bool active = i == _hoverIndex || i == _selectedIndex;
-            Theme.StrokeRound(g, r, 4,
-                active ? Theme.AmberLight : Color.FromArgb(120, Theme.Line),
-                active ? 2f : 1f);
+            bool selected = i == _selectedIndex;
+            bool active = i == _hoverIndex || selected;
+            Theme.StrokeRound(g, r, radius,
+                selected ? Theme.AmberLight : active ? Color.FromArgb(170, Theme.AmberLight) : Theme.Line,
+                LogicalToDeviceUnits(selected ? 2 : 1));
 
             if (r.Width > 20 && r.Height > 20)
             {
@@ -170,7 +178,8 @@ internal sealed class LayoutMap : Control
                 // A small dot, not the word "primary" - at this size any label
                 // would be unreadable and every rectangle would look the same.
                 using var dot = new SolidBrush(Color.FromArgb(210, Theme.Ink));
-                g.FillEllipse(dot, r.X + 4, r.Y + 4, 4, 4);
+                int dotSize = LogicalToDeviceUnits(4);
+                g.FillEllipse(dot, r.X + dotSize, r.Y + dotSize, dotSize, dotSize);
             }
         }
 

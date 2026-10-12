@@ -22,6 +22,7 @@ internal sealed class Slider : Control
     private int _value;
     private bool _dragging;
     private bool _hover;
+    private bool _readoutHover;
 
     /// <summary>Raised while dragging, and on every keyboard or click change.</summary>
     public event EventHandler ValueChanged;
@@ -59,6 +60,7 @@ internal sealed class Slider : Control
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw |
                  ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
+        Font = Theme.Value;
         Height = 30;
         TabStop = true;
     }
@@ -195,21 +197,14 @@ internal sealed class Slider : Control
         Color light = Neutral ? Theme.Ink : Theme.AmberLight;
 
         int fillW = (int)Math.Round(track.Width * Fraction);
-        if (fillW > 2)
+        if (Enabled && fillW > 2)
         {
             var fill = new Rectangle(track.X, track.Y, fillW, track.Height);
-            if (Enabled)
-            {
-                using var brush = new LinearGradientBrush(
-                    new Rectangle(track.X, track.Y, Math.Max(2, track.Width), track.Height),
-                    accent, light, LinearGradientMode.Horizontal);
-                using var path = Theme.Round(fill, _trackH / 2);
-                g.FillPath(brush, path);
-            }
-            else
-            {
-                Theme.FillRound(g, fill, _trackH / 2, Theme.AmberDim);
-            }
+            using var brush = new LinearGradientBrush(
+                new Rectangle(track.X, track.Y, Math.Max(2, track.Width), track.Height),
+                accent, light, LinearGradientMode.Horizontal);
+            using var path = Theme.Round(fill, _trackH / 2);
+            g.FillPath(brush, path);
         }
 
         if (Enabled)
@@ -233,9 +228,12 @@ internal sealed class Slider : Control
 
         int inset = LogicalToDeviceUnits(4);
         var readout = new Rectangle(track.Right + _thumbR + inset, inset, _readoutW - inset, Math.Max(1, Height - inset * 2));
-        Theme.FillRound(g, readout, LogicalToDeviceUnits(5), Enabled ? Theme.Sunken : Theme.Card);
-        TextRenderer.DrawText(g, Enabled ? Format(_value) : "—", Theme.Value, readout,
-            Enabled ? Theme.Ink : Theme.InkFaint,
+        bool readoutHover = Enabled && _readoutHover;
+        Theme.FillRound(g, readout, LogicalToDeviceUnits(5), readoutHover ? Theme.CardHover : Enabled ? Theme.Sunken : Theme.Card);
+        Theme.StrokeRound(g, readout, LogicalToDeviceUnits(5),
+            Focused ? Theme.AmberLight : readoutHover ? Theme.AmberDim : Enabled ? Theme.Line : Color.FromArgb(70, Theme.Line));
+        TextRenderer.DrawText(g, Enabled ? Format(_value) : "—", Font, readout,
+            Enabled ? Neutral ? Theme.Ink : Theme.AmberLight : Theme.InkFaint,
             TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
     }
 
@@ -267,6 +265,13 @@ internal sealed class Slider : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        bool readoutHover = Enabled && e.X > TrackRect.Right + _thumbR;
+        if (_readoutHover != readoutHover)
+        {
+            _readoutHover = readoutHover;
+            Cursor = readoutHover ? Cursors.Hand : Cursors.Default;
+            Invalidate();
+        }
         // Belt and braces with OnMouseCaptureChanged: if the button is not
         // actually down, this is not a drag no matter what the flag says.
         if (_dragging && (MouseButtons & MouseButtons.Left) == 0) { _dragging = false; Invalidate(); return; }
@@ -300,7 +305,13 @@ internal sealed class Slider : Control
     }
 
     protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = _readoutHover = false; Cursor = Cursors.Default; Invalidate(); }
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        if (!Enabled) { _readoutHover = false; Cursor = Cursors.Default; }
+        base.OnEnabledChanged(e);
+        Invalidate();
+    }
 
     private int _wheelResidue;
 
@@ -397,5 +408,4 @@ internal sealed class Slider : Control
 
     protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
     protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
-    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
 }

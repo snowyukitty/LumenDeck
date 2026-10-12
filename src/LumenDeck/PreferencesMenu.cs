@@ -1,7 +1,8 @@
 namespace LumenDeck;
 
-internal enum AppPreference { WindowsStartup, StartMinimised, KeepRunning, ReapplyWarmth }
-internal sealed record PreferenceState(bool? WindowsStartup, bool StartMinimised, bool KeepRunning, bool ReapplyWarmth);
+internal enum AppPreference { WindowsStartup, StartMinimised, KeepRunning, ReapplyWarmth, MicaTitleBar }
+internal sealed record PreferenceState(bool? WindowsStartup, bool StartMinimised, bool KeepRunning, bool ReapplyWarmth,
+    bool MicaTitleBar = false);
 
 /// <summary>Preference presentation only; requests do not optimistically change checks.</summary>
 internal sealed class PreferencesMenu : ContextMenuStrip
@@ -38,6 +39,9 @@ internal sealed class PreferencesMenu : ContextMenuStrip
             "Keep the notification icon available when you close or minimise. Choose Exit in the tray menu to quit. When off, closing exits and minimising stays on the taskbar.");
         Add(AppPreference.ReapplyWarmth, "Reapply saved warmth after a display scan",
             "Restore saved warmth on startup and after display configuration changes or Refresh. Changing this option does not adjust current warmth; turning it off does not restore a neutral screen.");
+        Items.Add(new ToolStripSeparator());
+        Add(AppPreference.MicaTitleBar, "Use Windows Mica title bar",
+            "Use the Windows material in the main title bar on Windows 11 22H2 or later. Content stays opaque. Windows may show a solid fallback when transparency is off or the window is inactive. Does not adjust displays.");
         Items.Add(new ToolStripSeparator());
         _saveInfo = new ToolStripLabel { ForeColor = Theme.InkMuted, AccessibleRole = AccessibleRole.StaticText };
         _retrySave = new ToolStripMenuItem { ForeColor = Theme.Ink };
@@ -114,7 +118,8 @@ internal sealed class PreferencesMenu : ContextMenuStrip
         _choices[AppPreference.StartMinimised].Checked = state.StartMinimised;
         _choices[AppPreference.KeepRunning].Checked = state.KeepRunning;
         _choices[AppPreference.ReapplyWarmth].Checked = state.ReapplyWarmth;
-        foreach (var preference in new[] { AppPreference.StartMinimised, AppPreference.KeepRunning, AppPreference.ReapplyWarmth })
+        _choices[AppPreference.MicaTitleBar].Checked = state.MicaTitleBar;
+        foreach (var preference in new[] { AppPreference.StartMinimised, AppPreference.KeepRunning, AppPreference.ReapplyWarmth, AppPreference.MicaTitleBar })
         {
             var item = _choices[preference];
             item.Enabled = !saving;

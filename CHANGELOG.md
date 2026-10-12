@@ -8,10 +8,24 @@ Notable changes, newest first. Format follows
 
 ### Added
 
+- **Settings > Use Windows Mica title bar** optionally requests the native
+  main-window material on Windows 11 22H2 or later. The setting is off by default,
+  activates after a successful save and leaves the client opaque. Unsupported
+  systems keep the slate title bar.
+
 - The window shows its version in the title bar and in a new header, and the
   notification icon's tooltip includes it. The header gives way in short windows.
 
 ### Changed
+
+- Refined the development interface with stronger display headings, restrained
+  surface highlights and shadows, quiet help/settings commands, section rules
+  and outlined amber/neutral readouts. Readout hover reveals exact-entry access;
+  map hover and selection have different outlines. Caution chips have an explicit
+  shape cue while blackout explanations remain neutral. Chip sizing and painted
+  readout/header fonts follow scaled fonts; the header caches its sized icon.
+- Primary buttons have a readable dark focus ring and distinct pressed feedback.
+  Unavailable sliders no longer paint a value fill beside their dash readout.
 
 - Version 1.2.0 refines the native dark interface with layered slate cards,
   quieter amber brightness and warmth controls, neutral contrast tracks, framed

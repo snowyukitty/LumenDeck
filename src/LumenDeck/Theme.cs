@@ -12,13 +12,15 @@ namespace LumenDeck;
 internal static class Theme
 {
     // Surfaces, darkest to lightest.
-    public static readonly Color Base = Color.FromArgb(18, 20, 25);
-    public static readonly Color Bar = Color.FromArgb(23, 26, 32);
-    public static readonly Color Card = Color.FromArgb(29, 33, 41);
-    public static readonly Color CardTop = Color.FromArgb(34, 39, 48);
-    public static readonly Color CardHover = Color.FromArgb(42, 48, 59);
-    public static readonly Color Sunken = Color.FromArgb(14, 17, 22);
-    public static readonly Color Line = Color.FromArgb(53, 61, 74);
+    public static readonly Color Base = Color.FromArgb(19, 21, 26);
+    public static readonly Color Bar = Color.FromArgb(25, 28, 34);
+    public static readonly Color Card = Color.FromArgb(30, 34, 41);
+    public static readonly Color CardTop = Color.FromArgb(40, 45, 54);
+    public static readonly Color CardHover = Color.FromArgb(48, 54, 64);
+    public static readonly Color Sunken = Color.FromArgb(20, 23, 29);
+    public static readonly Color Line = Color.FromArgb(62, 70, 83);
+    public static readonly Color SurfaceLight = Color.FromArgb(16, 255, 255, 255);
+    public static readonly Color Shadow = Color.FromArgb(100, 0, 0, 0);
 
     // Text.
     public static readonly Color Ink = Color.FromArgb(238, 240, 245);
@@ -33,24 +35,49 @@ internal static class Theme
     public static readonly Color AmberLight = Color.FromArgb(255, 214, 143);
     public static readonly Color Amber = Color.FromArgb(231, 169, 93);
     public static readonly Color AmberDim = Color.FromArgb(130, 91, 45);
+    public static readonly Color AmberPressed = Color.FromArgb(204, 145, 74);
+    public static readonly Color OnAmber = Color.FromArgb(28, 20, 8);
 
     public static readonly Color Info = Color.FromArgb(126, 168, 232);
-    public static readonly Color Warn = Color.FromArgb(226, 160, 92);
+    public static readonly Color Warn = Color.FromArgb(236, 196, 88);
     public static readonly Color Danger = Color.FromArgb(226, 108, 92);
 
     // Type. Created once and shared: a Font handed to a Control is not owned by
     // it, so per-control fonts leak until their finalizers run.
     public static readonly Font H1 = new("Segoe UI Semibold", 11.5f);
-    public static readonly Font Brand = new("Segoe UI Semibold", 13f);
-    public static readonly Font H2 = new("Segoe UI Semibold", 10f);
+    public static readonly Font Brand = new("Segoe UI Semibold", 15f);
+    public static readonly Font H2 = new("Segoe UI Semibold", 10.5f);
     public static readonly Font Body = new("Segoe UI", 9f);
     public static readonly Font Small = new("Segoe UI", 8.25f);
     public static readonly Font Value = new("Segoe UI Semibold", 9.5f);
     public static readonly Font Mono = new("Consolas", 9.5f);
 
-    public const int Radius = 10;
+    public const int Radius = 12;
     public const int CardPad = 16;
-    public const int Gap = 10;
+    public const int Gap = 12;
+
+    /// <summary>Opaque material shading; this does not sample or blur the desktop.</summary>
+    public static void FillSurface(Graphics g, Rectangle bounds, int radius, Color top, Color bottom)
+    {
+        if (bounds.Width < 1 || bounds.Height < 1) return;
+        using var shape = Round(bounds, radius);
+        using var surface = new System.Drawing.Drawing2D.LinearGradientBrush(
+            bounds, top, bottom, System.Drawing.Drawing2D.LinearGradientMode.Vertical);
+        g.FillPath(surface, shape);
+    }
+
+    /// <summary>A fading inner rim makes raised surfaces legible without a heavy outline.</summary>
+    public static void SurfaceRim(Graphics g, Rectangle bounds, int radius)
+    {
+        bounds.Inflate(-1, -1);
+        if (bounds.Width < 2 || bounds.Height < 2) return;
+        using var shape = Round(bounds, Math.Max(1, radius - 1));
+        using var fade = new System.Drawing.Drawing2D.LinearGradientBrush(
+            bounds, SurfaceLight, Color.FromArgb(0, 255, 255, 255),
+            System.Drawing.Drawing2D.LinearGradientMode.Vertical);
+        using var pen = new Pen(fade);
+        g.DrawPath(pen, shape);
+    }
 
     /// <summary>Rounded-rectangle path, used by every custom-drawn surface.</summary>
     public static System.Drawing.Drawing2D.GraphicsPath Round(Rectangle r, int radius)

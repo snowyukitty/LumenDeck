@@ -14,12 +14,12 @@ internal sealed class CommandSection : Panel
     {
         BackColor = Theme.Bar;
         DoubleBuffered = true;
-        Padding = new Padding(14, 8, 14, 8);
+        Padding = new Padding(16, 8, 16, 8);
         Dock = DockStyle.Top;
         _caption = new Label
         {
             Text = caption, AutoSize = true, Font = Theme.Small,
-            ForeColor = Theme.InkFaint, BackColor = Color.Transparent,
+            ForeColor = Theme.InkMuted, BackColor = Color.Transparent,
         };
         Commands = new FlowLayoutPanel
         {
@@ -53,9 +53,10 @@ internal sealed class CommandSection : Panel
     {
         base.OnPaint(e);
         if (Commands == null) return;
-        using var divider = new Pen(Theme.Line);
+        using var divider = new Pen(Color.FromArgb(120, Theme.Line));
         int x = Commands.Left - LogicalToDeviceUnits(10);
         e.Graphics.DrawLine(divider, x, Padding.Top + LogicalToDeviceUnits(6),
             x, Height - Padding.Bottom - LogicalToDeviceUnits(6));
+        if (Top > 0) e.Graphics.DrawLine(divider, Padding.Left, 0, Width - Padding.Right, 0);
     }
 }

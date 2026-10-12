@@ -665,6 +665,13 @@ action reachability, and late results after exit or a newer configuration scan.
 The test host supplies a help-form factory while production constructs the same
 ConnectionHelpForm normally. No physical monitors or startup registration are used.
 
+Mica preference checks cover the build/high-contrast eligibility boundary,
+confirmed saves and reloads, disabling, refused-save rollback, native DWM request
+readback and identical opaque client rendering. Fake transport, gamma and startup
+write counts stay unchanged. DWM readback proves intent, not visible wallpaper
+composition. Button checks also cover readable material/focus color pairs and
+distinct primary keyboard-press rendering.
+
 The two-display fixture includes a portrait display without contrast support. Window checks cover
 minimum size, short/narrow and short/wide wrapping, repeated resize, the
 239/240/241 logical-pixel map visibility boundary, compact card heights and

@@ -16,8 +16,10 @@ public release approval.
 | File version | `1.2.1.0` for both executables |
 | Version status | Installed local candidate; source features remain Unreleased |
 
-The recorded source is the clean snapshot used for both executables. Subsequent
-checkpoint and preview updates change documentation only. Builder verification
+The recorded source is the clean snapshot used for both executables. The newer
+development material refinement and optional Mica title bar are not included in
+this installed candidate; they require a new source-bound build before release.
+Builder verification
 passed on the actual ZIP. The old app exited normally before the owner-profile
 update. Installed GUI/CLI hashes match the exact payload and their source/build
 versions match this record. Desktop and Start Menu shortcuts target the installed

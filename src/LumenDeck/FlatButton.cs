@@ -13,6 +13,10 @@ internal sealed class FlatButton : Control
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool Primary { get; set; }
 
+    /// <summary>Secondary tools retain their hit target with less visual weight.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool Quiet { get; set; }
+
     public FlatButton(string text)
     {
         Text = text;
@@ -183,26 +187,31 @@ internal sealed class FlatButton : Control
     {
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        var r = new Rectangle(0, 0, Width - 1, Height - 1);
+        var r = new Rectangle(0, 0, Width - 1, Height - 2);
+        int radius = LogicalToDeviceUnits(7);
 
         Color face = !Enabled ? Theme.Card : Primary
-            ? (_down ? Theme.Amber : _hover ? Theme.AmberLight : Theme.Amber)
+            ? (_down ? Theme.AmberPressed : _hover ? Theme.AmberLight : Theme.Amber)
             : (_down ? Theme.Sunken : _hover ? Theme.CardHover : Theme.Card);
-        Color text = !Enabled ? Theme.InkFaint : Primary ? Color.FromArgb(28, 20, 8) : Theme.Ink;
+        Color text = !Enabled ? Theme.InkFaint : Primary ? Theme.OnAmber : Quiet && !_hover ? Theme.InkMuted : Theme.Ink;
         Color edge = !Enabled ? Theme.Line : Primary ? Color.FromArgb(0, 0, 0, 0) : (_hover ? Theme.AmberDim : Theme.Line);
 
-        Theme.FillRound(g, r, 7, face);
-        if (edge.A > 0) Theme.StrokeRound(g, r, 7, edge);
-        if (Enabled && !Primary && !_down && r.Width > 18 && r.Height > 12)
+        bool quietIdle = Enabled && Quiet && !Primary && !_hover && !_down;
+        if (!quietIdle)
         {
-            using var sheen = new Pen(Color.FromArgb(24, Theme.Ink));
-            int inset = LogicalToDeviceUnits(9);
-            g.DrawLine(sheen, inset, 1, Math.Max(inset, r.Right - inset), 1);
+            if (Enabled && !Primary && !_down)
+                Theme.FillSurface(g, r, radius, _hover ? Theme.CardHover : Theme.CardTop, face);
+            else
+                Theme.FillRound(g, r, radius, face);
+            if (edge.A > 0) Theme.StrokeRound(g, r, radius, edge);
+            if (Enabled && !Primary && !_down) Theme.SurfaceRim(g, r, radius);
         }
         if (Focused)
         {
-            var inner = Rectangle.Inflate(r, -3, -3);
-            Theme.StrokeRound(g, inner, 5, Color.FromArgb(190, Theme.AmberLight), 1.5f);
+            int inset = LogicalToDeviceUnits(3);
+            var inner = Rectangle.Inflate(r, -inset, -inset);
+            Theme.StrokeRound(g, inner, LogicalToDeviceUnits(5), Primary ? Theme.OnAmber : Theme.AmberLight,
+                Math.Max(1.5f, DeviceDpi / 64f));
         }
         Padding insets = TextInsets;
         var labelBounds = new Rectangle(r.Left + insets.Left, r.Top + insets.Top,
