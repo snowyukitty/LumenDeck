@@ -36,7 +36,7 @@ a source handoff, not a GitHub release announcement.
 ## Verification
 
 Solution and both test projects build in Release with warnings treated as errors:
-zero warnings and errors. The full suites pass 4,230 ControlTests and 1,765
+zero warnings and errors. The full suites pass 4,230 ControlTests and 1,767
 AppTests. The navigation regression was reproduced before the fix. Focused checks
 pass 236 navigation checks, 45 night-saver checks and 14 work-display dim checks.
 
@@ -56,6 +56,9 @@ background settings save had finished. The modal lifecycle scenario now holds
 that save explicitly, verifies pending-close preservation, then verifies the
 original full cleanup assertions after the confirmed save. The focused profile
 lifecycle checks pass 108 assertions.
+Mica side-effect checks explicitly finish the independent initialization save
+before recording gamma/transport/startup counters. This preserves the zero-write
+assertion without allowing a delayed startup checkpoint to contaminate it.
 
 ## Distribution and repository state
 

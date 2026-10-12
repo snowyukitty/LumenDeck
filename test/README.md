@@ -671,6 +671,9 @@ readback and identical opaque client rendering. Fake transport, gamma and startu
 write counts stay unchanged. DWM readback proves intent, not visible wallpaper
 composition. Button checks also cover readable material/focus color pairs and
 distinct primary keyboard-press rendering.
+The Mica fixture explicitly executes and settles its independent initialization
+checkpoint before taking the side-effect baseline, so slow bitmap comparison
+cannot mistake the delayed startup gamma save for a title-bar operation.
 
 The two-display fixture includes a portrait display without contrast support. Window checks cover
 minimum size, short/narrow and short/wide wrapping, repeated resize, the

@@ -116,6 +116,13 @@ internal static partial class Program
             var menu = Private<PreferencesMenu>(fixture.Form, "_preferencesMenu");
             var choice = MenuChoice(menu, "Use Windows Mica");
             var list = Private<FlowLayoutPanel>(fixture.Form, "_list");
+            // Drain the independent startup checkpoint before measuring Mica's
+            // effects. Bitmap comparison can take longer than its timer on CI.
+            var saveTimer = Private<System.Windows.Forms.Timer>(fixture.Form, "_saveTimer");
+            typeof(System.Windows.Forms.Timer).GetMethod("OnTick", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(saveTimer, [EventArgs.Empty]);
+            SettleSettings(fixture);
+            Assert(!saveTimer.Enabled, "initial delayed checkpoint is settled before Mica side-effect observation");
             int writes = fixture.Transport.Writes, gamma = fixture.GammaSaves, startup = fixture.StartupWrites;
             using var before = new Bitmap(list.Width, list.Height);
             list.DrawToBitmap(before, list.ClientRectangle);

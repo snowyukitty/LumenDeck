@@ -33,7 +33,7 @@ No GitHub release or tag has been created.
 
 - Release solution and both test projects: warnings-as-errors builds, zero
   warnings/errors.
-- Full suites: 4,230 ControlTests and 1,765 AppTests, using synthetic displays,
+- Current full suites: 4,230 ControlTests and 1,767 AppTests, using synthetic displays,
   fake transport and isolated settings.
 - Desk-map selection: old focus behavior reproduced before repair; three window
   sizes, repeated selection, visible adjustment bars, correctly targeted adjustment
