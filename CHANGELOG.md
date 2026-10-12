@@ -6,6 +6,10 @@ Notable changes, newest first. Format follows
 
 ## [Unreleased]
 
+The current development candidate is 1.3.0, including the native material
+refinement and optional Windows Mica title bar. It remains a test candidate
+until release acceptance is complete.
+
 ### Added
 
 - **Settings > Use Windows Mica title bar** optionally requests the native
