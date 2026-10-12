@@ -36,7 +36,7 @@ a source handoff, not a GitHub release announcement.
 ## Verification
 
 Solution and both test projects build in Release with warnings treated as errors:
-zero warnings and errors. The full suites pass 4,230 ControlTests and 1,762
+zero warnings and errors. The full suites pass 4,230 ControlTests and 1,765
 AppTests. The navigation regression was reproduced before the fix. Focused checks
 pass 236 navigation checks, 45 night-saver checks and 14 work-display dim checks.
 
@@ -46,11 +46,16 @@ Rendering uses synthetic displays and temporary settings. The 64 focused DPI
 checks include six native 100%/125% crossings on a private desktop and inspected
 destination-DPI renders. Continuous foreground pointer dragging, physical display
 control, other DPI combinations and screen-reader output remain manual acceptance.
-The latest six full-suite DPI transitions took 0.48-0.63 seconds, with 19-20
+The material-verification run's six DPI transitions took 0.48-0.63 seconds, with 19-20
 command layouts and 176 card layouts per transition and stable repeated dimensions.
 Source-path privacy checks pass for all three product assemblies and injected
 UTF-8/UTF-16/JSON-escaped canaries. Mica tests prove DWM intent, persistence and
 unchanged opaque client rendering; composited wallpaper appearance remains manual.
+Hosted CI exposed an assumption that a transport write meant the rebuild's
+background settings save had finished. The modal lifecycle scenario now holds
+that save explicitly, verifies pending-close preservation, then verifies the
+original full cleanup assertions after the confirmed save. The focused profile
+lifecycle checks pass 108 assertions.
 
 ## Distribution and repository state
 

@@ -714,6 +714,12 @@ owned worker and disposes the notification component once; repeated disposal
 does not repeat the gamma-save callback. Same-friendly-name synthetic displays
 with different stable keys intentionally share the documented model profile.
 
+The post-modal close scenario holds an ordinary settings save behind an explicit
+barrier, verifies that close preserves the owner/tray/gamma while it is pending,
+then releases it and verifies full cleanup exactly once after completion. A
+transport write alone is not evidence that the rebuild's delayed settings save
+has settled; this removes the timing assumption exposed by hosted CI.
+
 The native enabled-state check follows
 [IsWindowEnabled](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindowenabled).
 The outer-loop harness avoids synchronization-context teardown when a standalone

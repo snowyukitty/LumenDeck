@@ -541,10 +541,17 @@ internal static partial class Program
     {
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
+        using var settingsEntered = new ManualResetEventSlim();
+        using var settingsRelease = new ManualResetEventSlim();
+        int holdSettings = 0;
         using var fixture = new Fixture(directory, create: (store, context) => new QuietEditor(store, context, (profile, remove) =>
         {
             entered.Set(); release.Wait(); return store.Save(profile, remove);
-        }));
+        }), writeSettings: write =>
+        {
+            if (Volatile.Read(ref holdSettings) != 0) { settingsEntered.Set(); settingsRelease.Wait(); }
+            return write();
+        });
         Exception failure = null;
         int stage = 0;
         int gammaBeforeClose = 0;
@@ -601,6 +608,28 @@ internal static partial class Program
                 else if (stage == 4 && fixture.Transport.Writes == 1)
                 {
                     Assert(!fixture.TrayDisposed, "preserved worker accepts a subsequent fake-transport adjustment");
+                    // The rebuild's delayed save can still be running here on a
+                    // slow host. Force that interleaving instead of assuming the
+                    // transport write also proves settings have settled.
+                    Volatile.Write(ref holdSettings, 1);
+                    RequestSettings(fixture);
+                    stage = 5;
+                }
+                else if (stage == 5 && settingsEntered.IsSet)
+                {
+                    int savesBeforePendingClose = fixture.GammaSaves;
+                    fixture.Form.Close();
+                    Assert(!fixture.Form.IsDisposed && !fixture.TrayDisposed && !Private<bool>(fixture.Form, "_reallyClosing"),
+                        "post-modal owner close waits for an independently pending settings save");
+                    Assert(fixture.GammaSaves == savesBeforePendingClose,
+                        "pending settings close preserves gamma cleanup until save completion");
+                    settingsRelease.Set();
+                    stage = 6;
+                }
+                else if (stage == 6 && !Private<bool>(fixture.Form, "_settingsWriteRunning") && !fixture.Settings.IsSavePending)
+                {
+                    Assert(fixture.Settings.LastSaveResult == SettingsSaveResult.Saved,
+                        "post-modal settings save settles successfully before final owner close");
                     int savesBeforeFinalClose = fixture.GammaSaves;
                     fixture.Form.Close();
                     Assert(fixture.Form.IsDisposed && fixture.TrayDisposed && fixture.GammaSaves > gammaBeforeClose,
@@ -611,12 +640,12 @@ internal static partial class Program
                     fixture.Form.Dispose();
                     Assert(fixture.TrayDisposals == 1 && fixture.GammaSaves == savesBeforeFinalClose + 1,
                         "repeated form disposal cannot repeat accepted-close cleanup");
-                    timer.Stop(); stage = 5;
+                    timer.Stop(); stage = 7;
                 }
             }
             catch (Exception ex)
             {
-                failure = ex; release.Set(); timer.Stop(); stage = 5;
+                failure = ex; release.Set(); settingsRelease.Set(); timer.Stop(); stage = 7;
                 if (fixture.Editor is { IsDisposed: false } failedEditor)
                 {
                     failedEditor.DialogResult = DialogResult.Cancel;
@@ -627,7 +656,7 @@ internal static partial class Program
         try
         {
             timer.Start(); EditLink(fixture.Form);
-            try { PumpUntil(() => stage == 5, "modal scenario", 20000); }
+            try { PumpUntil(() => stage == 7, "modal scenario", 20000); }
             catch
             {
                 Console.Error.WriteLine($"Modal state: stage={stage}, ownerVisible={fixture.Form.Visible}, opening={Private<bool>(fixture.Form, "_profileEditorOpening")}, editors={fixture.EditorCreations}, editorVisible={fixture.Editor?.Visible}, timer={timer.Enabled}");
@@ -635,7 +664,7 @@ internal static partial class Program
             }
             if (failure != null) throw new InvalidOperationException("Modal lifecycle assertion failed", failure);
         }
-        finally { release.Set(); }
+        finally { release.Set(); settingsRelease.Set(); }
     }
 
     [DllImport("user32.dll")]
