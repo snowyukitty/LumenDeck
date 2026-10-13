@@ -139,6 +139,7 @@ internal partial class MainForm : Form
         // ---- desk map ------------------------------------------------------
         _map = new LayoutMap { Dock = DockStyle.Top };
         _map.MonitorPicked += PickDisplay;
+        _map.MonitorSelected += SelectDisplay;
         _map.AllDisplaysChanged += show => { _showAllDisplays = show; ApplyDisplayView(); };
 
         // ---- cards ---------------------------------------------------------
@@ -546,6 +547,12 @@ internal partial class MainForm : Form
                 var card = new MonitorCard(
                     m, _settings, _worker, OnCardChanged, s => SetStatus(s),
                     ToggleScreenBlank, ConfigureScreenBlankHotkey, LoadFeaturesForCard, ShowConnectionHelp, ShowProfileEditor);
+                card.Enter += (_, _) =>
+                {
+                    if (!CanAdjustDisplays || card.IsDisposed || !_cards.Contains(card)) return;
+                    _selectedMonitorKey = m.StableKey;
+                    _map.Refresh(m);
+                };
                 if (warmthFailed) card.ShowWarmthFailure();
                 card.BrightnessRequested += c =>
                 {

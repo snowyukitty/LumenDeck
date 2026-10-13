@@ -20,6 +20,7 @@ internal static partial class Program
     {
         if (renderDirectory != null) Directory.CreateDirectory(renderDirectory);
         CheckDeskWriteBinding(directory);
+        CheckSpatialDesk(directory);
 
         foreach (int count in new[] { 1, 2, 4 })
         {

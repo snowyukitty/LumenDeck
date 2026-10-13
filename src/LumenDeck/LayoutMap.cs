@@ -12,6 +12,7 @@ internal sealed class LayoutMap : Control
     private readonly Label _caption;
     private readonly CheckBox _all;
     public event Action<Monitor> MonitorPicked;
+    public event Action<Monitor> MonitorSelected;
     public event Action<bool> AllDisplaysChanged;
 
     public LayoutMap()
@@ -22,7 +23,7 @@ internal sealed class LayoutMap : Control
         Height = 140;
         TabStop = true;
         AccessibleName = "Desk displays — schematic, not to scale";
-        AccessibleDescription = "Arrow keys select a display. Enter opens its controls. Ctrl+Page Down and Ctrl+Page Up move between display controls.";
+        AccessibleDescription = "Arrow keys select the nearest display in that direction without wrapping. Home and End select the first and last display. Enter opens its controls. Ctrl+Page Down and Ctrl+Page Up move between display controls.";
         _caption = new Label
         {
             Name = "display-map-caption", Height = 24,
@@ -64,7 +65,7 @@ internal sealed class LayoutMap : Control
     public void Refresh(Monitor selected)
     {
         // Value refreshes must not erase the user's selected display.
-        if (selected != null) _selectedIndex = _monitors.IndexOf(selected);
+        if (selected != null) SetSelected(_monitors.IndexOf(selected));
         UpdateCaption();
         Invalidate();
     }
@@ -154,41 +155,96 @@ internal sealed class LayoutMap : Control
         Cursor = Cursors.Default;
         Invalidate();
     }
-    private void Pick(int index)
+    private bool CanPick => !IsDisposed && !Disposing && Enabled && Visible;
+
+    private void SetSelected(int index)
     {
-        if (index < 0 || index >= _monitors.Count) return;
+        if (_selectedIndex == index) return;
         _selectedIndex = index;
         UpdateCaption();
         Invalidate();
-        MonitorPicked?.Invoke(_monitors[index]);
-        if (IsHandleCreated) ((ControlAccessibleObject)AccessibilityObject).NotifyClients(AccessibleEvents.Selection, index + 1);
+        if (IsHandleCreated && index >= 0)
+        {
+            // The accessible-object API emits events with the runtime's default
+            // switch. Child indices are zero-based here (native IDs add one).
+            var accessible = (ControlAccessibleObject)AccessibilityObject;
+            accessible.NotifyClients(AccessibleEvents.Selection, index);
+            if (Focused) accessible.NotifyClients(AccessibleEvents.Focus, index);
+        }
+    }
+
+    private void Pick(int index, bool openControls = true)
+    {
+        if (!CanPick || index < 0 || index >= _monitors.Count) return;
+        var monitor = _monitors[index];
+        SetSelected(index);
+        // Selecting on the map never transiently focuses a slider. Enter/click
+        // is the explicit transition from choosing a screen to adjusting it.
+        if (openControls) MonitorPicked?.Invoke(monitor);
+        else MonitorSelected?.Invoke(monitor);
+    }
+
+    private int Neighbour(int index, Keys direction)
+    {
+        if (index < 0 || index >= _monitors.Count) return _monitors.Count == 0 ? -1 : 0;
+        // Use the same coordinate slots as the schematic. Physical centres
+        // would make a portrait neighbour appear to be below its aligned row.
+        var xs = _monitors.Select(m => m.Rect.Left).Distinct().Order().ToArray();
+        var ys = _monitors.Select(m => m.Rect.Top).Distinct().Order().ToArray();
+        var origin = _monitors[index];
+        int x = Array.IndexOf(xs, origin.Rect.Left), y = Array.IndexOf(ys, origin.Rect.Top);
+        bool horizontal = direction is Keys.Left or Keys.Right;
+        int sign = direction is Keys.Left or Keys.Up ? -1 : 1;
+        return _monitors.Select((m, i) =>
+        {
+            int dx = Array.IndexOf(xs, m.Rect.Left) - x, dy = Array.IndexOf(ys, m.Rect.Top) - y;
+            return new { Index = i, Forward = sign * (horizontal ? dx : dy), Across = Math.Abs(horizontal ? dy : dx), Distance = dx * dx + dy * dy };
+        }).Where(c => c.Forward > 0)
+          .OrderBy(c => c.Across == 0 ? 0 : 1).ThenBy(c => c.Distance).ThenBy(c => c.Across).ThenBy(c => c.Index)
+          .Select(c => c.Index).DefaultIfEmpty(index).First();
     }
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         if (e.Button == MouseButtons.Left) Pick(HitTest(e.Location));
     }
-    protected override bool IsInputKey(Keys keyData) => (keyData & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down || base.IsInputKey(keyData);
+    protected override bool IsInputKey(Keys keyData) => (keyData & Keys.Modifiers) == Keys.None &&
+        (keyData & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down or Keys.Home or Keys.End || base.IsInputKey(keyData);
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (_monitors.Count == 0) return;
-        if (e.KeyCode is Keys.Left or Keys.Up or Keys.Right or Keys.Down)
+        if (!CanPick || e.Handled || e.SuppressKeyPress || e.Modifiers != Keys.None || _monitors.Count == 0) return;
+        if (e.KeyCode is Keys.Left or Keys.Up or Keys.Right or Keys.Down or Keys.Home or Keys.End)
         {
-            int direction = e.KeyCode is Keys.Left or Keys.Up ? -1 : 1;
-            Pick((_selectedIndex + direction + _monitors.Count) % _monitors.Count);
-            Focus();
-            e.Handled = true;
+            int next = e.KeyCode == Keys.Home ? 0 : e.KeyCode == Keys.End ? _monitors.Count - 1 : Neighbour(_selectedIndex, e.KeyCode);
+            if (next != _selectedIndex) Pick(next, openControls: false);
+            e.Handled = e.SuppressKeyPress = true;
         }
-        else if (e.KeyCode is Keys.Enter or Keys.Space) { Pick(Math.Max(0, _selectedIndex)); e.Handled = true; }
+        else if (e.KeyCode is Keys.Enter or Keys.Space) { Pick(Math.Max(0, _selectedIndex)); e.Handled = e.SuppressKeyPress = true; }
     }
+    protected override void OnGotFocus(EventArgs e)
+    {
+        base.OnGotFocus(e);
+        Invalidate();
+        if (IsHandleCreated && _selectedIndex >= 0)
+            ((ControlAccessibleObject)AccessibilityObject).NotifyClients(AccessibleEvents.Focus, _selectedIndex);
+    }
+    protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
     protected override AccessibleObject CreateAccessibilityInstance() => new DeskAccessible(this);
     private sealed class DeskAccessible(LayoutMap owner) : ControlAccessibleObject(owner)
     {
         public override AccessibleRole Role => AccessibleRole.List;
         public override int GetChildCount() => owner._monitors.Count + 1;
         public override AccessibleObject GetSelected() => owner._selectedIndex >= 0 ? GetChild(owner._selectedIndex) : null;
-        public override AccessibleObject GetFocused() => owner.Focused ? GetSelected() : null;
+        public override AccessibleObject GetFocused() => owner._all.Focused ? owner._all.AccessibilityObject : owner.Focused ? GetSelected() : null;
+        public override AccessibleObject HitTest(int x, int y)
+        {
+            if (!owner.CanPick) return null;
+            var point = owner.PointToClient(new Point(x, y));
+            if (owner._all.Bounds.Contains(point)) return owner._all.AccessibilityObject;
+            int index = owner.HitTest(point);
+            return index >= 0 ? GetChild(index) : owner.ClientRectangle.Contains(point) ? this : null;
+        }
         public override AccessibleObject GetChild(int index) => index == owner._monitors.Count ? owner._all.AccessibilityObject
             : index >= 0 && index < owner._monitors.Count ? new DisplayAccessible(owner, index) : null;
     }
@@ -198,7 +254,7 @@ internal sealed class LayoutMap : Control
         private readonly Monitor _monitor;
         private int Index => _owner._monitors.IndexOf(_monitor);
         public DisplayAccessible(LayoutMap owner, int index) { _owner = owner; _monitor = owner._monitors[index]; }
-        public override string Name { get => $"{_monitor.DisplayName} ({_monitor.PositionLabel})"; set { } }
+        public override string Name { get => string.IsNullOrWhiteSpace(_monitor.PositionLabel) ? _monitor.DisplayName : $"{_monitor.DisplayName} ({_monitor.PositionLabel})"; set { } }
         public override AccessibleRole Role => AccessibleRole.ListItem;
         public override AccessibleObject Parent => _owner.AccessibilityObject;
         public override Rectangle Bounds
@@ -206,16 +262,21 @@ internal sealed class LayoutMap : Control
             get
             {
                 int index = Index;
-                if (index < 0 || _owner.IsDisposed) return Rectangle.Empty;
+                if (index < 0 || _owner.IsDisposed || !_owner.Visible) return Rectangle.Empty;
                 var boxes = _owner.Project();
                 return index < boxes.Count ? _owner.RectangleToScreen(Rectangle.Round(boxes[index])) : Rectangle.Empty;
             }
         }
-        public override AccessibleStates State => Index < 0 || _owner.IsDisposed ? AccessibleStates.Unavailable
+        public override AccessibleStates State => Index < 0 || !_owner.CanPick ? AccessibleStates.Unavailable
             : AccessibleStates.Selectable | AccessibleStates.Focusable |
-                (Index == _owner._selectedIndex ? AccessibleStates.Selected : AccessibleStates.None);
+                (Index == _owner._selectedIndex ? AccessibleStates.Selected | (_owner.Focused ? AccessibleStates.Focused : AccessibleStates.None) : AccessibleStates.None);
         public override string DefaultAction => "Select display";
         public override void DoDefaultAction() { if (!_owner.IsDisposed) _owner.Pick(Index); }
-        public override void Select(AccessibleSelection flags) => DoDefaultAction();
+        public override void Select(AccessibleSelection flags)
+        {
+            if (!_owner.CanPick || Index < 0 || (flags & (AccessibleSelection.TakeSelection | AccessibleSelection.TakeFocus)) == 0) return;
+            _owner.Pick(Index, openControls: false);
+            if ((flags & AccessibleSelection.TakeFocus) != 0 && _owner.CanPick && Index >= 0 && Index == _owner._selectedIndex) _owner.Focus();
+        }
     }
 }

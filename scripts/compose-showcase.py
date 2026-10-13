@@ -16,7 +16,7 @@ def sha256(path):
 
 
 def export(captures, output):
-    dirty = subprocess.check_output(["git", "status", "--porcelain", "--", "src", "test", "scripts/capture-showcase.ps1", "scripts/compose-showcase.py"], text=True)
+    dirty = subprocess.check_output(["git", "status", "--porcelain", "--", "src", "test", "Directory.Build.props", "scripts/capture-showcase.ps1", "scripts/compose-showcase.py"], text=True)
     if dirty:
         raise ValueError("Implementation and capture tools must be committed before exporting public evidence.")
     output.mkdir(parents=True, exist_ok=True)

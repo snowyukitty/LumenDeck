@@ -313,11 +313,28 @@ do not prove that every assistive client resolves or announces them correctly.
 ## Desk selector
 
 The schematic desk is a keyboard-focusable accessible list. Arrow keys change the
-selected display while retaining selector focus; Enter opens its principal control.
+selected display spatially while retaining selector focus; Enter opens its principal control.
 Each item exposes its display name, position, selected state, screen bounds and
 Select display action. All displays is a native checkbox. Stale items retain the old
 identity and become unavailable after discovery replaces it. The selected outline,
 written marker and card identity do not depend on colour alone.
+
+Selection and keyboard focus are separate, following Microsoft's
+[selection/focus contract](https://learn.microsoft.com/en-us/windows/win32/winauto/selection-and-focus-properties-and-methods).
+TakeSelection does not focus a slider; TakeFocus focuses the selected map item.
+None/RemoveSelection do not activate another screen. Disabled/hidden items reject
+actions, and hidden/stale items expose no actionable bounds. Screen-coordinate hit
+testing resolves the correct virtual item; GetFocused also reports the native All
+displays checkbox when appropriate. Entering a visible card updates selection.
+
+Native process/window-scoped WinEvent checks verify Selection and Focus events
+resolve to the correct one-based child ID, with no repeat selection announcement
+for an unchanged value. The accessible-object NotifyClients API takes a zero-based
+index and adds one; see the tagged
+[WinForms implementation](https://raw.githubusercontent.com/dotnet/winforms/v10.0.11/src/System.Windows.Forms/System/Windows/Forms/Accessibility/Control.ControlAccessibleObject.cs).
+Tests set native focus only on a private desktop and inject protected keyboard
+callbacks. They establish event delivery and object state, not Narrator speech or
+complete UI Automation pattern coverage.
 
 The contrast palette uses Windows system colours. Fixture checks inspect native
 accessible objects and render system-colour surfaces without changing the owner's

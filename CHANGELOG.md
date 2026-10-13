@@ -6,8 +6,8 @@ Notable changes, newest first. Format follows
 
 ## [Unreleased]
 
-The current development candidate is 1.3.0, including the native material
-refinement and optional Windows Mica title bar. It remains a test candidate
+The current development candidate is 1.4.0, including the desk remote,
+spatial keyboard navigation and optional Windows Mica title bar. It remains a test candidate
 until release acceptance is complete.
 
 ### Added
@@ -29,6 +29,13 @@ until release acceptance is complete.
   notification icon's tooltip includes it. The header gives way in short windows.
 
 ### Changed
+
+- Arrow keys on the desk schematic follow screen positions, prefer aligned
+  neighbours and stop at edges. Home/End select the first/last screen; Enter or
+  Space explicitly opens its controls. All displays tracks the focused card.
+- Selector accessibility distinguishes selection from focus, rejects hidden or
+  disabled activation, and sends native events with the correct child identity.
+- Portable quickstart instructions describe the shared reflowing desk remote.
 
 - Refined the development interface with stronger display headings, restrained
   surface highlights and shadows, quiet help/settings commands, section rules

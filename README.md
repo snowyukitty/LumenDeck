@@ -80,7 +80,9 @@ available. A short window gives the command area its own scrolling viewport.
 Identify, Connection help and Settings stay available beside the selector.
 
 Click a display to focus its brightness or available warmth control. The selector
-also supports arrows and Enter; **Ctrl + Page Up / Page Down** moves between
+also supports spatial arrows (without edge wrapping), Home/End, and Enter to
+open controls. In All displays, the map follows the card you focus.
+**Ctrl + Page Up / Page Down** moves between
 displays while preserving the current control where available. Exact entry and
 one-unit keyboard adjustments keep the hardware's native range.
 

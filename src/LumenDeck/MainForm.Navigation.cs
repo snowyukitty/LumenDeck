@@ -34,6 +34,16 @@ internal partial class MainForm
         return matches.Length == 1 && matches[0].CanSelect ? matches[0] : null;
     }
 
+    private void SelectDisplay(Monitor monitor)
+    {
+        if (_reallyClosing || IsDisposed || Disposing || !Visible || !Enabled ||
+            WindowState == FormWindowState.Minimized || !CanAdjustDisplays ||
+            !_cards.Any(c => !c.IsDisposed && c.Monitor == monitor)) return;
+        _scanFocus?.CancelRecovery();
+        _selectedMonitorKey = monitor.StableKey;
+        ApplyDisplayView();
+    }
+
     private void PickDisplay(Monitor monitor)
     {
         if (_reallyClosing || IsDisposed || Disposing || !Visible || !Enabled ||

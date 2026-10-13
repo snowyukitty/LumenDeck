@@ -24,6 +24,15 @@ desk actions; DeskRemoteChecks explicitly opts into the production default.
 
 See [showcase](../docs/showcase.md) for capture receipts and exported dimensions.
 
+The same focused suite includes spatial arrow navigation across aligned and offset
+four-screen desks, no edge wrapping or transient slider focus, Home/End, exact
+modifier ownership, Enter-to-adjust, All displays focus synchronization, disabled/
+hidden accessibility actions, screen-coordinate hit testing and selection flags.
+Process/window-scoped native WinEvent hooks check the exact child identity and
+suppress duplicate selection announcements. Native focus is set on the private
+desktop only. Reentrant selection can replace the desk safely. No real keyboard
+input, hardware writes or screen-reader speech is claimed.
+
 Capability parsing and extra-control value labels, using in-memory data only:
 
 ```powershell
@@ -706,16 +715,16 @@ scrolling every visible slider/action on the final card fully into view.
 The 240-pixel rule is a map visibility trigger, not a guaranteed minimum viewport.
 These checks use the host's current DPI; they do not establish mixed-DPI behavior.
 
-To refresh the public development preview after inspecting the generated PNG:
+The older lifecycle renders above remain diagnostic artifacts. To refresh public
+development images, use the committed source-bound capture procedure:
 
 ```powershell
-Copy-Item -LiteralPath <output-directory>/main-window-780-1000.png -Destination docs/assets/screenshot.png
-Copy-Item -LiteralPath <output-directory>/main-window-780-1000.json -Destination docs/assets/screenshot.json
+powershell -NoProfile -File scripts/capture-showcase.ps1
 ```
 
-The adjacent JSON records the synthetic fixture, assembly version, client/outer
-dimensions, DPI and rendering method. Its version describes a working-tree build;
-it is not proof that the image corresponds to a released artifact. The fixture
+The adjacent JSON records the synthetic fixture, immutable source commit, assembly
+hashes, client/outer dimensions, DPI and rendering method. It describes a development
+build, not a released artifact. The fixture
 is injected before MainForm construction and uses temporary settings and fake
 transport/registration callbacks. Preview rendering does not discover or rename
 the user's displays, read their profiles, register startup or adjust monitors.

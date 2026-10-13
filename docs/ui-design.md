@@ -16,6 +16,12 @@ and returns above the detail at compact sizes. The selector never vanishes merel
 to make the window fit. The brand header yields first.
 
 All displays reveals the same cards, preserving an efficient multi-display workflow.
+Entering a card synchronizes the map selection; returning to the single-display
+view keeps that screen and control. Spatial arrows prefer a neighbour in the same
+schematic row/column, then the nearest candidate in the requested half-plane.
+Ties use displayed order. Edges stop; Ctrl+Page Up/Down remains the wrapping route.
+Home/End use layout order. Arrow selection never transiently enters a slider;
+Enter/Space or a pointer click explicitly opens the selected screen's controls.
 Ctrl+Page Up/Down navigates across every card in either mode. Selection survives
 rebuilds by StableKey, while callbacks and observations remain bound to the exact
 Monitor object for that discovery generation. Background completion does not focus
