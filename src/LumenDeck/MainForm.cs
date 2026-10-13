@@ -1124,6 +1124,9 @@ internal partial class MainForm : Form
         finally
         {
             _list.ResumeLayout(true);
+            // The first pass can retain the previous width in FlowLayout's
+            // virtual extent after a resize; settle it once with pinned cards.
+            _list.PerformLayout();
             _layingOutCards = false;
         }
     }

@@ -47,14 +47,22 @@ internal static partial class Program
                         "principal control can display both range endpoints, including Kelvin");
                     Assert(primary.AccessibilityObject.DefaultAction == "Enter exact value", "principal value exposes exact entry to automation clients");
                     var list = Private<FlowLayoutPanel>(form, "_list");
+                    Assert(!list.HorizontalScroll.Visible,
+                        $"selection and resize leave no horizontal scroll: count={count}, size={size}, virtual={list.DisplayRectangle}, client={list.ClientRectangle}, cards={string.Join("; ", cards.Select(c => $"{c.Visible}:{c.Bounds}"))}");
                     Assert(list.ClientRectangle.Contains(new Rectangle(list.PointToClient(primary.PointToScreen(Point.Empty)), primary.Size)), $"selected principal control fits the usable viewport: count={count}, size={size}, dpi={form.DeviceDpi}, list={list.ClientSize}, bar={Private<DeskCommandBar>(form, "_bar").Size}, max={Private<DeskCommandBar>(form, "_bar").MaximumSize}, primary={primary.Bounds}");
                 }
                 PickMapDisplay(form, 0);
+                var captureList = Private<FlowLayoutPanel>(form, "_list");
+                Assert(!captureList.HorizontalScroll.Visible, $"repeated selection has no stale horizontal extent: {captureList.DisplayRectangle}");
+                Assert((GetWindowLong(captureList.Handle, -16) & 0x00100000) == 0,
+                    $"native window style has no horizontal scrollbar: {captureList.ClientSize}, style={GetWindowLong(captureList.Handle, -16):X}");
                 if (renderDirectory != null)
                 {
                     using var image = new Bitmap(form.Width, form.Height);
                     form.DrawToBitmap(image, new Rectangle(Point.Empty, form.Size));
+                    Assert(!captureList.HorizontalScroll.Visible, $"capture preserves scroll layout: {captureList.DisplayRectangle}");
                     image.Save(Path.Combine(renderDirectory, $"desk-{count}-{size.Width}-{size.Height}.png"));
+
                 }
             }
             Assert(fixture.Transport.Writes == 0, "selection, accessibility reads and capture never write hardware");
@@ -253,5 +261,8 @@ internal static partial class Program
     {
         public void Dispose() { foreach (var font in this) font.Dispose(); }
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr window, int index);
 
 }
