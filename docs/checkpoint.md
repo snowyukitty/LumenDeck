@@ -1,99 +1,78 @@
 # Current checkpoint
 
-Updated 2026-10-13. Version 1.3.0 includes the native interface refinement and
-optional Mica title bar and is installed for owner testing. Its exact source,
-archive and build identity are in [release readiness](release-readiness.md). This is
-a source handoff, not a GitHub release announcement.
+Updated 2026-10-13. This checkpoint is the desk-remote development upgrade on
+`feat/desk-remote`, based on the clean `main` source `435a62d`. The dated
+`feat/night-desk` checkout and uncommitted `.gitignore` observation did not match
+this task's starting state. No unrelated work was reset or discarded.
 
 ## Delivered behavior
 
-- Mixed-DPI movement batches font/size changes before measuring commands and
-  cards. Native 100%/125% crossings improved from 2.4–3.3 seconds to approximately
-  0.3–0.6 seconds on the test host, with bounded layout counts and stable repeated
-  dimensions. See [DPI repair evidence](cross-display-dpi.md).
-- Clicking a desk-map display aligns its adjustment area and selects its brightness
-  bar, or warmth when brightness is unavailable. Repeated selections realign the
-  viewport. Adjustment keys then affect the selected display. Focus callbacks
-  that start a scan cannot apply stale navigation or overwrite the scan status.
-- The native interface uses larger display headings, shaded slate cards with
-  cached surfaces, quiet help/settings commands, framed amber/neutral readouts
-  and a sunken desk-map well. Primary focus and pressed feedback are distinct;
-  unavailable sliders have no misleading value fill. Empty positions have no
-  chip. Minimum-size and narrow-window layouts preserve wrapping and scrolling.
-- The optional Windows 11 Mica title bar is off by default and activates only
-  after its setting is saved. Content remains opaque; disabling clears the DWM
-  request and refused persistence preserves the previous frame. This changes no
-  monitor values, gamma or startup registration.
-- Night saver dims the work display toward the configured Night target only when
-  initially brighter, including a kept primary display. Recovery is saved before
-  changing brightness. Restore, exit, Refresh and newer manual brightness choices
-  preserve the documented recovery and takeover behavior.
-- The current source also includes editable preset targets, the opt-in schedule,
-  exact slider entry, background settings saves, offline reference windows and
-  privacy-conscious support reports. See [README](../README.md) and
-  [interface design](ui-design.md).
+- Native selected-display workspace with a keyboard-accessible schematic selector,
+  explicit selection outline/marker, repeated display identity and capability summary.
+- Larger principal supported adjustment; unsupported brightness stays explained and
+  warmth becomes principal. Exact hardware entry and precision keys remain available.
+- One-action All displays mode retains the existing repeated multi-monitor workflow.
+  Stacked desks can use the shared selector at the side; compact windows reflow it above.
+- Desk-wide presets, warmth restoration and Night saver are secondary. Active Night
+  saver keeps recovery available; individual blackout retains separate restoration.
+- Requested, last observed, pending, matching readback, failed and unconfirmed values
+  remain bound to monitor identity. WMI acceptance alone never claims readback.
+- Native selector accessibility and exact-entry actions; system-colour contrast palette.
+  Existing tray, settings, profiles, schedule, gamma baseline and raw recovery paths stay.
+- Repeatable native captures, a full-window 1200x750 portfolio image and real 480x300 /
+  320x200 derivatives. README disclosure still identifies fictitious development displays.
+
+Implementation commits are `0165fec` and `958433c`; captures are bound to `958433c`.
+The source and image hashes are in [the capture receipt](assets/screenshot.json).
+See [UI design](ui-design.md), [architecture](architecture.md), [display I/O](display-io.md)
+and [capture procedure](showcase.md) for contracts and verification boundaries.
 
 ## Verification
 
-Solution and both test projects build in Release with warnings treated as errors:
-zero warnings and errors. The full suites pass 4,230 ControlTests and 1,767
-AppTests. The navigation regression was reproduced before the fix. Focused checks
-pass 236 navigation checks, 45 night-saver checks and 14 work-display dim checks.
+The Release solution and both test projects build with warnings treated as errors.
+Full ControlTests passes 4,558 checks; full AppTests passes 2,094 checks. The final
+source-bound capture run passes 339 focused desk-remote checks. Tests use isolated settings, fake display
+transport and private desktops; no physical brightness, gamma, power or blackout
+operation was authorized or performed for this upgrade.
 
-Actual native renders were inspected for the regular and minimum-size main window,
-map-selected card, narrow long-name card, 200% command layout and button states.
-Rendering uses synthetic displays and temporary settings. The 64 focused DPI
-checks include six native 100%/125% crossings on a private desktop and inspected
-destination-DPI renders. Continuous foreground pointer dragging, physical display
-control, other DPI combinations and screen-reader output remain manual acceptance.
-The material-verification run's six DPI transitions took 0.48-0.63 seconds, with 19-20
-command layouts and 176 card layouts per transition and stable repeated dimensions.
-Source-path privacy checks pass for all three product assemblies and injected
-UTF-8/UTF-16/JSON-escaped canaries. Mica tests prove DWM intent, persistence and
-unchanged opaque client rendering; composited wallpaper appearance remains manual.
-Hosted CI exposed an assumption that a transport write meant the rebuild's
-background settings save had finished. The modal lifecycle scenario now holds
-that save explicitly, verifies pending-close preservation, then verifies the
-original full cleanup assertions after the confirmed save. The focused profile
-lifecycle checks pass 108 assertions.
-Mica side-effect checks explicitly finish the independent initialization save
-before recording gamma/transport/startup counters. This preserves the zero-write
-assertion without allowing a delayed startup checkpoint to contaminate it.
+The fixture matrix covers 1/2/4 displays, mixed capabilities, ordinary/minimum/wide
+windows, stacked orientation, keyboard selection, exact-value access, pending writes
+while switching selection, failed/unconfirmed results, reconnect identity, stale
+accessible items, restore access and disposal. Existing lifecycle suites cover scanning,
+no displays, discovery failure, interrupted restoration, settings, CLI preflight, tray,
+overlays, shortcuts and resource cleanup. Native WS_HSCROLL assertions supplement
+managed scroll properties after pixel review reproduced a stale scrollbar.
 
-## Distribution and repository state
+100/150/200% layout evidence uses synthetic DPI messages and owned scaled fonts on a
+96-DPI private HDC. It is not a claim of physical 150/200% monitor acceptance. Existing
+native 100/125% crossings also pass, with no foreground activation or monitor writes.
+CLI help/version and release source-path privacy/canary checks pass.
 
-The source snapshot `e34bffc` produces the verified 1.3.0 Windows x64 portable
-candidate in release readiness. Package and installer regressions pass. The
-owner-profile GUI/CLI now match that exact payload, and Desktop/Start Menu
-shortcuts target the installed GUI. Installed CLI help/version pass; all three
-application JSON files kept their pre-install hashes before normal startup. The
-previous installed/publish binaries, both shortcuts and JSON files were preserved
-as a private local backup. No old app was running during replacement. The installed
-1.3.0 window was opened, visible and responding, with no new startup error log.
+The complete native captures and the two derivatives were inspected as actual PNGs.
+The selector and principal value remain understandable at 480x300; the screen shapes,
+selection and adjustment hierarchy remain identifiable at 320x200. No UI was painted
+into an editor and no portrait image was stretched into the landscape card.
 
-The source and documentation checkpoint is published to GitHub `main`.
-The private development history remains local; the public checkpoint begins
-from the previous public main and includes the current implementation, tests and
-maintainer-facing documentation. Inspect the actual
-[build workflow](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml)
-for hosted results. No release or tag is created by this checkpoint.
+## Distribution and remaining acceptance
 
-## Remaining acceptance
+This is a local source/build delivery. The earlier installed 1.3.0 candidate documented
+in [release readiness](release-readiness.md) is not replaced by this task. No release,
+tag, hosted deployment or remote push is created. Use the Release build adjacent to
+its output DLLs for the new application; capture and tests use the same GUI assembly.
 
-Before publishing downloadable release assets, complete physical Night saver,
-restore/hot-plug/crash recovery, real keyboard/focus, continuous dragging,
-other DPI combinations and screen-reader acceptance. Clean-machine download,
-separate-profile install/update/uninstall and
-exact-file unsigned-download/security acceptance remain separate requirements.
-No independent whole-app approval or physical display pass is claimed.
+Physical hardware acceptance remains separate: real Night saver/blackout restoration,
+DDC/WMI/gamma behavior, hot-plug/crash recovery and emitted-light results require a
+concrete authorized test with preserved initial state and verified restoration.
+Narrator announcements, actual Windows contrast-theme switching and foreground
+150/200% mixed-DPI dragging remain manual acceptance. Fixture palette/automation
+property tests are not reported as those human checks. Packaging/installation and
+clean-machine release acceptance remain the previous separate release requirements.
 
 ## Resuming
 
-Read this page and the candidate identity in release readiness first. Use the
-installed source-bound 1.3.0 candidate for owner acceptance. Inspect the
-worktree and any active project lease, preserve unrelated edits and stage explicit
-paths. Use the verified source-bound binaries for further acceptance. The next
-work is physical display/reader acceptance and clean-machine release readiness,
-then an explicitly authorized release.
-Rebuild and record a new candidate if
-product or packaged content changes.
+Read this checkpoint and the capture receipt. Preserve the branch and explicit path
+scope; the implementation and capture tool commits precede the documentation/artwork
+commit so each image names an immutable implementation source. Rerun the capture
+script after any UI change and inspect native thumbnail pixels before updating the
+receipt. Work is scoped to this repository; the IconFlow source was read-only.
+The project lease is released at handoff.

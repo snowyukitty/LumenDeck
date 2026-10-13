@@ -34,15 +34,17 @@ lumendeck-cli -m "left" -b 55 -w 5000
 ```
 
 <p align="center">
-  <img src="docs/assets/screenshot.png" alt="LumenDeck development build with Settings, a desk map and two fictitious monitor cards: brightness estimates, contrast availability, warmth, blackout and per-monitor presets" width="620">
+  <img src="docs/assets/screenshot.png" alt="LumenDeck desk remote: two schematic fictitious displays, Studio 27 selected, a readable 62% brightness value and secondary contrast, warmth and recovery controls" width="1000">
 </p>
 
-<p align="center"><sub>Actual window rendered from development source <code>e34bffc</code>,
-using two fictitious displays; released versions may differ.
-<a href="docs/assets/screenshot.json">Render details</a>.<br>
-62% and 45% calculate <b>estimated 203 and 160 nits</b> from generic profiles.
-The app does not measure light. The portrait fixture has no contrast support.<br>
-Optional Windows 11 Mica title-bar composition is not captured in this preview.</sub></p>
+<p align="center"><sub>Actual native window from a development build with fictitious displays;
+released versions may differ. The desk diagram is schematic, not to scale.<br>
+62% gives an <b>estimated 203 nits</b> from a generic profile; the app does not measure light.
+Warmth is a gamma tint target. The second fixture has no contrast support.<br>
+<a href="docs/assets/screenshot.json">Source and capture receipt</a> ·
+<a href="docs/showcase.md">Repeat the capture</a> ·
+<a href="docs/assets/portfolio-1200x750.png">Portfolio image</a>.
+DWM-composited Mica is not captured.</sub></p>
 
 ---
 
@@ -59,28 +61,39 @@ Optional Windows 11 Mica title-bar composition is not captured in this preview.<
 | **Night saver** | Keep one work display on and dim it toward your Night target; darken all other displays with one click, then restore their saved brightness |
 | **Precise adjustment** | Click a slider's value or press F2 to enter an exact value; arrows adjust one hardware unit, Shift adjusts ten |
 | **Additional advertised controls** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, factory reset — availability and behavior depend on the monitor |
-| **Desk map** | A scale drawing of your actual monitor layout; click a screen to jump to it |
+| **Desk map** | A schematic of your screen positions and orientations; select a screen with the mouse or keyboard |
 | **Identify** | Puts each monitor's name on its own glass |
 | **Laptop panels** | Internal displays via `WmiMonitorBrightnessMethods` |
 | **Command line** | Scriptable, with JSON output and meaningful exit codes |
 | **Tray app** | Lives in the notification area; optional start-with-Windows |
 
-Desk commands are grouped into **All monitors**, **Display tools** and **Night
-desk**. The groups wrap as the window narrows, keeping actions reachable without
-forcing a wide window. The work-display label and selector move together.
-Short windows automatically hide the desk map to leave room for scrollable
-monitor cards; it returns when there is space. Identify remains available.
-Monitor cards also wrap long names, screen shortcuts and per-monitor presets
-within their available width.
-Clicking a display on the desk map aligns its card's adjustment area and focuses
-its brightness bar, or warmth when brightness is unavailable. Keyboard adjustment
-then applies to that selected display.
-The development interface uses layered slate cards, stronger display headings,
-quiet help/settings commands and framed amber readouts. Contrast stays neutral,
-and the focused card retains an amber edge and marker. **Settings > Use Windows
-Mica title bar** optionally adds the Windows 11 title-bar material; the content
-stays opaque and older systems keep the slate frame. See the
-[interface design notes](docs/ui-design.md).
+LumenDeck works as a **desk remote**: choose a screen, adjust its supported
+controls, check the result, and restore when needed. The schematic selector and
+selected control header repeat the display identity. Brightness gets the principal
+readout; when unavailable, warmth gets the larger control and brightness keeps an
+explanation. A stacked desk can use a side selector in a wider window.
+
+**All displays** reveals every monitor card for repeated adjustments. The same
+components reflow at smaller widths. **Desk actions…** opens desk-wide presets,
+warmth restoration and Night saver; active Night saver keeps its recovery group
+available. A short window gives the command area its own scrolling viewport.
+Identify, Connection help and Settings stay available beside the selector.
+
+Click a display to focus its brightness or available warmth control. The selector
+also supports arrows and Enter; **Ctrl + Page Up / Page Down** moves between
+displays while preserving the current control where available. Exact entry and
+one-unit keyboard adjustments keep the hardware's native range.
+
+Brightness distinguishes its **requested value**, **last observed value**, pending
+readback, matching readback and unconfirmed/failed requests. Contrast requests
+also expose their observation state. Readback is a reported hardware value, not
+a light measurement; WMI write acceptance alone remains unconfirmed. Switching
+selection never transfers a pending result to another screen. Warmth remains an
+explicitly labeled gamma tint target, and estimated nits stay secondary.
+
+Charcoal and amber remain the default. Windows contrast themes use system
+foregrounds and surfaces. The optional **Settings > Use Windows Mica title bar**
+remains available; see the [interface design notes](docs/ui-design.md).
 Moving between monitors with different scaling batches DPI layout to avoid
 repeated card measurement and command-bar flickering; see the
 [repair and verification notes](docs/cross-display-dpi.md).
@@ -176,7 +189,7 @@ exactly like success.
 
 LumenDeck labels monitors by **model and physical position**, keys saved settings
 on **EDID identity** (falling back to the physical port when two panels are truly
-identical), draws your desk to scale, and has its own **Identify**.
+identical), shows your desk schematically, and has its own **Identify**.
 
 ---
 

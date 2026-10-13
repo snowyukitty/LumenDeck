@@ -1,49 +1,74 @@
-# Native interface design
+# Native desk remote
 
-The development interface uses a restrained slate palette and warm amber accents.
-The desktop surface, command area and monitor cards have separate tonal levels.
-Cards use larger display names, a subtle vertical gradient, a fading inner rim,
-an inset shadow and a divider below the display identity. This is opaque material
-shading, not desktop blur or transparency.
-The shared theme owns colors and fonts, so reference windows and editors use
-the same visual vocabulary as the main window.
+The primary sequence is screen identity, supported adjustment, observed result,
+and recovery. The native WinForms architecture, Core/GUI/CLI boundary and tray
+remain intact. Existing brand assets are unchanged.
 
-On the lightest card surface, muted text has a calculated contrast ratio of
-6.47:1 and secondary text 4.97:1. Primary-button text is 8.87:1 against amber
-and 6.69:1 against its distinct pressed surface.
-These token calculations complement native render inspection; they do not
-establish a full accessibility audit or high-contrast-mode compatibility.
+## Hierarchy and reflow
 
-Brightness and warmth use amber tracks; contrast uses a neutral track. Every
-slider has a framed value readout, a small grip and an explicit focus ring.
-Readouts use amber for brightness/warmth and neutral text for contrast. Hovering
-a readout highlights its frame and shows the hand cursor for exact entry.
-Unavailable sliders show an empty neutral track and a dash, alongside the existing
-availability explanation. Their accessible state still reports the unavailable control.
-The desk map preserves physical layout and adds a small brightness rail inside
-each display. A sunken well separates the map from the commands; selection uses
-a stronger outline than hover. Unsupported brightness uses only neutral shading.
+The default shows one selected MonitorCard. The schematic selector keeps relative
+left/right and above/below positions and portrait/landscape cues. Equalized slots
+make it explicitly non-metric; neither tile fill nor geometry simulates emitted
+light. Selection has a strong outline and a written SELECTED marker. Names wrap
+inside taller tiles; the caption and control header retain the complete identity.
+A vertically stacked desk uses a 220-DIP side selector when the window has room,
+and returns above the detail at compact sizes. The selector never vanishes merely
+to make the window fit. The brand header yields first.
 
-Clicking a map display aligns its adjustment area and selects its brightness
-control, or warmth if brightness is unavailable. Cards with native input focus
-retain an amber edge and side marker. Keyboard navigation keeps the current
-control type when possible. Selecting or rendering controls does not request
-hardware changes; adjustment keys and direct gestures retain their existing
-input ownership, exact-entry and accessibility behavior.
+All displays reveals the same cards, preserving an efficient multi-display workflow.
+Ctrl+Page Up/Down navigates across every card in either mode. Selection survives
+rebuilds by StableKey, while callbacks and observations remain bound to the exact
+Monitor object for that discovery generation. Background completion does not focus
+a control or activate the window.
 
-The header uses stronger name typography, a quiet version chip and a secondary
-descriptor when width permits. It yields in short windows. Command captions
-and actions are separated by fine rules; secondary buttons have a subtle top
-highlight. Connection help and Settings use quiet buttons that reveal their
-surface on hover, preserving keyboard focus and the full hit target. Primary
-buttons use a dark focus ring against amber and a distinct pressed color.
-Informational blackout notes are neutral; caution chips add an outline and a
-visible exclamation mark. Chip sizes and slider fonts follow their scaled control
-fonts. The header caches its sized icon and owns its derived metadata font.
-Each card caches one current surface by size, focus/highlight, DPI and header
-geometry; transparent children reuse it instead of rebuilding the material.
-Empty position labels produce no chip. Paint resources and replaced caches are
-disposed; there is no new animation loop.
+Brightness has the principal readout. Unsupported brightness stays explained;
+warmth becomes principal instead. Readout width measures endpoint strings, including
+Kelvin. Contrast, warmth, profile editing, per-display presets and blackout stay
+accessible below. Extra advertised controls retain their existing disclosure.
+The header repeats name, position and capability summary. Estimated nits remain
+secondary and explicitly estimated. Warmth is a gamma tint target, never a measured
+colour preview.
+
+Identify, Refresh, Connection help and Settings remain visible. Desk actions expands
+desk-wide presets, warmth restoration and Night saver. Active Night saver reveals
+its recovery section even when other desk actions are collapsed. At short heights
+the command area scrolls independently, preserving the adjustment viewport. Individual
+blackout and Night saver still own separate recovery snapshots and restoration paths.
+
+## Evidence and accessibility
+
+DdcWorker keeps a locked per-monitor/per-feature observation alongside its existing
+ordered request model: requested value, last observation and pending/confirmed/
+unconfirmed/failed state. Matching DDC readback is confirmation of a reported value,
+not measured light. Accepted WMI writes remain unconfirmed. Superseded requests cannot
+commit observations; rescan discards the old observation generation. Recovery does not
+claim WMI readback it did not perform. The UI timer reads these snapshots without I/O
+and is disposed with its card. Existing persistent failure notices remain independent.
+
+The selector participates in Tab order, supports arrows/Enter and exposes a list with
+named selectable items and activation actions. Stale accessible items become unavailable
+instead of targeting replacement displays. Sliders retain native hardware units and
+keyboard precision and expose exact entry as an accessible default action.
+Windows contrast mode uses system foreground/background tokens rather than amber as
+the sole signal. Contrast palette construction is fixture-tested; live Narrator output
+and Windows contrast-theme switching remain manual acceptance, not inferred from a
+property check. No automatic light/dark theme tracking is added.
+
+The theme shares fonts. Paint paths and temporary brushes are disposed; cards cache
+one current surface including contrast state. Each card disposes its observation timer,
+ToolTip and cached bitmap. Tests also retain the existing repeated rebuild/disposal,
+DPI transition, shortcut, overlay, settings and tray lifecycle coverage.
+
+Selection settles FlowLayout's virtual extent and resets native scrolling in the
+single-display view. A regression test checks both HorizontalScroll.Visible and
+Windows' WS_HSCROLL style: the managed property alone missed a stale native scrollbar
+after a wide-to-narrow resize followed by repeated selection. This was caught in
+pixel review, reproduced, and repaired before the final captures.
+
+The source-bound capture procedure and actual-size review are in [showcase](showcase.md).
+100/150/200% fixture renders replay native DPI layout and explicitly scale fonts for
+the isolated 96-DPI HDC. They are simulated DPI proofs, not a claim of physical monitor
+acceptance. Existing native 100/125% crossing checks remain separate.
 
 ## Windows material
 

@@ -95,3 +95,14 @@ locally verified candidates and published releases are distinct; consult the
 and [Releases](https://github.com/snowyukitty/LumenDeck/releases) for published app
 files. A passing build or synthetic test does not authorize a release or prove
 physical monitor compatibility.
+
+## Desk remote presentation
+
+MainForm.Navigation owns selected StableKey and the All displays view. LayoutMap
+owns schematic geometry and accessible selection, not hardware operations. Selection
+shows/hides existing MonitorCards; it never rebinds one shared editor to another
+monitor while a request is pending. DdcWorker.Observe returns immutable snapshots
+under its queue lock, keeping requested and observed values distinct without changing
+write ordering. MonitorCard's owned timer reads snapshots only; callbacks and failure
+notices still use the original Monitor object. DeskCommandBar groups desk-wide actions
+behind disclosure and keeps active Night saver recovery visible.

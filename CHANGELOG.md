@@ -12,6 +12,14 @@ until release acceptance is complete.
 
 ### Added
 
+- Desk remote presentation: selected-display detail, keyboard-accessible schematic
+  selector, a stacked-desk side layout and one-action All displays mode.
+- Principal supported adjustment with a larger exact-entry readout, and explicit
+  requested/observed/pending/readback/unconfirmed/failure information. Accepted WMI
+  writes are not presented as confirmed readback.
+- Source-bound native screenshots, 1200x750 portfolio artwork and inspected
+  480x300/320x200 derivatives, generated from isolated fictitious displays.
+
 - **Settings > Use Windows Mica title bar** optionally requests the native
   main-window material on Windows 11 22H2 or later. The setting is off by default,
   activates after a successful save and leaves the client opaque. Unsupported

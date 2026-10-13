@@ -77,3 +77,19 @@ selected contention, freshness, restore, observation, lifecycle and failure
 schedules. They do not establish native hardware compatibility, Narrator or
 complete WinForms dispatch/disposal behavior. Run the real-monitor acceptance
 checks before declaring a hardware-verified release.
+
+## Presentation observations
+
+Observe returns an immutable snapshot under the same queue lock: Requested,
+LastObserved and Observed/Pending/Confirmed/Unconfirmed/Failed. These snapshots
+are keyed by Monitor reference plus feature/code, never the selected UI index.
+Enqueue preserves the last observation before publishing its optimistic model value.
+Matching DDC readback updates both; a mismatch preserves the request and records the
+actual read value. An accepted WMI write has no matching readback and stays unconfirmed,
+including restoration. Superseded request completions cannot update snapshots.
+ClearPending clears the observation generation during discovery replacement.
+
+The GUI's disposed-with-card timer only reads this state. The existing failure event
+and persistent notice remain separate, so later requests do not erase failure history.
+This adds no transport reads, retries or new hardware operations. It does not change
+per-monitor write ordering, gamma composition or saved raw restoration values.

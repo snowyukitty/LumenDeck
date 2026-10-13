@@ -1,5 +1,9 @@
 # Release readiness
 
+> The desk-remote development source is newer than the installed candidate recorded
+> below. This task does not replace that installation or publish a release.
+> See [current checkpoint](checkpoint.md) for the new source and verification.
+
 Updated 2026-10-13. Version 1.3.0 is a verified source checkpoint and a local
 installation candidate. This page records executable evidence separately from
 public release approval.

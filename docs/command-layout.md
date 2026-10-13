@@ -59,3 +59,13 @@ geometry/font simulations cover 100/150/200%; optional PNG output permits
 visual inspection. These are caller tests, not independently executed reviewer
 tests. Physical DPI transitions, reader announcements and real monitor behavior
 remain separate acceptance work.
+
+## Desk remote disclosure
+
+The actual main window starts with desk-wide preset and Night saver groups collapsed.
+Desk actions toggles them; active Night saver keeps its recovery row available. The
+standalone command component defaults expanded for complete layout checks. MainForm
+caps its height in short windows and enables native scrolling. Its maximum width is
+explicitly unbounded: a zero width in MaximumSize caused dock layout to collapse the
+bar on the test runtime. All-display lifecycle tests deliberately expand commands;
+DeskRemoteChecks separately covers the production default and compact recovery access.

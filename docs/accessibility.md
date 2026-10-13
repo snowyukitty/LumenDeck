@@ -15,8 +15,8 @@ describes a requested tint, not a measured colour temperature.
 Slider value changes notify assistive clients, including programmatic
 synchronization. Synchronization still raises no adjustment callback; readers
 do not cause another monitor request. Unchanged effective values do not emit
-value-change events. No automation value setter or UIA RangeValue pattern is
-added. Accessible descriptions alone do not establish screen-reader acceptance.
+value-change events. Sliders expose Enter exact value as their default accessible action. No automation
+value setter or UIA RangeValue pattern is added. Accessible descriptions alone do not establish screen-reader acceptance.
 
 ## Command activation
 
@@ -309,3 +309,17 @@ These checks do not operate physical monitors, change registration, copy data,
 or run a screen reader. Narrator/NVDA/JAWS, mixed DPI, user-driven dialog keyboard
 acceptance and complete Tab navigation remain acceptance work. Native events reaching a hook
 do not prove that every assistive client resolves or announces them correctly.
+
+## Desk selector
+
+The schematic desk is a keyboard-focusable accessible list. Arrow keys change the
+selected display while retaining selector focus; Enter opens its principal control.
+Each item exposes its display name, position, selected state, screen bounds and
+Select display action. All displays is a native checkbox. Stale items retain the old
+identity and become unavailable after discovery replaces it. The selected outline,
+written marker and card identity do not depend on colour alone.
+
+The contrast palette uses Windows system colours. Fixture checks inspect native
+accessible objects and render system-colour surfaces without changing the owner's
+Windows settings. Narrator announcements and actual contrast-theme switching remain
+manual acceptance. These checks do not establish a complete accessibility audit.
