@@ -1,12 +1,35 @@
 # Release readiness
 
-> The desk-remote development source is newer than the installed candidate recorded
-> below. This task does not replace that installation or publish a release.
-> See [current checkpoint](checkpoint.md) for the new source and verification.
+## 1.4.0 desk-remote development candidate
 
-Updated 2026-10-13. Version 1.3.0 is a verified source checkpoint and a local
-installation candidate. This page records executable evidence separately from
-public release approval.
+Updated 2026-10-13. Source `4e27b377b8696d41d167e7a49705ca8612291df0` produces the new
+native desk remote and spatial keyboard navigation. It is a local portable
+candidate and source checkpoint, not an approved published release or replacement
+of the older installation below.
+
+| Item | Recorded value |
+| --- | --- |
+| GUI and CLI build | `1.4.0+4e27b377b8696d41d167e7a49705ca8612291df0` |
+| Package | `LumenDeck-1.4.0-win-x64.zip` |
+| SHA-256 | `0cbc46c6c3cb0dc844730baee54eee35ac162c192fc5a1eafc5a0c616b691e59` |
+| Distribution | Self-contained Windows x64 GUI and CLI |
+| File version | `1.4.0.0` for both executables |
+| Verification | Release warnings-as-errors build; 4,558 ControlTests; 2,140 AppTests; 385 native capture checks |
+
+Extracted-package validation passes the file allowlist, hashes, matching build
+versions, mapped source paths, standalone CLI and synthetic GUI startup with
+SDK/runtime lookup removed. The package regression suite also checks malformed
+archives, install inputs, isolated state preservation and bounded bundle parsing.
+No real monitor operation or installed-app replacement is part of those probes.
+See [current checkpoint](checkpoint.md) for the local artifact path and remaining
+hardware, screen-reader and clean-machine acceptance. The README preview is bound
+to this source, with fictitious monitors disclosed in its caption.
+
+## Previously installed 1.3.0 candidate
+
+The following historical record describes the earlier installed candidate. Its
+checks and counts belong to that candidate; they do not replace the newer evidence
+above. No GitHub release/tag was created for either candidate.
 
 ## Recorded candidate
 
@@ -33,7 +56,7 @@ the expected 1.3.0 build, without new error-log content. This is startup evidenc
 not completed physical-display or Mica visual acceptance.
 No GitHub release or tag has been created.
 
-## Source verification
+## Earlier candidate source verification
 
 - Release solution and both test projects: warnings-as-errors builds, zero
   warnings/errors.

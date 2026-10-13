@@ -1,6 +1,6 @@
 # Source-bound showcase
 
-The images show a development build with fictitious displays. They prove interface
+The images show the 1.4.0 development candidate with fictitious displays. They prove interface
 layout, not hardware compatibility, calibrated luminance, energy savings or a
 published release. The original charcoal/amber brand assets are retained.
 
@@ -45,7 +45,7 @@ profile calculations are estimated 203 and 160 nits. Neutral warmth is a request
 gamma baseline, not a measured white point. The stacked capture changes only the
 fixture rectangle and position to demonstrate the side selector.
 
-The script refuses an uncommitted implementation. It copies native PNGs without
+The script refuses an uncommitted implementation, including version metadata. It copies native PNGs without
 editing and makes both smaller images using uniform LANCZOS downsampling. The
 receipt contains relative artifact names only, no machine paths or personal displays.
 The capture suite also emits simulated 100/150/200% DPI and system-colour evidence

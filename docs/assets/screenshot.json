@@ -1,10 +1,10 @@
 {
-  "sourceVersion": "958433cd804836241c74deac8f20b93a502999f4",
+  "sourceVersion": "4e27b377b8696d41d167e7a49705ca8612291df0",
   "sourceDirty": false,
   "build": "Release, development source; not a released-version preview",
-  "assemblyVersion": "1.3.0",
-  "guiAssemblySha256": "5744dd3053d2a5c814bd44f870b345ddf22bce0937a4ac7429f28eed90e0cc4f",
-  "coreAssemblySha256": "eaaea981e1c8cbf34e4a149f95552cf7e90308ab982b2a728a00be81304fdb78",
+  "assemblyVersion": "1.4.0",
+  "guiAssemblySha256": "46c44b84f5704b4a9e8f594497caa8d51203acd34ff17ecf7a206592cb5a6631",
+  "coreAssemblySha256": "9ff31b3b76944836c0d6a93967698aa37c871c8d1747c2125d67fb2ded430d96",
   "dotnetSdk": "10.0.303",
   "python": "3.12.6",
   "pillow": "12.2.0",
@@ -56,32 +56,32 @@
     "screenshot.png": {
       "width": 1016,
       "height": 729,
-      "sha256": "5ab2c5e4c13c09fd220b390a6b438a0269ab6d47dbe0c9188726a92f37056342"
+      "sha256": "b2c689c4e80a34b19595625009537abe52c035083ea473fbfdea37cdf29a37d9"
     },
     "portfolio-1200x750.png": {
       "width": 1200,
       "height": 750,
-      "sha256": "c87071bf338ad3ac5bd1ce685d4d391f77726543c805ef1d0107b6c103537088"
+      "sha256": "38c03d1d8651334c2575319b8a9715d1f230821675a77238d6f55a22025c681e"
     },
     "screenshot-compact.png": {
       "width": 620,
       "height": 480,
-      "sha256": "6c45534294677d14eeb10ce948b450ec890ab56ed8bae71bfedc2f0e7c5db6e7"
+      "sha256": "35934fa59c3899009f392555cda5c308cb85242babdce1eeb4711e62f5e35e1c"
     },
     "screenshot-stacked.png": {
       "width": 1016,
       "height": 729,
-      "sha256": "6c1a2a0ba94c4822258ad62222004be73274378962bc5d25658d001dd9e94df1"
+      "sha256": "5f975346088828604c830a9ebd4d4bd7cd81805bd45d83913e7f1270949958e6"
     },
     "portfolio-480x300.png": {
       "width": 480,
       "height": 300,
-      "sha256": "6ca487429f28b94864024e2901b5c67b065ca4c68004c2fbf9d2603860c18105"
+      "sha256": "7398eaf7ee8ef794d2d117f50e0ab96265ecf9e69aed04ff3aefd5f70b2aa2b7"
     },
     "portfolio-320x200.png": {
       "width": 320,
       "height": 200,
-      "sha256": "dcb3c8aec8fbddba08c3cd24e8bafae9207dd90e01f54f4a1fe60de8ca506f3f"
+      "sha256": "6e07699be731c7810abb04810adeb2448aae4dd8d1c8b500b92cec5f30ef11e8"
     }
   }
 }
