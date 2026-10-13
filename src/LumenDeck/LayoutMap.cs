@@ -126,7 +126,7 @@ internal sealed class LayoutMap : Control
             if (r.Height > LogicalToDeviceUnits(44))
                 TextRenderer.DrawText(g, m.DisplayName, Font,
                     new Rectangle(r.X + 7, upper.Bottom, r.Width - 14, r.Bottom - upper.Bottom - 5), Theme.Ink,
-                    TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak | TextFormatFlags.VerticalCenter);
+                    TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
         }
         if (Focused) ControlPaint.DrawFocusRectangle(g, new Rectangle(3, 3, Width - 6, Height - _caption.Height - 6), Theme.Ink, BackColor);
     }
