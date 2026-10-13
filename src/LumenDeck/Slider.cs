@@ -37,6 +37,9 @@ internal sealed class Slider : Control
     public bool Neutral { get; set; }
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool Principal { get; set; }
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public Func<int, string> AccessibleValueFormat { get; set; }
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
@@ -83,6 +86,8 @@ internal sealed class Slider : Control
         // This custom control has no Alt mnemonic. The native default derives
         // one from '&' in Name, including literal display and feature names.
         public override string KeyboardShortcut => null;
+        public override string DefaultAction => "Enter exact value";
+        public override void DoDefaultAction() { if (_owner.Enabled) _owner.EditExactValue(); }
 
         public override string Description
         {
@@ -156,7 +161,10 @@ internal sealed class Slider : Control
     {
         _trackH = LogicalToDeviceUnits(TrackHDip);
         _thumbR = LogicalToDeviceUnits(ThumbRDip);
-        _readoutW = LogicalToDeviceUnits(ReadoutWDip);
+        _readoutW = LogicalToDeviceUnits(Principal ? 140 : ReadoutWDip);
+        if (Principal && Format != null)
+            _readoutW = Math.Max(_readoutW, Math.Max(TextRenderer.MeasureText(Format(_min), Font).Width,
+                TextRenderer.MeasureText(Format(_max), Font).Width) + LogicalToDeviceUnits(12));
         Height = Math.Max(Height, LogicalToDeviceUnits(30));
     }
 

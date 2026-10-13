@@ -8,6 +8,20 @@ namespace LumenDeck;
 internal sealed class DdcWorker : IDisposable
 {
     public enum Feature { Brightness, Contrast, Vcp }
+    internal enum ObservationKind { Observed, Pending, Confirmed, Unconfirmed, Failed }
+    internal sealed record Observation(int Requested, int? LastObserved, ObservationKind Kind);
+    private readonly Dictionary<Target, Observation> _observations = new();
+
+    internal Observation Observe(Monitor monitor, Feature feature)
+    {
+        lock (_gate)
+        {
+            var target = new Target(monitor, feature, 0);
+            if (_observations.TryGetValue(target, out var observation)) return observation;
+            int value = feature == Feature.Brightness ? monitor.Brightness : monitor.Contrast;
+            return new Observation(value, value, ObservationKind.Observed);
+        }
+    }
     private readonly record struct Target(Monitor Mon, Feature What, byte Code);
     private sealed record Request(int Value);
     private readonly object _gate = new();
@@ -59,6 +73,9 @@ internal sealed class DdcWorker : IDisposable
         {
             if (!_running) return;
             var request = new Request(value);
+            int? observed = _observations.TryGetValue(target, out var previous) ? previous.LastObserved
+                : target.What == Feature.Brightness ? target.Mon.Brightness : target.Mon.Contrast;
+            _observations[target] = new Observation(value, observed, ObservationKind.Pending);
             _current[target] = _pending[target] = request;
             StoreActual(target, value);
             _signal.Set();
@@ -77,7 +94,7 @@ internal sealed class DdcWorker : IDisposable
     /// </summary>
     public void ClearPending()
     {
-        lock (_gate) { _pending.Clear(); _current.Clear(); }
+        lock (_gate) { _pending.Clear(); _current.Clear(); _observations.Clear(); }
     }
 
     private void Loop()
@@ -140,10 +157,19 @@ internal sealed class DdcWorker : IDisposable
                           target.What is Feature.Brightness or Feature.Contrast;
             for (int attempt = 0; attempt < (verify ? VerifyAttempts : 1); attempt++)
             {
-                if (!IsCurrent(target, request) || !_transport.CanWrite(target.Mon)) return false;
+                if (!IsCurrent(target, request)) return false;
+                if (!_transport.CanWrite(target.Mon))
+                {
+                    FinishObservation(target, request, ObservationKind.Unconfirmed);
+                    return false;
+                }
                 bool written = _transport.Write(target.Mon, target.What, target.Code, request.Value);
                 if (!IsCurrent(target, request)) return false;
-                if (!verify) return !written;
+                if (!verify)
+                {
+                    FinishObservation(target, request, written ? ObservationKind.Unconfirmed : ObservationKind.Failed);
+                    return !written;
+                }
                 if (written)
                 {
                     Thread.Sleep(_settleMs);
@@ -169,6 +195,7 @@ internal sealed class DdcWorker : IDisposable
         {
             // Only transport failures enter this path; observer exceptions are
             // isolated after Process and cannot repeat a hardware request.
+            FinishObservation(target, request, ObservationKind.Failed);
             return IsCurrent(target, request);
         }
     }
@@ -184,7 +211,19 @@ internal sealed class DdcWorker : IDisposable
     private void CommitActual(Target target, Request request, int actual)
     {
         lock (_gate)
-            if (IsCurrentLocked(target, request)) StoreActual(target, actual);
+            if (IsCurrentLocked(target, request))
+            {
+                StoreActual(target, actual);
+                _observations[target] = new Observation(actual, actual, ObservationKind.Confirmed);
+            }
+    }
+
+    private void FinishObservation(Target target, Request request, ObservationKind kind)
+    {
+        lock (_gate)
+            if (IsCurrentLocked(target, request))
+                _observations[target] = new Observation(request.Value,
+                    _observations.GetValueOrDefault(target)?.LastObserved, kind);
     }
 
     private bool FinishFailure(Target target, Request request, int? actual)
@@ -193,6 +232,8 @@ internal sealed class DdcWorker : IDisposable
         {
             if (!IsCurrentLocked(target, request)) return false;
             if (actual is int observed) StoreActual(target, observed);
+            _observations[target] = new Observation(request.Value,
+                actual ?? _observations.GetValueOrDefault(target)?.LastObserved, ObservationKind.Failed);
             return true;
         }
     }
@@ -267,15 +308,23 @@ internal sealed class DdcWorker : IDisposable
                 if (!_running) return false;
                 _pending.Remove(target);
                 _current[target] = restoreRequest;
+                _observations[target] = new Observation(value,
+                    _observations.GetValueOrDefault(target)?.LastObserved ?? m.Brightness, ObservationKind.Pending);
                 _active++;
             }
             try
             {
                 bool restored = _transport.RestoreBrightness(m, value);
-                if (restored) CommitActual(target, restoreRequest, value);
+                if (restored && !m.IsInternalPanel) CommitActual(target, restoreRequest, value);
+                else if (restored)
+                {
+                    lock (_gate) if (IsCurrentLocked(target, restoreRequest)) StoreActual(target, value);
+                    FinishObservation(target, restoreRequest, ObservationKind.Unconfirmed);
+                }
+                else FinishObservation(target, restoreRequest, ObservationKind.Failed);
                 return restored;
             }
-            catch { return false; }
+            catch { FinishObservation(target, restoreRequest, ObservationKind.Failed); return false; }
             finally
             {
                 lock (_gate)
@@ -303,6 +352,7 @@ internal sealed class DdcWorker : IDisposable
                 _running = false;
                 _pending.Clear();
                 _current.Clear();
+                _observations.Clear();
                 _signal.Set();
             }
         }

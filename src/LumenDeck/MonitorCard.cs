@@ -35,6 +35,9 @@ internal sealed class MonitorCard : Panel
     private readonly Slider _contrast;
     private readonly Slider _warmth;
     private readonly Label _nits;
+    private readonly Label _reading;
+    private readonly Label _contrastReading;
+    private readonly System.Windows.Forms.Timer _observationTimer = new() { Interval = 180 };
     private readonly Label _featureNote;
     private readonly TableLayoutPanel _grid;
     private readonly Panel _extras;
@@ -120,6 +123,12 @@ internal sealed class MonitorCard : Panel
 
         _brightness = MakeSlider(m.SupportsBrightness, m.BrightnessMin, m.BrightnessMax, m.Brightness);
         _brightness.Name = "brightness";
+        if (m.SupportsBrightness)
+        {
+            _brightness.Principal = true;
+            _brightness.Font = Theme.PrincipalValue;
+            _brightness.Height = 76;
+        }
         _brightness.Format = v => $"{Presets.RawToPercent(Monitor, v):0}%";
         _brightness.AccessibleName = $"{_displayContext}: Brightness (hardware units)";
         _brightness.ExactValueUnit = "hardware units";
@@ -128,6 +137,16 @@ internal sealed class MonitorCard : Panel
         _tips.SetToolTip(_brightness, "Click the number or press F2 to enter an exact hardware value. Arrows: one unit; Shift: ten units.");
         _brightness.ValueChanged += (_, _) => OnBrightness();
         AddRow(row++, "Brightness", _brightness, m.SupportsBrightness ? null : "unavailable");
+
+        _reading = new Label
+        {
+            Name = "adjustment-reading", AutoSize = true, Font = Theme.Small,
+            ForeColor = Theme.InkMuted, BackColor = Color.Transparent,
+            Margin = new Padding(2, 0, 0, 4), UseMnemonic = false,
+        };
+        _grid.Controls.Add(_reading, 1, row++);
+        _observationTimer.Tick += (_, _) => UpdateObservation();
+        _observationTimer.Start();
 
         _nits = new Label
         {
@@ -162,6 +181,14 @@ internal sealed class MonitorCard : Panel
         _tips.SetToolTip(_contrast, "Click the number or press F2 to enter an exact hardware value. Arrows: one unit; Shift: ten units.");
         _contrast.ValueChanged += (_, _) => OnContrast();
         AddRow(row++, "Contrast", _contrast, m.SupportsContrast ? null : "unavailable");
+        _contrastReading = new Label
+        {
+            Name = "contrast-reading", AutoSize = true, Font = Theme.Small,
+            ForeColor = Theme.InkMuted, BackColor = Color.Transparent, Visible = false,
+            Margin = new Padding(2, 0, 0, 4), UseMnemonic = false,
+        };
+        _grid.Controls.Add(_contrastReading, 1, row++);
+
 
         if ((!m.SupportsBrightness || !m.SupportsContrast) && onConnectionHelp != null)
         {
@@ -192,6 +219,12 @@ internal sealed class MonitorCard : Panel
                              WarmthFromKelvin(m.Kelvin));
         _warmth.Format = v => v <= 0 ? "off" : KelvinFromWarmth(v) + "K";
         _warmth.Name = "warmth";
+        if (!m.SupportsBrightness)
+        {
+            _warmth.Principal = true;
+            _warmth.Font = Theme.PrincipalValue;
+            _warmth.Height = 76;
+        }
         _warmth.AccessibleName = $"{_displayContext}: Colour temperature (kelvin)";
         _warmth.ExactValueUnit = "kelvin";
         _warmth.AccessibleValueFormat = v => v == 0 ? "6500 kelvin; neutral colour requested" : $"{KelvinFromWarmth(v)} kelvin requested";
@@ -202,6 +235,11 @@ internal sealed class MonitorCard : Panel
         _tips.SetToolTip(_warmth, "Click the number or press F2 to enter Kelvin. Arrows: 50 K; Shift: 500 K. 6500 K restores neutral colour.");
         _warmth.ValueChanged += (_, _) => OnWarmth();
         AddRow(row++, "Warmth", _warmth, null);
+        _grid.Controls.Add(new Label
+        {
+            Text = "Gamma tint target · not a measured colour preview", AutoSize = true,
+            Font = Theme.Small, ForeColor = Theme.InkFaint, Margin = new Padding(2, 0, 0, 4),
+        }, 1, row++);
 
         // Per-monitor blacking is deliberately a Windows overlay plus the
         // lowest supported brightness. It is less power-efficient than DDC
@@ -263,7 +301,7 @@ internal sealed class MonitorCard : Panel
         {
             string name = level.Name;
             var b = new FlatButton(name) { Name = "preset-" + name,
-                AccessibleName = $"{_displayContext}: {name}", Width = 78, Margin = new Padding(0, 0, 6, 6) };
+                AccessibleName = $"{_displayContext}: {name}", Quiet = true, Width = 78, Margin = new Padding(0, 0, 6, 6) };
             b.Click += (_, _) =>
             {
                 // Resolve at click time: targets can change while this card lives.
@@ -379,6 +417,10 @@ internal sealed class MonitorCard : Panel
             host.Controls.Add(Chip("built-in", Theme.InkMuted));
         else if (!m.SupportsBrightness)
             host.Controls.Add(Chip("brightness unavailable", Theme.Warn));
+
+        host.Controls.Add(Chip(m.SupportsBrightness
+            ? m.SupportsContrast ? "brightness · contrast · gamma tint" : "brightness · gamma tint"
+            : "gamma tint available", Theme.InkMuted));
 
         return host;
     }
@@ -591,6 +633,7 @@ internal sealed class MonitorCard : Panel
 
     private void RefreshLabels()
     {
+        UpdateObservation();
         if (Monitor.SupportsBrightness)
         {
             var estimate = Presets.EstimateFor(Monitor, Monitor.Brightness);
@@ -604,6 +647,35 @@ internal sealed class MonitorCard : Panel
             _nits.AccessibleDescription = "";
             _tips.SetToolTip(_nits, null);
         }
+    }
+
+    private void UpdateObservation()
+    {
+        if (_reading == null || IsDisposed) return;
+        if (_contrastReading != null && Monitor.SupportsContrast)
+        {
+            var contrast = _worker.Observe(Monitor, DdcWorker.Feature.Contrast);
+            _contrastReading.Visible = contrast.Kind != DdcWorker.ObservationKind.Observed;
+            _contrastReading.Text = $"Contrast requested {contrast.Requested} · {contrast.Kind.ToString().ToLowerInvariant()} · last observed {contrast.LastObserved?.ToString() ?? "unknown"} hardware units";
+            _contrastReading.AccessibleName = $"{_displayContext}: {_contrastReading.Text}";
+        }
+        if (!Monitor.SupportsBrightness)
+        {
+            _reading.Text = "No brightness interface detected. Warmth remains available via GPU gamma.";
+            return;
+        }
+        var state = _worker.Observe(Monitor, DdcWorker.Feature.Brightness);
+        string observed = state.LastObserved is int raw ? $"{Presets.RawToPercent(Monitor, raw):0}%" : "unknown";
+        string requested = $"{Presets.RawToPercent(Monitor, state.Requested):0}%";
+        _reading.Text = state.Kind switch
+        {
+            DdcWorker.ObservationKind.Pending => $"Requested {requested} · waiting for readback · last observed {observed}",
+            DdcWorker.ObservationKind.Confirmed => $"Read back {observed} · reported by display, not measured light",
+            DdcWorker.ObservationKind.Unconfirmed => $"Requested {requested} · unconfirmed · last observed {observed}",
+            DdcWorker.ObservationKind.Failed => $"Request {requested} failed or differed · last observed {observed}",
+            _ => $"Last observed {observed} · exact entry: click value or F2",
+        };
+        _reading.AccessibleName = $"{_displayContext}: {_reading.Text}";
     }
 
     // ---------------------------------------------------------------- extras
@@ -844,6 +916,7 @@ internal sealed class MonitorCard : Panel
     {
         if (disposing)
         {
+            _observationTimer.Dispose();
             _highlightTimer?.Stop();
             _highlightTimer?.Dispose();
             _tips.Dispose();
@@ -861,7 +934,7 @@ internal sealed class MonitorCard : Panel
         if (Width < 4 || Height < 5) { base.OnPaint(e); return; }
         var header = _grid.GetControlFromPosition(0, 0);
         int dividerY = header == null ? -1 : _grid.Top + header.Bottom + LogicalToDeviceUnits(3);
-        var key = (Size, (_highlighted ? 2 : 0) | (ContainsFocus ? 1 : 0), DeviceDpi, dividerY, Padding);
+        var key = (Size, (_highlighted ? 2 : 0) | (ContainsFocus ? 1 : 0) | (Theme.HighContrast ? 4 : 0), DeviceDpi, dividerY, Padding);
         // Transparent children repaint the parent. Cache one current surface per
         // card so they reuse a blit rather than rebuilding paths and gradients.
         if (_surface == null || _surfaceKey != key)
@@ -915,6 +988,8 @@ internal sealed class ChipLabel : Control
     {
         _color = color;
         Text = text;
+        AccessibleRole = AccessibleRole.StaticText;
+        AccessibleName = text;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
@@ -926,7 +1001,7 @@ internal sealed class ChipLabel : Control
         Margin = new Padding(0, 2, 6, 0);
     }
 
-    private string LabelText => _color == Theme.Warn ? "! " + Text : Text;
+    private string LabelText => !Theme.HighContrast && _color == Theme.Warn ? "! " + Text : Text;
 
     private void UpdateChipSize()
     {
@@ -950,7 +1025,7 @@ internal sealed class ChipLabel : Control
         var r = new Rectangle(0, 0, Width - 1, Height - 1);
         Theme.FillRound(g, r, Height / 2, Color.FromArgb(38, _color));
         Theme.StrokeRound(g, r, Height / 2, Color.FromArgb(60, _color));
-        TextRenderer.DrawText(g, LabelText, Font, r, _color,
+        TextRenderer.DrawText(g, LabelText, Font, r, Theme.HighContrast ? SystemColors.WindowText : _color,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 }

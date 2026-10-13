@@ -1,5 +1,29 @@
 # Tests
 
+Desk remote acceptance and source captures use the actual application on a private
+desktop, fake display transport and isolated settings:
+
+```powershell
+dotnet restore LumenDeck.slnx
+dotnet build LumenDeck.slnx -c Release --no-restore /warnaserror
+dotnet run --project test/ControlTests/ControlTests.csproj -c Release
+dotnet run --project test/AppTests/AppTests.csproj -c Release
+# Focused evidence; render path is optional:
+dotnet run --project test/AppTests/AppTests.csproj -c Release -- --desk-remote-only artifacts/desk-remote
+```
+
+The focused checks cover 1/2/4 displays, mixed capabilities, minimum/ordinary/wide
+windows, stacked reflow, selected and all-display modes, exact-entry accessibility,
+keyboard selection, delayed/failed/unconfirmed write binding, reconnect identity,
+stale automation items and reachable recovery. Synthetic 96/144/192-DPI messages
+exercise WinForms layout; the harness sets child DPI and owned scaled fonts because
+the private desktop HDC remains at 96 DPI. The contrast branch is injected without
+changing Windows settings. These are fixture tests, not physical display or Narrator
+acceptance. Existing AppTests exercise the retained all-display workflow with expanded
+desk actions; DeskRemoteChecks explicitly opts into the production default.
+
+See [showcase](../docs/showcase.md) for capture receipts and exported dimensions.
+
 Capability parsing and extra-control value labels, using in-memory data only:
 
 ```powershell

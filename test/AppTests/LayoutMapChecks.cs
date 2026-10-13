@@ -27,23 +27,23 @@ internal static partial class Program
         Point Center(int index) { var b = Boxes()[index]; return Point.Round(new PointF(b.X + b.Width / 2, b.Y + b.Height / 2)); }
 
         map.SetMonitors([left, right]);
-        Assert(caption.Text.Contains("Select a display") && !map.TabStop, "map gives a discoverable hint without changing Tab navigation");
+        Assert(caption.Text.Contains("Select a display") && map.TabStop, "map gives a discoverable hint and joins keyboard navigation");
         Mouse("OnMouseClick", Center(0), MouseButtons.Right);
         Assert(picks == 0 && caption.Text.Contains("Select a display"), "right click does not navigate or select a display");
         Mouse("OnMouseClick", Center(0), MouseButtons.Middle);
         Assert(picks == 0, "middle click does not navigate or select a display");
         Mouse("OnMouseClick", Center(0), MouseButtons.Left);
-        Assert(picks == 1 && ReferenceEquals(picked, left) && caption.Text == "Studio & Desk (left)", "left click identifies and routes the exact display once");
+        Assert(picks == 1 && ReferenceEquals(picked, left) && caption.Text == "Schematic · Studio & Desk (left)", "left click identifies and routes the exact display once");
         Mouse("OnMouseMove", Center(1));
-        Assert(caption.Text == "Studio & Desk (right)" && picks == 1, "hover previews the other display without activating it");
+        Assert(caption.Text == "Schematic · Studio & Desk (right)" && picks == 1, "hover previews the other display without activating it");
         typeof(LayoutMap).GetMethod("OnMouseLeave", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(map, [EventArgs.Empty]);
-        Assert(caption.Text == "Studio & Desk (left)", "leaving the map restores persistent selected identity");
+        Assert(caption.Text == "Schematic · Studio & Desk (left)", "leaving the map restores persistent selected identity");
         map.Refresh(right);
-        Assert(caption.Text == "Studio & Desk (right)", "programmatic card navigation updates the same identity caption");
+        Assert(caption.Text == "Schematic · Studio & Desk (right)", "programmatic card navigation updates the same identity caption");
         right.Description = "Studio & Desk " + new string('W', 100);
         right.PositionLabel = " ";
         map.Refresh(right);
-        Assert(caption.Text == right.DisplayName && caption.AccessibilityObject.Name == right.DisplayName &&
+        Assert(caption.Text == "Schematic · " + right.DisplayName && caption.AccessibilityObject.Name == "Schematic · " + right.DisplayName &&
             string.IsNullOrEmpty(caption.AccessibilityObject.KeyboardShortcut), "long literal names remain complete to accessibility clients without empty positions or phantom shortcuts");
         foreach (int width in new[] { 240, 604, 1000 })
         {

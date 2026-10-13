@@ -39,7 +39,7 @@ internal sealed class CommandSection : Panel
         try
         {
             base.OnLayout(e);
-            int captionWidth = Math.Max(LogicalToDeviceUnits(104), _caption.PreferredWidth + LogicalToDeviceUnits(12));
+            int captionWidth = _caption.Text.Length == 0 ? 0 : Math.Max(LogicalToDeviceUnits(104), _caption.PreferredWidth + LogicalToDeviceUnits(12));
             int width = Math.Max(1, ClientSize.Width - Padding.Horizontal - captionWidth);
             _caption.Location = new Point(Padding.Left, Padding.Top + LogicalToDeviceUnits(8));
             Commands.SetBounds(Padding.Left + captionWidth, Padding.Top, width,

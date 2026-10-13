@@ -86,6 +86,8 @@ internal partial class MainForm
                 if (matches.Length == 1)
                 {
                     card = matches[0];
+                    owner._selectedMonitorKey = card.Monitor.StableKey;
+                    owner.ApplyDisplayView();
                     var targets = FocusControls(card).Where(c => !string.IsNullOrEmpty(ControlName) && c.Name == ControlName).ToArray();
                     target = targets.Length == 1 ? targets[0] : null;
                 }

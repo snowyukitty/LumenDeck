@@ -2,6 +2,22 @@ namespace LumenDeck;
 
 internal partial class MainForm
 {
+    internal void SetAllDisplays(bool show)
+    {
+        _showAllDisplays = show;
+        _map.SetAllDisplays(show);
+        ApplyDisplayView();
+    }
+
+    private void ApplyDisplayView()
+    {
+        _list.SuspendLayout();
+        foreach (var card in _cards)
+            card.Visible = _showAllDisplays || card.Monitor.StableKey == _selectedMonitorKey;
+        _list.ResumeLayout(true);
+        _map.Refresh(_monitors.FirstOrDefault(m => m.StableKey == _selectedMonitorKey));
+    }
+
     private static Control NamedCardControl(MonitorCard card, string name)
     {
         if (string.IsNullOrEmpty(name)) return null;
@@ -14,8 +30,10 @@ internal partial class MainForm
         if (_reallyClosing || IsDisposed || Disposing || !Visible || !Enabled ||
             WindowState == FormWindowState.Minimized || !CanAdjustDisplays) return;
         _scanFocus?.CancelRecovery();
-        var card = _cards.FirstOrDefault(c => !c.IsDisposed && c.Visible && c.Monitor == monitor);
+        var card = _cards.FirstOrDefault(c => !c.IsDisposed && c.Monitor == monitor);
         if (card == null) return;
+        _selectedMonitorKey = monitor.StableKey;
+        ApplyDisplayView();
         Control target = NamedCardControl(card, "brightness") ?? NamedCardControl(card, "warmth");
         if (target == null) return;
         int generation = _generation;
@@ -43,7 +61,7 @@ internal partial class MainForm
             WindowState == FormWindowState.Minimized || _preferencesMenu.Visible) return;
         _scanFocus?.CancelRecovery();
         if (!CanAdjustDisplays) return;
-        var cards = _cards.Where(c => !c.IsDisposed && c.Visible).ToArray();
+        var cards = _cards.Where(c => !c.IsDisposed).ToArray();
         if (cards.Length == 0) return;
         Control active = ActiveControl;
         while (active is ContainerControl container && container.ActiveControl != null) active = container.ActiveControl;
@@ -54,6 +72,8 @@ internal partial class MainForm
         int next = index < 0 ? (previous ? cards.Length - 1 : 0)
             : (index + (previous ? cards.Length - 1 : 1)) % cards.Length;
         var destination = cards[next];
+        _selectedMonitorKey = destination.Monitor.StableKey;
+        ApplyDisplayView();
         Control target = destination == current && active is { CanSelect: true } ? active
             : NamedCardControl(destination, active?.Name)
                 ?? NamedCardControl(destination, "brightness")

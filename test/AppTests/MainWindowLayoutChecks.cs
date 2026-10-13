@@ -30,11 +30,11 @@ internal static partial class Program
                 $"main commands and status fit at {size.Width}x{size.Height}");
             Assert(list.Top >= commands.Bottom && list.Bottom <= status.Top,
                 $"actual card viewport does not overlap fixed chrome at {size.Width}x{size.Height}");
-            Assert(list.ClientSize.Height >= 150, $"actual card viewport remains usable at {size.Width}x{size.Height}");
-            Assert(header.Visible == (size.Height > 441) && (!header.Visible || header.Bottom <= commands.Top) &&
+            Assert(list.ClientSize.Height >= 150, $"actual card viewport remains usable at {size.Width}x{size.Height}: list={list.Height}, bar={commands.Height}, map={map.Height}, header={header.Visible}, status={status.Height}");
+            Assert(header.Visible == (size.Height >= 600) && (!header.Visible || header.Bottom <= commands.Top) &&
                 form.Text == $"LumenDeck {AboutForm.VersionText}" && header.AccessibleName.Contains(AboutForm.VersionText),
                 $"the version stays in the title bar and the header yields to cards in a short window at {size.Width}x{size.Height}");
-            Assert(size.Height > 700 || size.Width == 1000 ? map.Visible : !map.Visible,
+            Assert(map.Visible,
                 $"desk map visibility reverses with compact window height at {size.Width}x{size.Height}");
             var cards = Controls(form).OfType<MonitorCard>().ToArray();
             foreach (var card in cards)
@@ -95,9 +95,9 @@ internal static partial class Program
             for (int pass = 0; pass < 3; pass++)
             {
                 form.PerformLayout();
-                Assert(header.Visible, $"the brand header stays while the map threshold is evaluated, pass {pass}");
-                Assert(map.Visible == (remainingHeight >= 240),
-                    $"map threshold stays stable at {remainingHeight} logical pixels, pass {pass}");
+                Assert(list.ClientSize.Height >= 150, $"the detail viewport remains usable, pass {pass}");
+                Assert(map.Visible,
+                    $"selector stays available at {remainingHeight} logical pixels, pass {pass}");
             }
         }
         Assert(fixture.Transport.Writes == 0 && fixture.StartupWrites == 0,

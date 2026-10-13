@@ -276,7 +276,7 @@ internal static partial class Program
             Assert(bar.HelpButton.Width == originalHelpWidth,
                 $"short command label restores its original footprint at scale {scale}");
             int singleLineHeight = bar.HelpButton.Height;
-            bar.HelpButton.Text = "Connection help for displays that cannot be adjusted through the current cable, adapter or graphics driver";
+            bar.HelpButton.Text = string.Join(" ", Enumerable.Repeat("Connection help for displays that cannot be adjusted through the current cable, adapter or graphics driver", 3));
             Assert(bar.HelpButton.Parent.ClientRectangle.Contains(bar.HelpButton.Bounds),
                 $"a label wider than the command row stays within its viewport at scale {scale}");
             Assert(bar.HelpButton.Height > singleLineHeight,

@@ -19,6 +19,8 @@ internal partial class MainForm : Form
 
     private readonly FlowLayoutPanel _list;
     private readonly LayoutMap _map;
+    private string _selectedMonitorKey;
+    private bool _showAllDisplays;
     private readonly StatusStripe _status;
     private readonly NotifyIcon _tray;
     private readonly Icon _appIcon;
@@ -86,7 +88,7 @@ internal partial class MainForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
 
         MinimumSize = new Size(620, 480);
-        Size = new Size(780, 820);
+        Size = new Size(940, 820);
         StartPosition = FormStartPosition.CenterScreen;
 
         // Two instances, because they are different frames: the window wants
@@ -137,6 +139,7 @@ internal partial class MainForm : Form
         // ---- desk map ------------------------------------------------------
         _map = new LayoutMap { Dock = DockStyle.Top };
         _map.MonitorPicked += PickDisplay;
+        _map.AllDisplaysChanged += show => { _showAllDisplays = show; ApplyDisplayView(); };
 
         // ---- cards ---------------------------------------------------------
         _list = new FlowLayoutPanel
@@ -162,6 +165,7 @@ internal partial class MainForm : Form
         Controls.Add(_bar);
         _header = new BrandHeader(_appIcon, AboutForm.VersionText);
         Controls.Add(_header);
+        _bar.SetExpanded(false);
         _bar.SizeChanged += (_, _) => UpdateDeskMapVisibility();
         UpdateDeskMapVisibility();
 
@@ -293,16 +297,25 @@ internal partial class MainForm : Form
         }
     }
 
+    private bool _updatingDeskLayout;
     private void UpdateDeskMapVisibility()
     {
-        if (_scalingDpi || _dpiLayoutPending || _map == null || _bar == null || _status == null || WindowState == FormWindowState.Minimized) return;
-        // Reserve working space for cards. The map is an optional mouse shortcut;
-        // its projected geometry and card actions survive being hidden.
-        int cards = ClientSize.Height - _bar.Height - _status.Height;
-        // The header goes first in a short window; the title bar keeps the version.
-        if (_header != null) _header.Visible = cards - _header.Height >= LogicalToDeviceUnits(240);
-        int withMap = cards - (_header is { Visible: true } ? _header.Height : 0) - _map.Height;
-        _map.Visible = CanAdjustDisplays && withMap >= LogicalToDeviceUnits(240);
+        if (_updatingDeskLayout) return;
+        if (_scalingDpi || _dpiLayoutPending || _map == null || _bar == null || _status == null || _header == null || WindowState == FormWindowState.Minimized) return;
+        _updatingDeskLayout = true;
+        try
+        {
+            bool compact = ClientSize.Height < LogicalToDeviceUnits(600);
+            _bar.SetHeightLimit(compact ? LogicalToDeviceUnits(110) : 0);
+            _header.Visible = !compact;
+            _map.Visible = CanAdjustDisplays;
+            bool stacked = _monitors.Count > 1 && _monitors.Select(m => m.Rect.Left).Distinct().Count() == 1;
+            bool side = stacked && ClientSize.Width >= LogicalToDeviceUnits(900) && !compact;
+            _map.Dock = side ? DockStyle.Left : DockStyle.Top;
+            if (side) _map.Width = LogicalToDeviceUnits(220);
+            else _map.Height = LogicalToDeviceUnits(compact ? 112 : 140);
+        }
+        finally { _updatingDeskLayout = false; }
     }
 
     private void ShowConnectionHelp()
@@ -551,6 +564,9 @@ internal partial class MainForm : Form
             finally { _list.ResumeLayout(); }
 
             _map.SetMonitors(_monitors);
+            if (!_monitors.Any(m => m.StableKey == _selectedMonitorKey))
+                _selectedMonitorKey = _monitors.FirstOrDefault()?.StableKey;
+            ApplyDisplayView();
             PopulateWorkScreens();
             UpdateNightSaver();
 

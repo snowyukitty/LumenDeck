@@ -4,6 +4,12 @@ namespace LumenDeck;
 internal sealed class DeskCommandBar : Panel
 {
     private readonly ToolTip _tips = new();
+    private CommandSection _modes;
+    private CommandSection _night;
+    private bool _expanded;
+    private int _heightLimit;
+    private bool _nightActive;
+    private readonly FlatButton _expand = new("Desk actions…") { Width = 120, Quiet = true };
     public Dictionary<string, FlatButton> ModeButtons { get; } = new(StringComparer.OrdinalIgnoreCase);
     public FlatButton IdentifyButton { get; } = new("Identify") { Width = 84 };
     public FlatButton RefreshButton { get; } = new("Refresh") { Width = 82 };
@@ -27,8 +33,12 @@ internal sealed class DeskCommandBar : Panel
         DoubleBuffered = true;
         BackColor = Theme.Bar;
         var modes = new CommandSection("All monitors") { TabIndex = 0 };
-        var tools = new CommandSection("Tools") { TabIndex = 1 };
+        var tools = new CommandSection("") { TabIndex = 1 };
         var night = new CommandSection("Night desk") { TabIndex = 2 };
+        _modes = modes;
+        _night = night;
+        _expand.Click += (_, _) => SetExpanded(!_expanded);
+        _expand.SetHelp(_tips, "Show or hide desk-wide presets, warmth restoration and Night saver. These actions apply across displays; per-display controls stay below.");
         foreach (var level in Presets.Levels)
         {
             string name = level.Name;
@@ -45,7 +55,8 @@ internal sealed class DeskCommandBar : Panel
             "Request remembered manual levels on each visible monitor.\n" +
             "Slider edits replace them; presets keep them.\n" +
             "Changes save in the background; check Settings for save status.");
-        tools.Commands.Controls.AddRange([IdentifyButton, RefreshButton, WarmthOffButton, HelpButton, SettingsButton]);
+        tools.Commands.Controls.AddRange([IdentifyButton, RefreshButton, HelpButton, SettingsButton, _expand]);
+        modes.Commands.Controls.Add(WarmthOffButton);
         SetPresetHelp(Presets.Levels);
         SettingsButton.SetHelp(_tips, "Windows startup, notification-area behavior, warmth reapplication and preset targets. Does not adjust the screen.");
         HelpButton.SetHelp(_tips, "See which controls responded and how to check a monitor connection. Works offline.");
@@ -77,6 +88,25 @@ internal sealed class DeskCommandBar : Panel
         Controls.Add(night);
         Controls.Add(tools);
         Controls.Add(modes);
+        SetExpanded(true);
+    }
+
+    internal void SetHeightLimit(int limit)
+    {
+        if (_heightLimit == limit) return;
+        _heightLimit = limit;
+        MaximumSize = limit > 0 ? new Size(int.MaxValue, limit) : Size.Empty;
+        AutoScroll = limit > 0;
+        PerformLayout();
+    }
+
+    internal void SetExpanded(bool expanded)
+    {
+        _expanded = expanded;
+        _expand.Text = expanded ? "Less desk actions" : "Desk actions…";
+        _modes.Visible = expanded;
+        _night.Visible = expanded || _nightActive;
+        PerformLayout();
     }
 
     /// <summary>Describe the active targets, which can change after Settings > Preset targets.</summary>
@@ -93,6 +123,8 @@ internal sealed class DeskCommandBar : Panel
 
     internal void SetNightSaverState(bool active)
     {
+        _nightActive = active;
+        if (_night != null) _night.Visible = _expanded || active;
         NightButton.Text = active ? "Restore night desk" : "Night saver";
         NightButton.Primary = active;
         NightButton.SetHelp(_tips, active
@@ -105,8 +137,11 @@ internal sealed class DeskCommandBar : Panel
     {
         base.OnLayout(e);
         int height = 0;
-        foreach (Control section in Controls) height += section.Height;
-        if (Height != height) Height = height;
+        foreach (Control section in Controls) if (section.Visible) height += section.Height;
+        int wanted = _heightLimit > 0 ? Math.Min(height, _heightLimit) : height;
+        if (AutoScrollMinSize.Height != (wanted < height ? height : 0))
+            AutoScrollMinSize = new Size(0, wanted < height ? height : 0);
+        if (Height != wanted) Height = wanted;
     }
 
     protected override void Dispose(bool disposing)

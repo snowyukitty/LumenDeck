@@ -47,6 +47,13 @@ internal static partial class Program
             {
                 try
                 {
+                    if (args.Length is 1 or 2 && args[0] == "--desk-remote-only")
+                    {
+                        CheckDeskRemote(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
+                        Console.WriteLine($"PASS: {_checks} desk-remote checks; synthetic displays only.");
+                        result = 0;
+                        return;
+                    }
                     if (args.Length is 1 or 2 && args[0] == "--map-caption-only")
                     {
                         CheckLayoutMap(args.Length == 2 ? Path.GetFullPath(args[1]) : null);
@@ -226,6 +233,7 @@ internal static partial class Program
                     CheckNightCommandHelp(directory);
                     CheckScenarioCleanup(directory);
                     CheckMainWindowLayout(directory, args.Length == 2 && args[0] == "--render-dir" ? Path.GetFullPath(args[1]) : null);
+                    CheckDeskRemote(directory, null);
                     if (args.Length == 2 && args[0] == "--render-dir") RenderPreferences(Path.GetFullPath(args[1]));
                     Console.WriteLine($"PASS: {_checks} actual MainForm lifecycle checks; synthetic displays and isolated files only.");
                     result = 0;
@@ -342,11 +350,17 @@ internal static partial class Program
         public int Writes;
         public int Restores;
         public Func<Display, int, bool> OnRestore;
+        public Func<Display, DdcWorker.Feature, int, bool> OnWrite;
         private int _value;
         public int LastValue => _value;
         public bool CanWrite(Display monitor) => true;
         public bool Write(Display monitor, DdcWorker.Feature feature, byte code, int value)
-        { _value = value; Interlocked.Increment(ref Writes); return true; }
+        {
+            bool written = OnWrite?.Invoke(monitor, feature, value) ?? true;
+            if (written) _value = value;
+            Interlocked.Increment(ref Writes);
+            return written;
+        }
         public bool Read(Display monitor, DdcWorker.Feature feature, out int actual)
         { actual = _value; return true; }
         public bool RestoreBrightness(Display monitor, int value)
@@ -388,7 +402,7 @@ internal static partial class Program
             bool refuseSettingsSave = false, Func<int, List<Display>> enumerate = null,
             Func<string, AppSettings> settingsFactory = null,
             Func<Func<SettingsSaveResult>, SettingsSaveResult> writeSettings = null, bool waitForCards = true,
-            Func<Display, int, bool> onRestore = null, Func<DateTime> now = null)
+            Func<Display, int, bool> onRestore = null, Func<DateTime> now = null, bool allDisplays = true)
         {
             ProfilePath = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".json");
             string parent = directory;
@@ -453,6 +467,13 @@ internal static partial class Program
             Private<NotifyIcon>(Form, "_tray").Disposed += (_, _) => TrayDisposals++;
             Form.Show();
             if (waitForCards) PumpUntil(() => Controls(Form).OfType<MonitorCard>().Any(), "initial synthetic scan");
+            // Existing lifecycle scenarios exercise the retained all-display workflow.
+            // DeskRemoteChecks passes false to cover the production default explicitly.
+            if (allDisplays)
+            {
+                Form.SetAllDisplays(true);
+                Private<DeskCommandBar>(Form, "_bar").SetExpanded(true);
+            }
         }
         public void Dispose()
         {
@@ -749,7 +770,11 @@ internal static partial class Program
     }
     private static void EditLink(MainForm form)
     {
-        var link = Controls(form).OfType<LinkLabel>().Single(l => l.Text == "Edit brightness estimate…");
+        var candidates = Controls(form).OfType<LinkLabel>().ToArray();
+        if (!candidates.Any(l => l.Name == "brightness-profile"))
+            throw new InvalidOperationException("Profile link missing; scan=" + Private<DisplayScanState>(form, "_scanState") +
+                "; links=" + string.Join(" | ", candidates.Select(l => l.Text)));
+        var link = candidates.Single(l => l.Name == "brightness-profile");
         typeof(LinkLabel).GetMethod("OnLinkClicked", BindingFlags.Instance | BindingFlags.NonPublic)
             .Invoke(link, [new LinkLabelLinkClickedEventArgs(link.Links[0])]);
     }

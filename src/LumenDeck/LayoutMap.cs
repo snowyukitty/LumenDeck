@@ -2,62 +2,69 @@ using System.Drawing.Drawing2D;
 
 namespace LumenDeck;
 
-/// <summary>
-/// A small scale drawing of the actual desk: every monitor as a rectangle in
-/// its real position and proportion.
-///
-/// This is the app's answer to the problem it was built around. `\\.\DISPLAYn`
-/// is not an identity, and the number Windows paints during *Identify* need not
-/// match it either - so the only reliable way to say "this card is that screen"
-/// is to show where the screen physically is. Click a rectangle and its card
-/// highlights; hover one and it lights up. The brightness of each rectangle
-/// tracks the monitor's actual brightness, so the map doubles as a glance-value
-/// readout of whether the desk is level.
-/// </summary>
+/// <summary>A schematic, keyboard-selectable desk. Tiles preserve position and orientation, not scale.</summary>
 internal sealed class LayoutMap : Control
 {
     private List<Monitor> _monitors = new();
     private int _hoverIndex = -1;
     private int _selectedIndex = -1;
+    private int FooterHeight => LogicalToDeviceUnits(Dock == DockStyle.Left ? 52 : 24);
     private readonly Label _caption;
-
-    /// <summary>Raised when a monitor rectangle is clicked.</summary>
+    private readonly CheckBox _all;
     public event Action<Monitor> MonitorPicked;
+    public event Action<bool> AllDisplaysChanged;
 
     public LayoutMap()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
-                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         BackColor = Theme.Bar;
-        Height = 108;
-        // A convenience shortcut for the mouse, not a control in its own right:
-        // everything it does is also reachable from the cards below, so it must
-        // not sit in the Tab order with no focus cue.
-        TabStop = false;
+        Height = 140;
+        TabStop = true;
+        AccessibleName = "Desk displays — schematic, not to scale";
+        AccessibleDescription = "Arrow keys select a display. Enter opens its controls. Ctrl+Page Down and Ctrl+Page Up move between display controls.";
         _caption = new Label
         {
-            Name = "display-map-caption", Dock = DockStyle.Bottom, Height = 24,
+            Name = "display-map-caption", Height = 24,
             Font = Theme.Small, ForeColor = Theme.InkMuted, BackColor = Theme.Bar,
-            TextAlign = ContentAlignment.MiddleCenter, AutoSize = false, AutoEllipsis = true,
-            UseMnemonic = false, Padding = new Padding(6, 0, 6, 0),
+            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false, AutoEllipsis = true,
+            UseMnemonic = false, Padding = new Padding(16, 0, 4, 0),
         };
+        _all = new CheckBox
+        {
+            Text = "All displays", AutoSize = true, ForeColor = Theme.Ink,
+            BackColor = Theme.Bar, AccessibleName = "Show controls for all displays",
+        };
+        _all.CheckedChanged += (_, _) => AllDisplaysChanged?.Invoke(_all.Checked);
+        Controls.Add(_all);
         Controls.Add(_caption);
+        _all.BringToFront();
+    }
+
+    internal void SetAllDisplays(bool show) => _all.Checked = show;
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        base.OnLayout(e);
+        if (_all != null)
+        {
+            _all.Location = new Point(Width - _all.Width - LogicalToDeviceUnits(16), Height - _all.Height - 2);
+            _caption.SetBounds(0, Height - FooterHeight, Math.Max(1, Dock == DockStyle.Left ? Width : _all.Left - 8), _caption.Height);
+        }
     }
 
     public void SetMonitors(IEnumerable<Monitor> monitors)
     {
-        _monitors = monitors?.ToList() ?? new List<Monitor>();
-        _hoverIndex = -1;
-        _selectedIndex = -1;
+        _monitors = monitors?.ToList() ?? new();
+        _hoverIndex = _selectedIndex = -1;
         Cursor = Cursors.Default;
         UpdateCaption();
         Invalidate();
     }
 
-    /// <summary>Repaint without rebuilding - call when brightness changes.</summary>
     public void Refresh(Monitor selected)
     {
-        _selectedIndex = selected == null ? -1 : _monitors.IndexOf(selected);
+        // Value refreshes must not erase the user's selected display.
+        if (selected != null) _selectedIndex = _monitors.IndexOf(selected);
         UpdateCaption();
         Invalidate();
     }
@@ -65,51 +72,35 @@ internal sealed class LayoutMap : Control
     private void UpdateCaption()
     {
         int index = _hoverIndex >= 0 ? _hoverIndex : _selectedIndex;
-        string text = _monitors.Count == 0 ? "" : "Select a display to find its controls.";
+        string text = _monitors.Count == 0 ? "" : "Select a display · schematic, not to scale";
         if (index >= 0 && index < _monitors.Count)
         {
-            var monitor = _monitors[index];
-            text = string.IsNullOrWhiteSpace(monitor.PositionLabel) ? monitor.DisplayName
-                : $"{monitor.DisplayName} ({monitor.PositionLabel})";
+            var m = _monitors[index];
+            text = string.IsNullOrWhiteSpace(m.PositionLabel) ? m.DisplayName : $"{m.DisplayName} ({m.PositionLabel})";
         }
-        _caption.Text = text;
-        _caption.AccessibleName = text;
+        _caption.Text = _caption.AccessibleName = text.Length == 0 ? "" : "Schematic · " + text;
     }
 
-    /// <summary>
-    /// Map the virtual desktop into the control, preserving aspect ratio.
-    /// Returns an empty list when there is nothing to draw.
-    /// </summary>
     private List<RectangleF> Project()
     {
-        var boxes = new List<RectangleF>();
-        if (_monitors.Count == 0 || Width < 8 || Height - _caption.Height < 8) return boxes;
-
-        int minX = _monitors.Min(m => m.Rect.Left);
-        int minY = _monitors.Min(m => m.Rect.Top);
-        int maxX = _monitors.Max(m => m.Rect.Right);
-        int maxY = _monitors.Max(m => m.Rect.Bottom);
-
-        float spanX = Math.Max(1, maxX - minX);
-        float spanY = Math.Max(1, maxY - minY);
-
-        int pad = LogicalToDeviceUnits(10);
-        float availW = Math.Max(1, Width - pad * 2);
-        float availH = Math.Max(1, Height - _caption.Height - pad * 2);
-        float scale = Math.Min(availW / spanX, availH / spanY);
-
-        float offX = pad + (availW - spanX * scale) / 2f;
-        float offY = pad + (availH - spanY * scale) / 2f;
-
-        foreach (var m in _monitors)
+        if (_monitors.Count == 0 || Width < 8 || Height - _caption.Height < 8) return new();
+        // Equalized coordinate slots preserve left/right and above/below relationships.
+        // Orientation survives; the caption explicitly disclaims physical scale.
+        var xs = _monitors.Select(m => m.Rect.Left).Distinct().Order().ToArray();
+        var ys = _monitors.Select(m => m.Rect.Top).Distinct().Order().ToArray();
+        float pad = LogicalToDeviceUnits(12);
+        float availableHeight = Height - FooterHeight - pad * 2;
+        float cellW = Math.Min(LogicalToDeviceUnits(230), (Width - pad * 2) / xs.Length);
+        float cellH = Math.Min(LogicalToDeviceUnits(150), availableHeight / ys.Length);
+        float start = (Width - cellW * xs.Length) / 2;
+        return _monitors.Select(m =>
         {
-            boxes.Add(new RectangleF(
-                offX + (m.Rect.Left - minX) * scale,
-                offY + (m.Rect.Top - minY) * scale,
-                Math.Max(3, m.Rect.Width * scale),
-                Math.Max(3, m.Rect.Height * scale)));
-        }
-        return boxes;
+            bool portrait = m.Rect.Height > m.Rect.Width;
+            float width = Math.Min(cellW - 10, portrait ? cellH * .8f : cellH * 2.5f);
+            float height = portrait ? Math.Min(cellH, width / .8f) : Math.Min(cellH * .78f, width / 1.8f);
+            return new RectangleF(start + Array.IndexOf(xs, m.Rect.Left) * cellW + (cellW - width) / 2,
+                pad + Array.IndexOf(ys, m.Rect.Top) * cellH + (cellH - height) / 2, Math.Max(3, width), Math.Max(3, height));
+        }).ToList();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -117,83 +108,34 @@ internal sealed class LayoutMap : Control
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(BackColor);
-
         var boxes = Project();
-        if (boxes.Count == 0)
-        {
-            var canvas = new Rectangle(0, 0, Width, Math.Max(0, Height - _caption.Height));
-            TextRenderer.DrawText(g, "No monitors detected", Theme.Small, canvas,
-                Theme.InkFaint, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            return;
-        }
-
-        var well = Rectangle.Round(boxes.Aggregate(RectangleF.Union));
-        well.Inflate(LogicalToDeviceUnits(8), LogicalToDeviceUnits(8));
-        Theme.FillRound(g, well, LogicalToDeviceUnits(10), Theme.Sunken);
-        Theme.StrokeRound(g, well, LogicalToDeviceUnits(10), Color.FromArgb(100, Theme.Line));
-
         for (int i = 0; i < boxes.Count; i++)
         {
-            var m = _monitors[i];
             var r = Rectangle.Round(boxes[i]);
-            r.Inflate(-1, -1);
+            r.Inflate(-2, -2);
             if (r.Width < 3 || r.Height < 3) continue;
-
-            // Fill brightness mirrors the panel's own brightness, so a screen
-            // that is out of step with the others is visible at a glance.
-            double pct = m.SupportsBrightness ? Presets.RawToPercent(m, m.Brightness) / 100.0 : 0.25;
-            int alpha = 28 + (int)(pct * 110);
-
-            Color fill = m.SupportsBrightness
-                ? Color.FromArgb(alpha, Theme.Amber)
-                : Color.FromArgb(46, Theme.InkFaint);
-
-            int radius = LogicalToDeviceUnits(4);
-            Theme.FillRound(g, r, radius, Theme.Sunken);
-            using (var surface = new LinearGradientBrush(r, fill,
-                Color.FromArgb(20, m.SupportsBrightness ? Theme.Amber : Theme.InkFaint), LinearGradientMode.Vertical))
-            using (var shape = Theme.Round(r, radius))
-                g.FillPath(surface, shape);
-
             bool selected = i == _selectedIndex;
-            bool active = i == _hoverIndex || selected;
-            Theme.StrokeRound(g, r, radius,
-                selected ? Theme.AmberLight : active ? Color.FromArgb(170, Theme.AmberLight) : Theme.Line,
-                LogicalToDeviceUnits(selected ? 2 : 1));
-
-            if (r.Width > 20 && r.Height > 20)
-            {
-                int inset = LogicalToDeviceUnits(5);
-                int railHeight = Math.Max(2, LogicalToDeviceUnits(3));
-                var rail = new Rectangle(r.Left + inset, r.Bottom - inset - railHeight,
-                    Math.Max(1, r.Width - inset * 2), railHeight);
-                Theme.FillRound(g, rail, railHeight / 2, Theme.Line);
-                if (m.SupportsBrightness && pct > 0)
-                    Theme.FillRound(g, new Rectangle(rail.X, rail.Y, Math.Max(1, (int)Math.Round(rail.Width * pct)), rail.Height),
-                        railHeight / 2, active ? Theme.AmberLight : Theme.Amber);
-            }
-
-            if (m.IsPrimary && r.Width > 18 && r.Height > 14)
-            {
-                // A small dot, not the word "primary" - at this size any label
-                // would be unreadable and every rectangle would look the same.
-                using var dot = new SolidBrush(Color.FromArgb(210, Theme.Ink));
-                int dotSize = LogicalToDeviceUnits(4);
-                g.FillEllipse(dot, r.X + dotSize, r.Y + dotSize, dotSize, dotSize);
-            }
+            Theme.FillRound(g, r, 5, selected ? Theme.CardHover : Theme.Sunken);
+            Theme.StrokeRound(g, r, 5, selected ? Theme.AmberLight : Theme.Line, selected ? LogicalToDeviceUnits(3) : 1);
+            var m = _monitors[i];
+            string title = $"{i + 1}" + (selected ? "  SELECTED" : "");
+            var upper = new Rectangle(r.X + 7, r.Y + 3, r.Width - 14, Math.Min(r.Height - 4, LogicalToDeviceUnits(24)));
+            TextRenderer.DrawText(g, title, Font, upper, selected ? Theme.AmberLight : Theme.Ink,
+                TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
+            if (r.Height > LogicalToDeviceUnits(44))
+                TextRenderer.DrawText(g, m.DisplayName, Font,
+                    new Rectangle(r.X + 7, upper.Bottom, r.Width - 14, r.Bottom - upper.Bottom - 5), Theme.Ink,
+                    TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak | TextFormatFlags.VerticalCenter);
         }
-
+        if (Focused) ControlPaint.DrawFocusRectangle(g, new Rectangle(3, 3, Width - 6, Height - _caption.Height - 6), Theme.Ink, BackColor);
     }
 
     private int HitTest(Point p)
     {
         var boxes = Project();
-        // Reverse order so a monitor drawn later (on top) wins the hit.
-        for (int i = boxes.Count - 1; i >= 0; i--)
-            if (boxes[i].Contains(p)) return i;
+        for (int i = boxes.Count - 1; i >= 0; i--) if (boxes[i].Contains(p)) return i;
         return -1;
     }
-
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
@@ -204,26 +146,76 @@ internal sealed class LayoutMap : Control
         Cursor = hit >= 0 ? Cursors.Hand : Cursors.Default;
         Invalidate();
     }
-
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
-        if (_hoverIndex < 0) return;
         _hoverIndex = -1;
         UpdateCaption();
         Cursor = Cursors.Default;
         Invalidate();
     }
-
+    private void Pick(int index)
+    {
+        if (index < 0 || index >= _monitors.Count) return;
+        _selectedIndex = index;
+        UpdateCaption();
+        Invalidate();
+        MonitorPicked?.Invoke(_monitors[index]);
+        if (IsHandleCreated) ((ControlAccessibleObject)AccessibilityObject).NotifyClients(AccessibleEvents.Selection, index + 1);
+    }
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
-        if (e.Button != MouseButtons.Left) return;
-        int hit = HitTest(e.Location);
-        if (hit < 0) return;
-        _selectedIndex = hit;
-        UpdateCaption();
-        Invalidate();
-        MonitorPicked?.Invoke(_monitors[hit]);
+        if (e.Button == MouseButtons.Left) Pick(HitTest(e.Location));
+    }
+    protected override bool IsInputKey(Keys keyData) => (keyData & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down || base.IsInputKey(keyData);
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (_monitors.Count == 0) return;
+        if (e.KeyCode is Keys.Left or Keys.Up or Keys.Right or Keys.Down)
+        {
+            int direction = e.KeyCode is Keys.Left or Keys.Up ? -1 : 1;
+            Pick((_selectedIndex + direction + _monitors.Count) % _monitors.Count);
+            Focus();
+            e.Handled = true;
+        }
+        else if (e.KeyCode is Keys.Enter or Keys.Space) { Pick(Math.Max(0, _selectedIndex)); e.Handled = true; }
+    }
+    protected override AccessibleObject CreateAccessibilityInstance() => new DeskAccessible(this);
+    private sealed class DeskAccessible(LayoutMap owner) : ControlAccessibleObject(owner)
+    {
+        public override AccessibleRole Role => AccessibleRole.List;
+        public override int GetChildCount() => owner._monitors.Count + 1;
+        public override AccessibleObject GetSelected() => owner._selectedIndex >= 0 ? GetChild(owner._selectedIndex) : null;
+        public override AccessibleObject GetFocused() => owner.Focused ? GetSelected() : null;
+        public override AccessibleObject GetChild(int index) => index == owner._monitors.Count ? owner._all.AccessibilityObject
+            : index >= 0 && index < owner._monitors.Count ? new DisplayAccessible(owner, index) : null;
+    }
+    private sealed class DisplayAccessible : AccessibleObject
+    {
+        private readonly LayoutMap _owner;
+        private readonly Monitor _monitor;
+        private int Index => _owner._monitors.IndexOf(_monitor);
+        public DisplayAccessible(LayoutMap owner, int index) { _owner = owner; _monitor = owner._monitors[index]; }
+        public override string Name { get => $"{_monitor.DisplayName} ({_monitor.PositionLabel})"; set { } }
+        public override AccessibleRole Role => AccessibleRole.ListItem;
+        public override AccessibleObject Parent => _owner.AccessibilityObject;
+        public override Rectangle Bounds
+        {
+            get
+            {
+                int index = Index;
+                if (index < 0 || _owner.IsDisposed) return Rectangle.Empty;
+                var boxes = _owner.Project();
+                return index < boxes.Count ? _owner.RectangleToScreen(Rectangle.Round(boxes[index])) : Rectangle.Empty;
+            }
+        }
+        public override AccessibleStates State => Index < 0 || _owner.IsDisposed ? AccessibleStates.Unavailable
+            : AccessibleStates.Selectable | AccessibleStates.Focusable |
+                (Index == _owner._selectedIndex ? AccessibleStates.Selected : AccessibleStates.None);
+        public override string DefaultAction => "Select display";
+        public override void DoDefaultAction() { if (!_owner.IsDisposed) _owner.Pick(Index); }
+        public override void Select(AccessibleSelection flags) => DoDefaultAction();
     }
 }
