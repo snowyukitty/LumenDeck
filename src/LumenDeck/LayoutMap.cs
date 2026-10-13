@@ -124,9 +124,16 @@ internal sealed class LayoutMap : Control
             TextRenderer.DrawText(g, title, Font, upper, selected ? Theme.AmberLight : Theme.Ink,
                 TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
             if (r.Height > LogicalToDeviceUnits(44))
+            {
+                // WordBreak can silently clip a word wider than a portrait tile.
+                // Wrap only when every word fits; otherwise use a single ellipsis.
+                bool wordsFit = m.DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .All(word => TextRenderer.MeasureText(word, Font, Size.Empty, TextFormatFlags.NoPrefix).Width <= r.Width - 14);
                 TextRenderer.DrawText(g, m.DisplayName, Font,
                     new Rectangle(r.X + 7, upper.Bottom, r.Width - 14, r.Bottom - upper.Bottom - 5), Theme.Ink,
-                    TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
+                    TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter |
+                    (wordsFit ? TextFormatFlags.WordBreak : TextFormatFlags.SingleLine));
+            }
         }
         if (Focused) ControlPaint.DrawFocusRectangle(g, new Rectangle(3, 3, Width - 6, Height - _caption.Height - 6), Theme.Ink, BackColor);
     }
