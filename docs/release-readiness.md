@@ -1,19 +1,19 @@
 # Release readiness
 
-## Current 1.4.0 compact desktop candidate
+## Current 1.4.1 candidate
 
-Updated 2026-10-15. This verified local candidate corrects the oversized readout
-and inaccurate desktop-map regressions. It is not a published release.
+Updated 2026-10-15. This versioned checkpoint retains the compact desktop interface
+accepted after the preceding local installation. It is not a published release.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `3da37c63da5824fd0b135f9338e0106e6619a96a` - compact controls and faithful desktop geometry |
-| GUI recorded build | `1.4.0+3da37c63da5824fd0b135f9338e0106e6619a96a` |
-| Package | `LumenDeck-1.4.0-win-x64.zip` |
-| SHA-256 | `fc64e355e89e009f8cd70f4e8931603fa59230cb8f2aef5d308d4dfe0147910e` |
+| Source commit | `31af6555d42bcfb152dd859a8af24a9c2a9a25c4` - 1.4.1 compact desktop milestone |
+| GUI recorded build | `1.4.1+31af6555d42bcfb152dd859a8af24a9c2a9a25c4` |
+| Package | `LumenDeck-1.4.1-win-x64.zip` |
+| SHA-256 | `6e4aca393e9fd7e66995c163f9386906de513723e29b9266de41a56855c35220` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
-| File version | `1.4.0.0` for both executables |
-| Verification | Release warnings-as-errors builds; 4,586 ControlTests; 2,321 AppTests; 57 native screenshot checks; 33 committed-source showcase checks; 6 capture-export regressions |
+| File version | `1.4.1.0` for both executables |
+| Verification | Release warnings-as-errors build; 4,586 ControlTests; 2,321 AppTests; 33 committed-source showcase checks; 6 capture-export regressions; extracted package and installer/bundle regressions |
 
 Both executable product versions match the recorded GUI build. The extracted
 package passes its exact file allowlist, hashes, versions, bundled source-path
@@ -25,7 +25,7 @@ restoration, running-app refusal and isolated installer-state preservation.
 single candidate record against the ZIP digest, checksum sidecar and both actual
 executable payloads. Historical candidates below do not duplicate the identity rows.
 
-See the [checkpoint](checkpoint.md) for the local artifact and installation state;
+See the [checkpoint](checkpoint.md) for the local artifact and installation process;
 [packaging](packaging.md) defines the verification contract and limits. The
 [public preview receipt](assets/screenshot.json) is bound to this source and uses
 fictitious displays. Package probes do not change the real installation or exercise
@@ -33,12 +33,14 @@ physical monitor control.
 
 ## Historical candidates
 
-The `6a0bd4e` repair candidate was installed earlier in this session. The subsequent
-owner review identified oversized percentages and inaccurate staggered screen
-positions; the record above supersedes that candidate. Earlier 1.4.0 candidates
-used `4e27b37` and `114eed4`; their evidence remains in Git history and the
-[repair review](repair-review.md). Historical installation records establish only
-their own binary, shortcut and state checks. No release or release tag was created.
+The `3da37c6` compact desktop build was installed as 1.4.0, with matching binary
+hashes, preserved settings and verified desktop shortcuts/startup. The owner then
+accepted the UI improvement and requested the 1.4.1 milestone. This candidate
+supersedes that package while retaining its product behavior.
+
+Earlier 1.4.0 builds used `6a0bd4e`, `4e27b37` and `114eed4`; their evidence remains
+in Git history and the [repair review](repair-review.md). Historical checks establish
+only their own candidate's results. No release or release tag was created.
 
 ## Remaining release acceptance
 
