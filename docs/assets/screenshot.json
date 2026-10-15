@@ -1,10 +1,10 @@
 {
-  "sourceVersion": "6a0bd4ed17cb8c908f119c555573ae8e99a00503",
+  "sourceVersion": "3da37c63da5824fd0b135f9338e0106e6619a96a",
   "sourceDirty": false,
   "build": "Release, development source; not a released-version preview",
   "assemblyVersion": "1.4.0",
-  "guiAssemblySha256": "839729b6189d5d0d0c4814ab4c3caa560f879f12cc92c51d46f5e4c9fe80f07a",
-  "coreAssemblySha256": "2909fc6c0ce0e6bc0b3c536f6700ca1765077ae9d3255ade8cb989ddda3724d6",
+  "guiAssemblySha256": "e8010e9aec3ee79f955a8376a683e6932ca91cea6bb67aebe6fc71821b06dbd2",
+  "coreAssemblySha256": "fc4a79f6672730a52b8c0b3ee7c8994909bb80e49be32d50adb0328a22d4c7fa",
   "dotnetSdk": "10.0.302",
   "python": "3.12.10",
   "pillow": "12.3.0",
@@ -18,7 +18,7 @@
         1502,
         1038
       ],
-      "sha256": "a0974c6775b834137d2cbb9956387b85eaecc3fa13417c6c26abfa22c44ea6ca"
+      "sha256": "b90e37844c61a46fff5de57200303c9adc3c80f4d436d023064add03b2d18649"
     },
     "portfolio.png": {
       "width": 1800,
@@ -28,7 +28,7 @@
         1778,
         1069
       ],
-      "sha256": "81e7f3294d8a09cdefd15fbfe9d707f7a1a8ecb5016824cb64dddd89e0e8f37d"
+      "sha256": "129915c960826e4e0a06ede5672de5a2cf804e7fcc01fa51ec87aecf74e19c89"
     },
     "compact.png": {
       "width": 930,
@@ -38,7 +38,7 @@
         908,
         664
       ],
-      "sha256": "fdfce4ebda980bd53fafde4ce136f0e109885f3d1f203b542c3803eeee71244c"
+      "sha256": "f73154d46583eb7c3d8ec8c488b38fa8e422e24110e63eaacae9ca1c4e5c0826"
     },
     "stacked.png": {
       "width": 1524,
@@ -48,7 +48,7 @@
         1502,
         1038
       ],
-      "sha256": "ee3dfcf024355f2d8133a7215cb883f936cf861ffe164dfe3ad6b12322229e65"
+      "sha256": "10c39aeead97199cca90b3fd297c334ec9cbed6e677b664ff5b24b3cc06f9389"
     }
   },
   "scaling": "Actual per-capture native DPI and pixel dimensions are recorded below; no upscaling",
@@ -79,37 +79,37 @@
     "screenshot.png": {
       "width": 1524,
       "height": 1094,
-      "sha256": "a0974c6775b834137d2cbb9956387b85eaecc3fa13417c6c26abfa22c44ea6ca"
+      "sha256": "b90e37844c61a46fff5de57200303c9adc3c80f4d436d023064add03b2d18649"
     },
     "portfolio-native.png": {
       "width": 1800,
       "height": 1125,
-      "sha256": "81e7f3294d8a09cdefd15fbfe9d707f7a1a8ecb5016824cb64dddd89e0e8f37d"
+      "sha256": "129915c960826e4e0a06ede5672de5a2cf804e7fcc01fa51ec87aecf74e19c89"
     },
     "screenshot-compact.png": {
       "width": 930,
       "height": 720,
-      "sha256": "fdfce4ebda980bd53fafde4ce136f0e109885f3d1f203b542c3803eeee71244c"
+      "sha256": "f73154d46583eb7c3d8ec8c488b38fa8e422e24110e63eaacae9ca1c4e5c0826"
     },
     "screenshot-stacked.png": {
       "width": 1524,
       "height": 1094,
-      "sha256": "ee3dfcf024355f2d8133a7215cb883f936cf861ffe164dfe3ad6b12322229e65"
+      "sha256": "10c39aeead97199cca90b3fd297c334ec9cbed6e677b664ff5b24b3cc06f9389"
     },
     "portfolio-1200x750.png": {
       "width": 1200,
       "height": 750,
-      "sha256": "5c1208f263c8929c810106607b0ca89c6d3d7e79c468cffdc023add117548d59"
+      "sha256": "53350b2be32c84f2311a24fc01e9cd79dcbc6b25a814cd378e895faf06e437af"
     },
     "portfolio-480x300.png": {
       "width": 480,
       "height": 300,
-      "sha256": "56af9072e9a768b7720bc2fc76a4d0a3679c739ee7c924fa7f4a2c2375705ea9"
+      "sha256": "8d30384dfe4205dce3b8aef989a4551769980d2a4269ffc31a2f3886dcc9d7e1"
     },
     "portfolio-320x200.png": {
       "width": 320,
       "height": 200,
-      "sha256": "5326cd19c7aa8421d6465c29572bcd4bc32a91d841cde5bd490161e13c9b0220"
+      "sha256": "bdc52802ded3469f4f7a7e6cf1eec4e0c95c141f2cbbbb480ae856bbcd5cc1fb"
     }
   }
 }
