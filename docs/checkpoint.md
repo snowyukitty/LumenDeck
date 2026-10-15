@@ -1,5 +1,8 @@
 # Current checkpoint
 
+The 2026-10-15 local repair review is recorded in [repair review](repair-review.md).
+The milestone and package record below describe the earlier source checkpoint.
+
 Updated 2026-10-13. The completed milestone is the **1.4.0 desk-remote development
 candidate**, prepared on `feat/desk-remote` for the `main` GitHub checkpoint.
 It builds on the clean `435a62d` baseline; no unrelated changes were discarded.

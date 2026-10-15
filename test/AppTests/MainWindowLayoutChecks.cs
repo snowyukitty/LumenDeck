@@ -26,12 +26,13 @@ internal static partial class Program
         {
             form.ClientSize = size;
             form.PerformLayout();
+            Application.DoEvents();
             Assert(form.ClientRectangle.Contains(commands.Bounds) && form.ClientRectangle.Contains(status.Bounds),
-                $"main commands and status fit at {size.Width}x{size.Height}");
+                $"main commands and status fit at {size.Width}x{size.Height}: client={form.ClientRectangle}, commands={commands.Bounds}, status={status.Bounds}");
             Assert(list.Top >= commands.Bottom && list.Bottom <= status.Top,
                 $"actual card viewport does not overlap fixed chrome at {size.Width}x{size.Height}");
             Assert(list.ClientSize.Height >= 150, $"actual card viewport remains usable at {size.Width}x{size.Height}: list={list.Height}, bar={commands.Height}, map={map.Height}, header={header.Visible}, status={status.Height}");
-            Assert(header.Visible == (size.Height >= 600) && (!header.Visible || header.Bottom <= commands.Top) &&
+            Assert(header.Visible == (form.ClientSize.Height >= (int)Math.Round(600 * form.DeviceDpi / 96.0)) && (!header.Visible || header.Bottom <= commands.Top) &&
                 form.Text == $"LumenDeck {AboutForm.VersionText}" && header.AccessibleName.Contains(AboutForm.VersionText),
                 $"the version stays in the title bar and the header yields to cards in a short window at {size.Width}x{size.Height}");
             Assert(map.Visible,

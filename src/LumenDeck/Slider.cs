@@ -165,7 +165,15 @@ internal sealed class Slider : Control
         if (Principal && Format != null)
             _readoutW = Math.Max(_readoutW, Math.Max(TextRenderer.MeasureText(Format(_min), Font).Width,
                 TextRenderer.MeasureText(Format(_max), Font).Width) + LogicalToDeviceUnits(12));
-        Height = Math.Max(Height, LogicalToDeviceUnits(30));
+        int textHeight = TextRenderer.MeasureText(Format?.Invoke(_value) ?? _value.ToString(), Font,
+            Size.Empty, TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Height;
+        Height = Math.Max(LogicalToDeviceUnits(Principal ? 76 : 30), textHeight + LogicalToDeviceUnits(8));
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        RescaleMetrics();
     }
 
     protected override void OnHandleCreated(EventArgs e)

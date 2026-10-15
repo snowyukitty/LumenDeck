@@ -62,7 +62,7 @@ internal static partial class Program
             var list = Private<FlowLayoutPanel>(form, "_list");
             if (form.ActiveControl is { } selected && list.Contains(selected))
                 Assert(list.ClientRectangle.Contains(new Rectangle(list.PointToClient(selected.PointToScreen(Point.Empty)), selected.Size)),
-                    "restored selection is fully visible in the minimum-size card viewport");
+                    $"restored selection is fully visible in the minimum-size card viewport: dpi={form.DeviceDpi}, size={form.Size}, client={form.ClientSize}, pending={Private<bool>(form, "_dpiLayoutPending")}, viewport={list.ClientRectangle}, target={new Rectangle(list.PointToClient(selected.PointToScreen(Point.Empty)), selected.Size)}");
             Assert(Private<object>(form, "_scanFocus") == null, "completed scan releases its focus ownership");
             Assert(GetForegroundWindow() != form.Handle, "logical focus recovery does not foreground the off-desktop owner");
             Private<System.Windows.Forms.Timer>(form, "_saveTimer").Stop();

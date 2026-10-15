@@ -41,9 +41,13 @@ internal sealed class CommandSection : Panel
             base.OnLayout(e);
             int captionWidth = _caption.Text.Length == 0 ? 0 : Math.Max(LogicalToDeviceUnits(104), _caption.PreferredWidth + LogicalToDeviceUnits(12));
             int width = Math.Max(1, ClientSize.Width - Padding.Horizontal - captionWidth);
+            foreach (Control command in Commands.Controls)
+                if (command is FlowLayoutPanel group)
+                    group.MaximumSize = new Size(Math.Max(1, width - group.Margin.Horizontal), 0);
             _caption.Location = new Point(Padding.Left, Padding.Top + LogicalToDeviceUnits(8));
             Commands.SetBounds(Padding.Left + captionWidth, Padding.Top, width,
                 Math.Max(LogicalToDeviceUnits(30), Commands.GetPreferredSize(new Size(width, 0)).Height));
+            Commands.PerformLayout();
             Height = Commands.Height + Padding.Vertical;
         }
         finally { _layingOut = false; }

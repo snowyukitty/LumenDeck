@@ -26,6 +26,7 @@ internal static class CliArguments
                 return Invalid("--preset requires Day, Evening, Night or Custom.");
             if (option is "--brightness" or "--contrast")
             {
+                value = value.Trim();
                 bool relative = value[0] is '+' or '-';
                 if (!int.TryParse(value, out int number) || (!relative && (number < 0 || number > 100)))
                     return Invalid($"{option} requires 0-100 or a signed whole-number step such as +10 or -10.");

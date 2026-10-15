@@ -219,7 +219,7 @@ internal static class Cli
                         // moves it, so --preset Custom can put it back even if
                         // this is the first LumenDeck command ever run here.
                         settings.SeedCustom(m);
-                        if (!ApplyBrightness(m, Presets.BrightnessFor(m, level.Nits))) exit = ExitWriteRefused;
+                        if (m.SupportsBrightness && !ApplyBrightness(m, Presets.BrightnessFor(m, level.Nits))) exit = ExitWriteRefused;
                         if (!ApplyWarmth(m, level.Kelvin, settings)) exit = ExitWriteRefused;
                     }
                     actions.Add($"preset {level.Name} ({level.Nits} nits, {level.Kelvin}K)");
@@ -237,12 +237,7 @@ internal static class Cli
                         Console.Error.WriteLine($"Could not read \"{brightness}\" as a brightness value.");
                         return ExitNoMatch;
                     }
-                    if (!ApplyBrightness(m, raw)) exit = ExitWriteRefused;
-
-                    // An explicit value here is the same act as moving a slider
-                    // in the window: it is what this person wants, so it becomes
-                    // what --preset Custom restores.
-                    settings.CaptureCustom(m);
+                    if (!ApplyBrightness(m, raw, settings)) exit = ExitWriteRefused;
                 }
                 actions.Add("brightness " + brightness);
             }
@@ -263,8 +258,7 @@ internal static class Cli
                         Console.Error.WriteLine($"Could not read \"{contrast}\" as a contrast value.");
                         return ExitNoMatch;
                     }
-                    if (!ApplyContrast(m, raw)) exit = ExitWriteRefused;
-                    settings.CaptureCustom(m);
+                    if (!ApplyContrast(m, raw, settings)) exit = ExitWriteRefused;
                 }
                 actions.Add("contrast " + contrast);
             }
@@ -318,7 +312,7 @@ internal static class Cli
         output.WriteLine($"{(hardwareExit == ExitWriteRefused ? "Requested" : "Applied")} " +
             $"{string.Join(", ", actions)} to {string.Join(", ", names)}");
         if (hardwareExit == ExitWriteRefused)
-            errors.WriteLine("At least one monitor refused a change - it may be asleep or on another input.");
+            errors.WriteLine("At least one monitor refused or does not support a change - it may be asleep or on another input.");
         return saved ? hardwareExit : ExitWriteRefused;
     }
 
@@ -357,9 +351,10 @@ internal static class Cli
     }
 
     /// <summary>Accepts an absolute value, or a relative step such as +10 or -10.</summary>
-    private static int ResolveBrightness(Monitor m, string spec)
+    internal static int ResolveBrightness(Monitor m, string spec)
     {
         if (string.IsNullOrWhiteSpace(spec)) return -1;
+        spec = spec.Trim();
 
         if (spec[0] is '+' or '-')
         {
@@ -376,9 +371,10 @@ internal static class Cli
     /// reason: MCCS lets a monitor report any range it likes, and one here
     /// reports 0-100 while the next need not.
     /// </summary>
-    private static int ResolveContrast(Monitor m, string spec)
+    internal static int ResolveContrast(Monitor m, string spec)
     {
         if (string.IsNullOrWhiteSpace(spec)) return -1;
+        spec = spec.Trim();
 
         if (spec[0] is '+' or '-')
         {
@@ -390,21 +386,32 @@ internal static class Cli
         return Presets.FromPercent(percent, m.ContrastMin, m.ContrastMax);
     }
 
-    private static bool ApplyBrightness(Monitor m, int raw)
+    internal static bool ApplyBrightness(Monitor m, int raw, AppSettings rememberCustom = null,
+        Func<Monitor, int, bool> write = null)
     {
-        if (!m.SupportsBrightness) return true;   // nothing to refuse
-        bool ok = m.IsInternalPanel
+        if (!m.SupportsBrightness) return false;
+        bool ok = write != null ? write(m, raw) : m.IsInternalPanel
             ? WmiBrightness.Set(m.WmiInstanceName, raw)
             : m.UseDdc(h => Native.SetMonitorBrightness(h, (uint)raw), false);
-        if (ok) m.Brightness = raw;
+        if (ok)
+        {
+            m.Brightness = raw;
+            rememberCustom?.CaptureCustom(m);
+        }
         return ok;
     }
 
-    private static bool ApplyContrast(Monitor m, int raw)
+    internal static bool ApplyContrast(Monitor m, int raw, AppSettings rememberCustom = null,
+        Func<Monitor, int, bool> write = null)
     {
-        if (!m.SupportsContrast || !m.HasPhysicalHandle) return true;   // nothing to refuse
-        bool ok = m.UseDdc(h => Native.SetMonitorContrast(h, (uint)raw), false);
-        if (ok) m.Contrast = raw;
+        if (!m.SupportsContrast) return false;
+        bool ok = write != null ? write(m, raw)
+            : m.UseDdc(h => Native.SetMonitorContrast(h, (uint)raw), false);
+        if (ok)
+        {
+            m.Contrast = raw;
+            rememberCustom?.CaptureCustom(m);
+        }
         return ok;
     }
 
@@ -442,10 +449,10 @@ internal static class Cli
         var e = settings.Find(m.StableKey);
         if (e is not { HasCustom: true }) return false;
 
-        if (e.CustomBrightnessPercent is double bp &&
+        if (m.SupportsBrightness && e.CustomBrightnessPercent is double bp &&
             !ApplyBrightness(m, Presets.PercentToRaw(m, bp))) exit = ExitWriteRefused;
 
-        if (e.CustomContrastPercent is double cp &&
+        if (m.SupportsContrast && e.CustomContrastPercent is double cp &&
             !ApplyContrast(m, Presets.FromPercent(cp, m.ContrastMin, m.ContrastMax))) exit = ExitWriteRefused;
 
         if (e.CustomKelvin is int k && !ApplyWarmth(m, k, settings)) exit = ExitWriteRefused;

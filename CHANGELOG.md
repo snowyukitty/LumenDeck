@@ -64,6 +64,17 @@ until release acceptance is complete.
 
 ### Fixed
 
+- Large brightness readouts and caption columns now measure scaled text, including
+  cards created after display discovery on a high-DPI monitor. Minimum window
+  dimensions scale with DPI; restoring the header settles its docking bounds.
+- Staggered display maps reserve readable rows and keep short tile identifiers
+  on one line instead of clipping them into tiny rectangles.
+- Night saver selectors wrap within narrow command rows. DPI changes settle the
+  final command width before measuring children and avoid rounding-height churn.
+- Refused GUI warmth requests retain the previous readout, saved warmth and
+  Custom levels. Explicit CLI brightness/contrast requests fail for unsupported
+  controls, preserve Custom on refusal, and parse padded relative steps consistently.
+
 - Version 1.2.1 fixes stalls and command-bar flickering when moving the window
   between monitors with different DPI scaling. Intermediate font/size changes
   are batched before measuring command rows and monitor cards at their final

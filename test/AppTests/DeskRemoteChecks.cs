@@ -81,6 +81,7 @@ internal static partial class Program
         }
         CheckStackedDesk(directory, renderDirectory);
         CheckDeskDpi(directory, renderDirectory);
+        CheckScreenshotLayout(directory, renderDirectory);
     }
     private static void CheckDeskWriteBinding(string directory)
     {
@@ -240,7 +241,9 @@ internal static partial class Program
         }, allDisplays: false);
         var form = fixture.Form;
         var map = Private<LayoutMap>(form, "_map");
-        form.ClientSize = new Size(1000, 690);
+        // This scenario needs a wide, non-compact logical window at any host DPI.
+        form.ClientSize = new Size((int)Math.Round(1000 * form.DeviceDpi / 96.0),
+            (int)Math.Round(690 * form.DeviceDpi / 96.0));
         Application.DoEvents();
         Assert(map.Dock == DockStyle.Left, "stacked desk uses a compact side selector when width permits");
         PickMapDisplay(form, 1);

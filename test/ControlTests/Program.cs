@@ -155,6 +155,8 @@ internal static partial class Program
             CheckSettingsStorage(directory);
             CheckCliArguments();
             CheckCliWarmth(directory);
+            CheckCliAdjustments(directory);
+            CheckCardWarmth(directory);
             if (args.Length == 1 && args[0] == "--settings-only")
             {
                 Console.WriteLine($"PASS: {_checks} isolated settings checks; no monitor, user settings or registry access.");

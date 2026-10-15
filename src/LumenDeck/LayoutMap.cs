@@ -43,6 +43,10 @@ internal sealed class LayoutMap : Control
     }
 
     internal void SetAllDisplays(bool show) => _all.Checked = show;
+
+    internal int RequiredHeight(int minimum) => Math.Max(minimum,
+        _monitors.Select(m => m.Rect.Top).Distinct().Count() * LogicalToDeviceUnits(44) +
+        FooterHeight + LogicalToDeviceUnits(24));
     protected override void OnLayout(LayoutEventArgs e)
     {
         base.OnLayout(e);
@@ -120,9 +124,10 @@ internal sealed class LayoutMap : Control
             Theme.StrokeRound(g, r, 5, selected ? Theme.AmberLight : Theme.Line, selected ? LogicalToDeviceUnits(3) : 1);
             var m = _monitors[i];
             string title = $"{i + 1}" + (selected ? "  SELECTED" : "");
+            if (TextRenderer.MeasureText(title, Font).Width > r.Width - 14) title = $"{i + 1}";
             var upper = new Rectangle(r.X + 7, r.Y + 3, r.Width - 14, Math.Min(r.Height - 4, LogicalToDeviceUnits(24)));
             TextRenderer.DrawText(g, title, Font, upper, selected ? Theme.AmberLight : Theme.Ink,
-                TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
+                TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
             if (r.Height > LogicalToDeviceUnits(44))
             {
                 // WordBreak can silently clip a word wider than a portrait tile.

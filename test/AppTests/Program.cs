@@ -47,6 +47,13 @@ internal static partial class Program
             {
                 try
                 {
+                    if (args.Length is 1 or 2 && args[0] == "--screenshot-layout-only")
+                    {
+                        CheckScreenshotLayout(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
+                        Console.WriteLine($"PASS: {_checks} screenshot layout checks; synthetic displays only.");
+                        result = 0;
+                        return;
+                    }
                     if (args.Length is 1 or 2 && args[0] == "--desk-remote-only")
                     {
                         CheckDeskRemote(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
@@ -208,6 +215,7 @@ internal static partial class Program
                     CheckPreferences(directory);
                     CheckBackgroundSettings(directory);
                     CheckPresetTargetLifecycle(directory);
+                    CheckWarmthFailure(directory);
                     CheckScheduleLifecycle(directory);
                     CheckCrossDisplayDpi(directory);
                     CheckRestoreResponsiveness(directory);
@@ -274,6 +282,15 @@ internal static partial class Program
     {
         protected override bool ShowWithoutActivation => true;
         protected override CreateParams CreateParams => NonActivating(base.CreateParams);
+        protected override void SetClientSizeCore(int x, int y)
+        {
+            // Form.ClientSize can cache a request below MinimumSize even when
+            // the native outer window rejects it. Test the reachable minimum,
+            // not inconsistent managed/native bounds created by that setter.
+            var frame = Size - ClientSize;
+            base.SetClientSizeCore(Math.Max(x, MinimumSize.Width - frame.Width),
+                Math.Max(y, MinimumSize.Height - frame.Height));
+        }
     }
     private sealed class QuietConnectionHelp : ConnectionHelpForm
     {
@@ -383,6 +400,8 @@ internal static partial class Program
         public bool RejectStartupWrite, StartupWriteMismatch, StartupReadFailsAfterWrite;
         public int StartupWrites;
         public int Scans, GammaSaves, StartupRepairs, EditorCreations, ProfileErrors;
+        public bool RefuseGamma;
+        public int GammaWrites;
         public ProfileEditorForm Editor;
         public PresetEditorForm PresetEditor;
         public PresetScheduleForm ScheduleEditor;
@@ -420,6 +439,7 @@ internal static partial class Program
             var host = new MainFormHost
             {
                 Settings = Settings, Worker = Worker, ShowTrayIcon = false,
+                ApplyGamma = _ => { GammaWrites++; return !RefuseGamma; },
                 WriteSettings = writeSettings ?? (write => write()),
                 CreateConnectionHelp = () => { ConnectionHelpCreations++; return new QuietConnectionHelp(); },
                 CreateKeyboardHelp = () => { KeyboardHelpCreations++; return new QuietKeyboardHelp(); },
@@ -466,7 +486,8 @@ internal static partial class Program
             };
             Private<NotifyIcon>(Form, "_tray").Disposed += (_, _) => TrayDisposals++;
             Form.Show();
-            if (waitForCards) PumpUntil(() => Controls(Form).OfType<MonitorCard>().Any(), "initial synthetic scan");
+            if (waitForCards) PumpUntil(() => Controls(Form).OfType<MonitorCard>().Any() &&
+                !Private<bool>(Form, "_dpiLayoutPending") && !Private<bool>(Form, "_deskLayoutPending"), "initial synthetic scan");
             // Existing lifecycle scenarios exercise the retained all-display workflow.
             // DeskRemoteChecks passes false to cover the production default explicitly.
             if (allDisplays)

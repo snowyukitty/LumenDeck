@@ -299,24 +299,42 @@ internal partial class MainForm : Form
     }
 
     private bool _updatingDeskLayout;
-    private void UpdateDeskMapVisibility()
+    private bool _deskLayoutPending;
+    private void UpdateDeskMapVisibility(bool completeDpi = false)
     {
         if (_updatingDeskLayout) return;
-        if (_scalingDpi || _dpiLayoutPending || _map == null || _bar == null || _status == null || _header == null || WindowState == FormWindowState.Minimized) return;
+        if ((!completeDpi && (_scalingDpi || _dpiLayoutPending)) || _map == null || _bar == null || _status == null || _header == null || WindowState == FormWindowState.Minimized) return;
         _updatingDeskLayout = true;
+        SuspendLayout();
         try
         {
+            MinimumSize = LogicalToDeviceUnits(new Size(620, 480));
             bool compact = ClientSize.Height < LogicalToDeviceUnits(600);
             _bar.SetHeightLimit(compact ? LogicalToDeviceUnits(110) : 0);
+            bool headerChanged = _header.Visible != !compact;
             _header.Visible = !compact;
             _map.Visible = CanAdjustDisplays;
             bool stacked = _monitors.Count > 1 && _monitors.Select(m => m.Rect.Left).Distinct().Count() == 1;
             bool side = stacked && ClientSize.Width >= LogicalToDeviceUnits(900) && !compact;
             _map.Dock = side ? DockStyle.Left : DockStyle.Top;
             if (side) _map.Width = LogicalToDeviceUnits(220);
-            else _map.Height = LogicalToDeviceUnits(compact ? 112 : 140);
+            else _map.Height = _map.RequiredHeight(LogicalToDeviceUnits(compact ? 112 : 140));
+            if (headerChanged && IsHandleCreated && !_deskLayoutPending)
+            {
+                // Visibility can change inside the parent's active dock pass.
+                // Settle once afterwards so a restored header cannot overlap
+                // the map using its old bounds from another DPI or width.
+                _deskLayoutPending = true;
+                BeginInvoke((Action)(() =>
+                {
+                    _deskLayoutPending = false;
+                    if (IsDisposed || Disposing) return;
+                    PerformLayout();
+                    LayoutCards();
+                }));
+            }
         }
-        finally { _updatingDeskLayout = false; }
+        finally { ResumeLayout(true); _updatingDeskLayout = false; }
     }
 
     private void ShowConnectionHelp()
@@ -523,7 +541,7 @@ internal partial class MainForm : Form
                     // That case needs the baseline putting back, and skipping it
                     // is how a display stays tinted with the slider reading off.
                     if (m.Kelvin != GammaControl.NeutralKelvin || m.GammaIsOurs)
-                        warmthFailed = !DisplayGamma.Apply(m);
+                        warmthFailed = !_host.ApplyGamma(m);
                 }
                 else if (!m.GammaIsOurs)
                 {
@@ -546,7 +564,7 @@ internal partial class MainForm : Form
 
                 var card = new MonitorCard(
                     m, _settings, _worker, OnCardChanged, s => SetStatus(s),
-                    ToggleScreenBlank, ConfigureScreenBlankHotkey, LoadFeaturesForCard, ShowConnectionHelp, ShowProfileEditor);
+                    ToggleScreenBlank, ConfigureScreenBlankHotkey, LoadFeaturesForCard, ShowConnectionHelp, ShowProfileEditor, _host.ApplyGamma);
                 card.Enter += (_, _) =>
                 {
                     if (!CanAdjustDisplays || card.IsDisposed || !_cards.Contains(card)) return;
@@ -907,6 +925,7 @@ internal partial class MainForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        MinimumSize = LogicalToDeviceUnits(new Size(620, 480));
         WindowChrome.Apply(this, _settings.UseMicaTitleBar);
         if (_cards.Count > 0) RegisterScreenBlankHotkeys();
     }
@@ -1092,15 +1111,25 @@ internal partial class MainForm : Form
             // the command rows and pinned cards perform their final passes.
             try
             {
+                // Set destination-DPI constraints before releasing layout. Using
+                // the old height limit first wraps every command row twice.
+                UpdateDeskMapVisibility(completeDpi: true);
+                MinimumSize = LogicalToDeviceUnits(new Size(620, 480));
+                // Dock the bar at its final width before measuring any rows.
+                // Fractional scaling can otherwise leave a one-pixel width
+                // correction that repeats the entire command subtree layout.
+                ResumeLayout(false);
+                PerformLayout();
+                _bar.ResumeLayout(false);
+                _bar.PerformLayout();
                 foreach (var control in _dpiSuspendedControls)
-                    if (!control.IsDisposed) control.ResumeLayout(false);
+                    if (!control.IsDisposed && control != this && control != _bar) control.ResumeLayout(false);
                 _bar.SuspendLayout();
                 try
                 {
                     foreach (CommandSection section in _bar.Controls)
                     {
                         section.PerformLayout();
-                        section.Commands.PerformLayout();
                     }
                 }
                 finally { _bar.ResumeLayout(true); }

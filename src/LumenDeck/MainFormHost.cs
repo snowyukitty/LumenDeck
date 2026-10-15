@@ -7,6 +7,7 @@ internal sealed class MainFormHost
     public required DdcWorker Worker { get; init; }
     public required Func<List<Monitor>> EnumerateMonitors { get; init; }
     public required Action SaveGamma { get; init; }
+    public Func<Monitor, bool> ApplyGamma { get; init; } = DisplayGamma.Apply;
     public required Action RepairStartup { get; init; }
     public required Func<bool?> ReadStartupState { get; init; }
     public required Func<bool, bool> SetStartup { get; init; }

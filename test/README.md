@@ -1,5 +1,24 @@
 # Tests
 
+Screenshot regression checks cover three staggered displays, 96% brightness,
+scaled captions/readouts and non-overlapping window sections. They rebuild cards
+after moving a fixture window to each attached monitor's DPI, on the private test
+desktop with fake display and gamma writers:
+
+```powershell
+dotnet run --project test/AppTests/AppTests.csproj -c Release -- --screenshot-layout-only artifacts/layout-review
+```
+
+The full AppTests suite also runs this scenario. The selected native DPI values
+depend on the host's monitor configuration; this does not change that configuration.
+The test fixture clamps requested client sizes to the DPI-scaled native minimum,
+avoiding WinForms' inconsistent cached ClientSize when a request is below it.
+
+Settings checks include refused and accepted GUI warmth requests, retained
+Custom levels after disk reload, unsupported/refused CLI brightness and contrast,
+and relative percentage steps with whitespace. Main-window checks inject gamma
+acceptance/refusal and verify the subsequent background save and visible warning.
+
 Desk remote acceptance and source captures use the actual application on a private
 desktop, fake display transport and isolated settings:
 

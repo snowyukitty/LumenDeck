@@ -30,6 +30,7 @@ internal sealed class MonitorCard : Panel
     private readonly Action<MonitorCard> _onFeaturesRequested;
 
     private readonly Action<string> _report;
+    private readonly Func<Monitor, bool> _applyGamma;
 
     private readonly Slider _brightness;
     private readonly Slider _contrast;
@@ -70,13 +71,14 @@ internal sealed class MonitorCard : Panel
                        Action<MonitorCard> onScreenBlankToggle,
                        Action<MonitorCard> onConfigureScreenBlankHotkey,
                        Action<MonitorCard> onFeaturesRequested, Action onConnectionHelp = null,
-                       Action<MonitorCard> onProfileRequested = null)
+                       Action<MonitorCard> onProfileRequested = null, Func<Monitor, bool> applyGamma = null)
     {
         Monitor = m;
         _settings = settings;
         _worker = worker;
         _onChanged = onChanged ?? ((_, _) => { });
         _report = report ?? (_ => { });
+        _applyGamma = applyGamma ?? DisplayGamma.Apply;
         _onScreenBlankToggle = onScreenBlankToggle ?? (_ => { });
         _onConfigureScreenBlankHotkey = onConfigureScreenBlankHotkey ?? (_ => { });
         _onFeaturesRequested = onFeaturesRequested ?? (_ => { });
@@ -532,9 +534,7 @@ internal sealed class MonitorCard : Panel
     private void OnWarmth()
     {
         if (_suppress) return;
-        Monitor.Kelvin = KelvinFromWarmth(_warmth.Value);
-        ApplyGamma();
-        ManualEdit();
+        if (ApplyGamma(KelvinFromWarmth(_warmth.Value))) ManualEdit();
     }
 
     /// <summary>
@@ -543,13 +543,25 @@ internal sealed class MonitorCard : Panel
     /// identity - and onto the baseline rather than onto the ramp that happens
     /// to be loaded, which is what stops warmth stacking on warmth.
     /// </summary>
-    private void ApplyGamma()
+    private bool ApplyGamma(int kelvin)
     {
-        if (!DisplayGamma.Apply(Monitor))
+        int previous = Monitor.Kelvin;
+        bool accepted = false;
+        Monitor.Kelvin = kelvin;
+        try { accepted = _applyGamma(Monitor); }
+        finally
+        {
+            // A refused request must not become saved warmth or Custom. Restore
+            // the readout as well, including when the driver wrapper throws.
+            if (!accepted) Monitor.Kelvin = previous;
+            _warmth.SetValueSilently(WarmthFromKelvin(Monitor.Kelvin));
+        }
+        if (!accepted)
         {
             ShowWarmthFailure();
             _report($"{Monitor.DisplayName}: the graphics driver refused the colour change.");
         }
+        return accepted;
     }
 
     public void ApplyBrightness(int raw)
@@ -577,11 +589,7 @@ internal sealed class MonitorCard : Panel
     public void ApplyWarmth(int kelvin)
     {
         int k = Math.Clamp(kelvin, GammaControl.MinKelvin, GammaControl.NeutralKelvin);
-        _suppress = true;
-        _warmth.SetValueSilently(WarmthFromKelvin(k));
-        _suppress = false;
-        Monitor.Kelvin = k;
-        ApplyGamma();
+        ApplyGamma(k);
     }
 
     /// <summary>
@@ -859,6 +867,11 @@ internal sealed class MonitorCard : Panel
             // their children past the fixed card edge. Constrain before measuring
             // height, including labels whose preferred width can exceed a cell.
             int gridWidth = ClientSize.Width - Padding.Horizontal;
+            // Cards are created after asynchronous discovery, potentially on a
+            // scaled monitor. Their fonts can be scaled before the fixed column.
+            _grid.ColumnStyles[0].Width = Math.Max(LogicalToDeviceUnits(96),
+                _grid.Controls.Cast<Control>().Where(c => _grid.GetColumn(c) == 0 && _grid.GetColumnSpan(c) == 1)
+                    .Select(c => TextRenderer.MeasureText(c.Text, c.Font).Width + c.Margin.Horizontal).DefaultIfEmpty(0).Max());
             foreach (Control control in _grid.Controls)
             {
                 int available = gridWidth - (_grid.GetColumnSpan(control) == 2

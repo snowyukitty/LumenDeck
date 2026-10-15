@@ -8,6 +8,7 @@ internal sealed class DeskCommandBar : Panel
     private CommandSection _night;
     private bool _expanded;
     private int _heightLimit;
+    private int _heightLimitLogical;
     private bool _nightActive;
     private readonly FlatButton _expand = new("Desk actions…") { Width = 120, Quiet = true };
     public Dictionary<string, FlatButton> ModeButtons { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -69,7 +70,7 @@ internal sealed class DeskCommandBar : Panel
         var workChoice = new FlowLayoutPanel
         {
             AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = false, Margin = new Padding(12, 3, 3, 3),
+            WrapContents = true, Margin = new Padding(12, 3, 3, 3),
         };
         workChoice.Controls.Add(new Label
         {
@@ -95,9 +96,19 @@ internal sealed class DeskCommandBar : Panel
     {
         if (_heightLimit == limit) return;
         _heightLimit = limit;
+        _heightLimitLogical = limit > 0 ? (int)Math.Round(limit * 96d / DeviceDpi) : 0;
         MaximumSize = limit > 0 ? new Size(int.MaxValue, limit) : Size.Empty;
         AutoScroll = limit > 0;
         PerformLayout();
+    }
+
+    protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified)
+    {
+        // Scaling an already rounded 125% height to 150% can add a pixel,
+        // followed by an immediate correction. Clamp to the destination limit
+        // during the native scaling pass instead of publishing that extra size.
+        if (_heightLimitLogical > 0) height = Math.Min(height, LogicalToDeviceUnits(_heightLimitLogical));
+        base.SetBoundsCore(x, y, width, height, specified);
     }
 
     internal void SetExpanded(bool expanded)
