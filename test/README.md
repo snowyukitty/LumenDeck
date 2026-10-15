@@ -43,6 +43,14 @@ desk actions; DeskRemoteChecks explicitly opts into the production default.
 
 See [showcase](../docs/showcase.md) for capture receipts and exported dimensions.
 
+Public showcase captures have a separate native-DPI path (`--showcase-only`).
+It sizes the actual outer window in logical units, including the minimum window,
+and records per-image DPI, dimensions, hashes and loaded GUI/core identities.
+These layout checks also run in the full AppTests suite. The exporter rejects stale
+builds, changed captures, nonuniform aspect ratios and upscaled portfolio masters.
+Run its regression checks with `python -B -m unittest discover -s test -p test_showcase_export.py`
+(requires Pillow). Public capture generation remains an explicit local operation.
+
 The same focused suite includes spatial arrow navigation across aligned and offset
 four-screen desks, no edge wrapping or transient slider focus, Home/End, exact
 modifier ownership, Enter-to-adjust, All displays focus synchronization, disabled/

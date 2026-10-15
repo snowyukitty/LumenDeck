@@ -5,7 +5,8 @@ $dirty = git status --porcelain -- src test Directory.Build.props scripts/captur
 if ($dirty) { throw "Commit the implementation and capture tools before creating source-bound public assets." }
 dotnet build LumenDeck.slnx -c Release --no-restore /warnaserror
 if ($LASTEXITCODE -ne 0) { throw "Release build failed." }
-dotnet run --project test/AppTests/AppTests.csproj -c Release -- --desk-remote-only artifacts/showcase
+$captures = Join-Path 'artifacts/showcase' ([guid]::NewGuid().ToString('N'))
+dotnet run --project test/AppTests/AppTests.csproj -c Release -- --showcase-only $captures
 if ($LASTEXITCODE -ne 0) { throw "Fixture capture checks failed." }
-python scripts/compose-showcase.py artifacts/showcase $OutputDirectory
+python scripts/compose-showcase.py $captures $OutputDirectory
 if ($LASTEXITCODE -ne 0) { throw "Showcase export failed." }

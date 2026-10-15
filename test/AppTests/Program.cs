@@ -47,6 +47,13 @@ internal static partial class Program
             {
                 try
                 {
+                    if (args.Length is 1 or 2 && args[0] == "--showcase-only")
+                    {
+                        CheckShowcase(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
+                        Console.WriteLine($"PASS: {_checks} native showcase checks; synthetic displays only.");
+                        result = 0;
+                        return;
+                    }
                     if (args.Length is 1 or 2 && args[0] == "--screenshot-layout-only")
                     {
                         CheckScreenshotLayout(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
@@ -242,6 +249,7 @@ internal static partial class Program
                     CheckScenarioCleanup(directory);
                     CheckMainWindowLayout(directory, args.Length == 2 && args[0] == "--render-dir" ? Path.GetFullPath(args[1]) : null);
                     CheckDeskRemote(directory, null);
+                    CheckShowcase(directory, null);
                     if (args.Length == 2 && args[0] == "--render-dir") RenderPreferences(Path.GetFullPath(args[1]));
                     Console.WriteLine($"PASS: {_checks} actual MainForm lifecycle checks; synthetic displays and isolated files only.");
                     result = 0;

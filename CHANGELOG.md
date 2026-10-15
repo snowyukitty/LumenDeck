@@ -30,6 +30,8 @@ until release acceptance is complete.
 
 ### Changed
 
+- Public preview generation follows native monitor DPI, retains an original-pixel
+  master and validates capture/build hashes before exporting uniform derivatives.
 - Arrow keys on the desk schematic follow screen positions, prefer aligned
   neighbours and stop at edges. Home/End select the first/last screen; Enter or
   Space explicitly opens its controls. All displays tracks the focused card.
