@@ -128,8 +128,6 @@ internal sealed class MonitorCard : Panel
         if (m.SupportsBrightness)
         {
             _brightness.Principal = true;
-            _brightness.Font = Theme.PrincipalValue;
-            _brightness.Height = 76;
         }
         _brightness.Format = v => $"{Presets.RawToPercent(Monitor, v):0}%";
         _brightness.AccessibleName = $"{_displayContext}: Brightness (hardware units)";
@@ -224,8 +222,6 @@ internal sealed class MonitorCard : Panel
         if (!m.SupportsBrightness)
         {
             _warmth.Principal = true;
-            _warmth.Font = Theme.PrincipalValue;
-            _warmth.Height = 76;
         }
         _warmth.AccessibleName = $"{_displayContext}: Colour temperature (kelvin)";
         _warmth.ExactValueUnit = "kelvin";

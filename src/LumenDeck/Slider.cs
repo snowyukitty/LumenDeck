@@ -151,7 +151,7 @@ internal sealed class Slider : Control
     // DeviceDpi and re-scale when the window moves to another monitor.
     private const int TrackHDip = 6;
     private const int ThumbRDip = 7;
-    private const int ReadoutWDip = 52;
+    private const int ReadoutWDip = 72;
 
     private int _trackH = TrackHDip;
     private int _thumbR = ThumbRDip;
@@ -161,13 +161,13 @@ internal sealed class Slider : Control
     {
         _trackH = LogicalToDeviceUnits(TrackHDip);
         _thumbR = LogicalToDeviceUnits(ThumbRDip);
-        _readoutW = LogicalToDeviceUnits(Principal ? 140 : ReadoutWDip);
-        if (Principal && Format != null)
+        _readoutW = LogicalToDeviceUnits(ReadoutWDip);
+        if (Format != null)
             _readoutW = Math.Max(_readoutW, Math.Max(TextRenderer.MeasureText(Format(_min), Font).Width,
                 TextRenderer.MeasureText(Format(_max), Font).Width) + LogicalToDeviceUnits(12));
         int textHeight = TextRenderer.MeasureText(Format?.Invoke(_value) ?? _value.ToString(), Font,
             Size.Empty, TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Height;
-        Height = Math.Max(LogicalToDeviceUnits(Principal ? 76 : 30), textHeight + LogicalToDeviceUnits(8));
+        Height = Math.Max(LogicalToDeviceUnits(30), textHeight + LogicalToDeviceUnits(8));
     }
 
     protected override void OnFontChanged(EventArgs e)

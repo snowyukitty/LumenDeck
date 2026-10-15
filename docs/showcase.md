@@ -71,8 +71,8 @@ receipt contains relative filenames, without machine paths or personal displays.
 ## Pixel review and limits
 
 Inspect the native images and the exact 480x300 and 320x200 files, not only a zoomed
-preview. At 480x300 the selected outline, landscape/portrait relationship and 62%
-readout must remain understandable. At 320x200 the same shapes and control hierarchy
+preview. At 480x300 the selected outline, landscape/portrait relationship and compact
+adjustment rows must remain understandable. At 320x200 the same shapes and control hierarchy
 must still identify the desk remote. Helper copy belongs to the native view.
 
 The full AppTests suite checks the showcase sizes, selected principal-control

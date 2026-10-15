@@ -14,7 +14,7 @@ until release acceptance is complete.
 
 - Desk remote presentation: selected-display detail, keyboard-accessible schematic
   selector, a stacked-desk side layout and one-action All displays mode.
-- Principal supported adjustment with a larger exact-entry readout, and explicit
+- Supported adjustments with compact exact-entry readouts, and explicit
   requested/observed/pending/readback/unconfirmed/failure information. Accepted WMI
   writes are not presented as confirmed readback.
 - Source-bound native screenshots, 1200x750 portfolio artwork and inspected
@@ -30,6 +30,11 @@ until release acceptance is complete.
 
 ### Changed
 
+- Brightness, contrast and warmth now share the same compact value typography and
+  row height. The oversized brightness percentage no longer consumes working space.
+- The desk map preserves Windows desktop coordinates with one uniform scale,
+  including adjacency, negative origins and mixed-resolution vertical overlap.
+  Compact tiles show numbers, with full identity in the caption and card header.
 - Public preview generation follows native monitor DPI, retains an original-pixel
   master and validates capture/build hashes before exporting uniform derivatives.
 - Arrow keys on the desk schematic follow screen positions, prefer aligned
@@ -66,11 +71,12 @@ until release acceptance is complete.
 
 ### Fixed
 
-- Large brightness readouts and caption columns now measure scaled text, including
+- Readouts and caption columns measure scaled text, including
   cards created after display discovery on a high-DPI monitor. Minimum window
   dimensions scale with DPI; restoring the header settles its docking bounds.
-- Staggered display maps reserve readable rows and keep short tile identifiers
-  on one line instead of clipping them into tiny rectangles.
+- Slightly staggered displays no longer turn into separate, equally spaced rows.
+- Observation feedback no longer leaves a stale native horizontal scrollbar after
+  layout. The list preserves actual overflow and its vertical scroll position.
 - Night saver selectors wrap within narrow command rows. DPI changes settle the
   final command width before measuring children and avoid rounding-height churn.
 - Refused GUI warmth requests retain the previous readout, saved warmth and

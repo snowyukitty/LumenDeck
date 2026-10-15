@@ -6,19 +6,22 @@ remain intact. Existing brand assets are unchanged.
 
 ## Hierarchy and reflow
 
-The default shows one selected MonitorCard. The schematic selector keeps relative
-left/right and above/below positions and portrait/landscape cues. Equalized slots
-make it explicitly non-metric; neither tile fill nor geometry simulates emitted
-light. Selection has a strong outline and a written SELECTED marker. Names wrap
-inside taller tiles; the caption and control header retain the complete identity.
+The default shows one selected MonitorCard. The selector applies one uniform scale
+and translation to Windows virtual-desktop rectangles. It preserves negative
+coordinates, adjacency, vertical overlap and pixel-resolution proportions. Small
+vertical offsets must never become separate rows. This is Windows desktop geometry,
+not a measurement of the screens' physical sizes or emitted light.
+Selection has a strong outline; compact tiles show only their number. Larger tiles
+can also show SELECTED and the name. The caption and control header retain the
+complete identity without forcing oversized tiles into the working area.
 A vertically stacked desk uses a 220-DIP side selector when the window has room,
 and returns above the detail at compact sizes. The selector never vanishes merely
 to make the window fit. The brand header yields first.
 
 All displays reveals the same cards, preserving an efficient multi-display workflow.
 Entering a card synchronizes the map selection; returning to the single-display
-view keeps that screen and control. Spatial arrows prefer a neighbour in the same
-schematic row/column, then the nearest candidate in the requested half-plane.
+view keeps that screen and control. Spatial arrows prefer a neighbour with overlap
+on the perpendicular axis, then the nearest centre in the requested half-plane.
 Ties use displayed order. Edges stop; Ctrl+Page Up/Down remains the wrapping route.
 Home/End use layout order. Arrow selection never transiently enters a slider;
 Enter/Space or a pointer click explicitly opens the selected screen's controls.
@@ -27,9 +30,11 @@ rebuilds by StableKey, while callbacks and observations remain bound to the exac
 Monitor object for that discovery generation. Background completion does not focus
 a control or activate the window.
 
-Brightness has the principal readout. Unsupported brightness stays explained;
-warmth becomes principal instead. Readout width measures endpoint strings, including
-Kelvin. Contrast, warmth, profile editing, per-display presets and blackout stay
+Brightness is the initial adjustment target. Unsupported brightness stays explained;
+warmth becomes the target instead. All adjustments share a compact 30-DIP row and
+the same value typography. Readouts reserve 72 DIP and measure endpoint strings,
+including Kelvin, rather than enlarging the brightness percentage. Contrast,
+warmth, profile editing, per-display presets and blackout stay
 accessible below. Extra advertised controls retain their existing disclosure.
 The header repeats name, position and capability summary. Estimated nits remain
 secondary and explicitly estimated. Warmth is a gamma tint target, never a measured
@@ -65,11 +70,18 @@ one current surface including contrast state. Each card disposes its observation
 ToolTip and cached bitmap. Tests also retain the existing repeated rebuild/disposal,
 DPI transition, shortcut, overlay, settings and tray lifecycle coverage.
 
-Selection settles FlowLayout's virtual extent and resets native scrolling in the
-single-display view. A regression test checks both HorizontalScroll.Visible and
-Windows' WS_HSCROLL style: the managed property alone missed a stale native scrollbar
-after a wide-to-narrow resize followed by repeated selection. This was caught in
-pixel review, reproduced, and repaired before the final captures.
+The card list reconciles stale native horizontal scrollbars after layout, including
+observation-label updates. It retains real overflow and vertical scroll position;
+selection no longer toggles AutoScroll. Regression tests check both
+HorizontalScroll.Visible and Windows' WS_HSCROLL style: the managed property alone
+missed a stale native scrollbar. This was reproduced after adjustments at native
+150% scaling and repaired before the final captures.
+
+The compact-window review treats typography, geometry and material separately:
+keep readable text, reserve the working plane for everyday controls, and disclose
+secondary commands. Review the same viewport after an adjustment, not just its
+initial state. The staggered three-display fixture checks proportional geometry,
+compact readouts and visible per-display presets at native 125% and 150% scaling.
 
 The source-bound capture procedure and actual-size review are in [showcase](showcase.md).
 100/150/200% fixture renders replay native DPI layout and explicitly scale fonts for

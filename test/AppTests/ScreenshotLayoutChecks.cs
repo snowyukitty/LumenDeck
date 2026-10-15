@@ -8,9 +8,17 @@ internal static partial class Program
         {
             var displays = DeskDisplays(3);
             displays[0].Brightness = 96;
-            displays[0].Rect = new Native.RECT { Left = 0, Top = 500, Right = 1920, Bottom = 1580 };
-            displays[1].Rect = new Native.RECT { Left = 1920, Top = 200, Right = 3840, Bottom = 1280 };
-            displays[2].Rect = new Native.RECT { Left = 3840, Top = 0, Right = 4920, Bottom = 1920 };
+            displays[0].Rect = new Native.RECT { Left = -2560, Top = 1024, Right = 0, Bottom = 2464 };
+            displays[1].Rect = new Native.RECT { Left = 0, Top = 0, Right = 3840, Bottom = 2160 };
+            displays[2].Rect = new Native.RECT { Left = 3840, Top = -1192, Right = 6000, Bottom = 2648 };
+            displays[0].IsPrimary = false;
+            displays[0].PositionLabel = "left";
+            displays[1].IsPrimary = true;
+            displays[1].PositionLabel = "centre, primary";
+            displays[1].SupportsContrast = true;
+            displays[1].Brightness = 71;
+            displays[1].Contrast = 61;
+            displays[2].PositionLabel = "right, portrait";
             return displays;
         }, allDisplays: false);
         var form = fixture.Form;
@@ -25,6 +33,18 @@ internal static partial class Program
             refresh.GetAwaiter().GetResult();
             form.ClientSize = new Size(918, 768);
             Application.DoEvents();
+            PickMapDisplay(form, 1);
+            var card = Controls(form).OfType<MonitorCard>().Single(c => c.Visible);
+            int beforeWrites = fixture.Transport.Writes;
+            card.ApplyBrightness(71);
+            card.ApplyContrast(61);
+            card.ApplyWarmth(4600);
+            PumpUntil(() => fixture.Worker.Idle, "synthetic screenshot adjustments settle");
+            typeof(MonitorCard).GetMethod("UpdateObservation", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(card, null);
+            Application.DoEvents();
+            var viewport = Private<FlowLayoutPanel>(form, "_list");
+            Assert(!viewport.HorizontalScroll.Visible && (GetWindowLong(viewport.Handle, -16) & 0x00100000) == 0,
+                $"adjustment feedback leaves no horizontal scrollbar at {form.DeviceDpi} DPI: client={viewport.ClientSize}, extent={viewport.DisplayRectangle}, card={card.Bounds}, managed={viewport.HorizontalScroll.Visible}");
             if (renderDirectory != null)
             {
                 Directory.CreateDirectory(renderDirectory);
@@ -32,7 +52,6 @@ internal static partial class Program
                 form.DrawToBitmap(image, new Rectangle(Point.Empty, form.Size));
                 image.Save(Path.Combine(renderDirectory, $"screenshot-layout-{form.DeviceDpi}.png"));
             }
-            var card = Controls(form).OfType<MonitorCard>().Single(c => c.Visible);
             var surfaces = form.Controls.Cast<Control>().Where(c => c.Visible).ToArray();
             for (int i = 0; i < surfaces.Length; i++)
                 for (int j = i + 1; j < surfaces.Length; j++)
@@ -43,6 +62,12 @@ internal static partial class Program
                 Size.Empty, TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Height;
             Assert(principal.Height - (int)Math.Round(8 * principal.DeviceDpi / 96.0) >= textHeight,
                 $"principal readout has enough vertical room after discovery at {form.DeviceDpi} DPI");
+            var sliders = Controls(card).OfType<Slider>().ToArray();
+            Assert(sliders.All(s => s.Height <= form.LogicalToDeviceUnits(34)) && sliders.All(s => s.Font.Size == principal.Font.Size),
+                "every adjustment keeps a compact, consistent text and row hierarchy");
+            var custom = Controls(card).Single(c => c.Name == "preset-custom");
+            Assert(viewport.ClientRectangle.Contains(new Rectangle(viewport.PointToClient(custom.PointToScreen(Point.Empty)), custom.Size)),
+                "all everyday adjustments and per-display presets fit the screenshot-sized viewport");
             var label = Controls(card).OfType<Label>().Single(l => l.Text == "Brightness");
             Assert(label.Width >= TextRenderer.MeasureText(label.Text, label.Font).Width,
                 $"brightness caption does not split its word at {form.DeviceDpi} DPI");
@@ -54,7 +79,7 @@ internal static partial class Program
                 Assert(bounds.Height >= line + 10 && bounds.Width >= line + 16,
                     $"offset display {i + 1} has a readable selection target at {form.DeviceDpi} DPI");
             }
-            Assert(fixture.Transport.Writes == 0, "screenshot regression does not adjust displays");
+            Assert(fixture.Transport.Writes == beforeWrites + 2, "screenshot regression performs only its two fake adjustment requests");
         }
     }
 }

@@ -52,7 +52,6 @@ internal static class Theme
     public static readonly Font Body = new("Segoe UI", 9f);
     public static readonly Font Small = new("Segoe UI", 8.25f);
     public static readonly Font Value = new("Segoe UI Semibold", 9.5f);
-    public static readonly Font PrincipalValue = new("Segoe UI Semibold", 32f);
     public static readonly Font Mono = new("Consolas", 9.5f);
 
     public const int Radius = 12;

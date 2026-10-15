@@ -34,11 +34,11 @@ lumendeck-cli -m "left" -b 55 -w 5000
 ```
 
 <p align="center">
-  <img src="docs/assets/screenshot.png" alt="LumenDeck desk remote: two schematic fictitious displays, Studio 27 selected, a readable 62% brightness value and secondary contrast, warmth and recovery controls" width="1000">
+  <img src="docs/assets/screenshot.png" alt="LumenDeck desk remote: two fictitious displays in Windows desktop proportions, Studio 27 selected, compact brightness, contrast, warmth and recovery controls" width="1000">
 </p>
 
 <p align="center"><sub>Actual native window from a development build with fictitious displays;
-released versions may differ. Captured at native 150% scaling; the desk diagram is schematic, not to scale.<br>
+released versions may differ. Captured at native 150% scaling; the map preserves Windows desktop coordinates and pixel proportions, not physical screen sizes.<br>
 62% gives an <b>estimated 203 nits</b> from a generic profile; the app does not measure light.
 Warmth is a gamma tint target. The second fixture has no contrast support.<br>
 <a href="docs/assets/screenshot.json">Source and capture receipt</a> ·
@@ -61,17 +61,18 @@ DWM-composited Mica is not captured.</sub></p>
 | **Night saver** | Keep one work display on and dim it toward your Night target; darken all other displays with one click, then restore their saved brightness |
 | **Precise adjustment** | Click a slider's value or press F2 to enter an exact value; arrows adjust one hardware unit, Shift adjusts ten |
 | **Additional advertised controls** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, factory reset — availability and behavior depend on the monitor |
-| **Desk map** | A schematic of your screen positions and orientations; select a screen with the mouse or keyboard |
+| **Desk map** | Windows desktop positions, adjacency and pixel proportions; select a screen with the mouse or keyboard |
 | **Identify** | Puts each monitor's name on its own glass |
 | **Laptop panels** | Internal displays via `WmiMonitorBrightnessMethods` |
 | **Command line** | Scriptable, with JSON output and meaningful exit codes |
 | **Tray app** | Lives in the notification area; optional start-with-Windows |
 
 LumenDeck works as a **desk remote**: choose a screen, adjust its supported
-controls, check the result, and restore when needed. The schematic selector and
-selected control header repeat the display identity. Brightness gets the principal
-readout; when unavailable, warmth gets the larger control and brightness keeps an
-explanation. A stacked desk can use a side selector in a wider window.
+controls, check the result, and restore when needed. The selector and selected
+control header repeat the display identity. Brightness, contrast and warmth use
+compact, consistently sized readouts. Selecting a display focuses brightness, or
+warmth when brightness is unavailable. A stacked desk can use a side selector in
+a wider window.
 
 **All displays** reveals every monitor card for repeated adjustments. The same
 components reflow at smaller widths. **Desk actions…** opens desk-wide presets,

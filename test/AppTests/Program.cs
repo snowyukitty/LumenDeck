@@ -248,6 +248,7 @@ internal static partial class Program
                     CheckNightCommandHelp(directory);
                     CheckScenarioCleanup(directory);
                     CheckMainWindowLayout(directory, args.Length == 2 && args[0] == "--render-dir" ? Path.GetFullPath(args[1]) : null);
+                    CheckScreenshotLayout(directory, args.Length == 2 && args[0] == "--render-dir" ? Path.GetFullPath(args[1]) : null);
                     CheckDeskRemote(directory, null);
                     CheckShowcase(directory, null);
                     if (args.Length == 2 && args[0] == "--render-dir") RenderPreferences(Path.GetFullPath(args[1]));

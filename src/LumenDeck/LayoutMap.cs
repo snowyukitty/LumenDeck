@@ -2,7 +2,7 @@ using System.Drawing.Drawing2D;
 
 namespace LumenDeck;
 
-/// <summary>A schematic, keyboard-selectable desk. Tiles preserve position and orientation, not scale.</summary>
+/// <summary>A keyboard-selectable projection of Windows virtual-desktop coordinates.</summary>
 internal sealed class LayoutMap : Control
 {
     private List<Monitor> _monitors = new();
@@ -22,7 +22,7 @@ internal sealed class LayoutMap : Control
         BackColor = Theme.Bar;
         Height = 140;
         TabStop = true;
-        AccessibleName = "Desk displays — schematic, not to scale";
+        AccessibleName = "Desk displays — Windows desktop layout";
         AccessibleDescription = "Arrow keys select the nearest display in that direction without wrapping. Home and End select the first and last display. Enter opens its controls. Ctrl+Page Down and Ctrl+Page Up move between display controls.";
         _caption = new Label
         {
@@ -44,9 +44,7 @@ internal sealed class LayoutMap : Control
 
     internal void SetAllDisplays(bool show) => _all.Checked = show;
 
-    internal int RequiredHeight(int minimum) => Math.Max(minimum,
-        _monitors.Select(m => m.Rect.Top).Distinct().Count() * LogicalToDeviceUnits(44) +
-        FooterHeight + LogicalToDeviceUnits(24));
+    internal int RequiredHeight(int minimum) => Math.Max(minimum, LogicalToDeviceUnits(128));
     protected override void OnLayout(LayoutEventArgs e)
     {
         base.OnLayout(e);
@@ -77,35 +75,31 @@ internal sealed class LayoutMap : Control
     private void UpdateCaption()
     {
         int index = _hoverIndex >= 0 ? _hoverIndex : _selectedIndex;
-        string text = _monitors.Count == 0 ? "" : "Select a display · schematic, not to scale";
+        string text = _monitors.Count == 0 ? "" : "Select a display · Windows desktop layout";
         if (index >= 0 && index < _monitors.Count)
         {
             var m = _monitors[index];
-            text = string.IsNullOrWhiteSpace(m.PositionLabel) ? m.DisplayName : $"{m.DisplayName} ({m.PositionLabel})";
+            text = $"Display {index + 1} · " + (string.IsNullOrWhiteSpace(m.PositionLabel) ? m.DisplayName : $"{m.DisplayName} ({m.PositionLabel})");
         }
-        _caption.Text = _caption.AccessibleName = text.Length == 0 ? "" : "Schematic · " + text;
+        _caption.Text = _caption.AccessibleName = text;
     }
 
     private List<RectangleF> Project()
     {
         if (_monitors.Count == 0 || Width < 8 || Height - _caption.Height < 8) return new();
-        // Equalized coordinate slots preserve left/right and above/below relationships.
-        // Orientation survives; the caption explicitly disclaims physical scale.
-        var xs = _monitors.Select(m => m.Rect.Left).Distinct().Order().ToArray();
-        var ys = _monitors.Select(m => m.Rect.Top).Distinct().Order().ToArray();
+        // One affine transform preserves offsets, adjacency and pixel proportions.
+        // Ranking distinct coordinates into slots invents gaps and separate rows.
+        float left = _monitors.Min(m => m.Rect.Left), top = _monitors.Min(m => m.Rect.Top);
+        float spanWidth = Math.Max(1, _monitors.Max(m => m.Rect.Right) - left);
+        float spanHeight = Math.Max(1, _monitors.Max(m => m.Rect.Bottom) - top);
         float pad = LogicalToDeviceUnits(12);
-        float availableHeight = Height - FooterHeight - pad * 2;
-        float cellW = Math.Min(LogicalToDeviceUnits(230), (Width - pad * 2) / xs.Length);
-        float cellH = Math.Min(LogicalToDeviceUnits(150), availableHeight / ys.Length);
-        float start = (Width - cellW * xs.Length) / 2;
-        return _monitors.Select(m =>
-        {
-            bool portrait = m.Rect.Height > m.Rect.Width;
-            float width = Math.Min(cellW - 10, portrait ? cellH * .8f : cellH * 2.5f);
-            float height = portrait ? Math.Min(cellH, width / .8f) : Math.Min(cellH * .78f, width / 1.8f);
-            return new RectangleF(start + Array.IndexOf(xs, m.Rect.Left) * cellW + (cellW - width) / 2,
-                pad + Array.IndexOf(ys, m.Rect.Top) * cellH + (cellH - height) / 2, Math.Max(3, width), Math.Max(3, height));
-        }).ToList();
+        float availableWidth = Math.Max(1, Width - pad * 2);
+        float availableHeight = Math.Max(1, Height - FooterHeight - pad * 2);
+        float scale = Math.Min(availableWidth / spanWidth, availableHeight / spanHeight);
+        float x = pad + (availableWidth - spanWidth * scale) / 2;
+        float y = pad + (availableHeight - spanHeight * scale) / 2;
+        return _monitors.Select(m => new RectangleF(x + (m.Rect.Left - left) * scale,
+            y + (m.Rect.Top - top) * scale, m.Rect.Width * scale, m.Rect.Height * scale)).ToList();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -123,6 +117,12 @@ internal sealed class LayoutMap : Control
             Theme.FillRound(g, r, 5, selected ? Theme.CardHover : Theme.Sunken);
             Theme.StrokeRound(g, r, 5, selected ? Theme.AmberLight : Theme.Line, selected ? LogicalToDeviceUnits(3) : 1);
             var m = _monitors[i];
+            if (r.Height < LogicalToDeviceUnits(64) || r.Width < LogicalToDeviceUnits(110))
+            {
+                TextRenderer.DrawText(g, $"{i + 1}", Font, r, selected ? Theme.AmberLight : Theme.Ink,
+                    TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                continue;
+            }
             string title = $"{i + 1}" + (selected ? "  SELECTED" : "");
             if (TextRenderer.MeasureText(title, Font).Width > r.Width - 14) title = $"{i + 1}";
             var upper = new Rectangle(r.X + 7, r.Y + 3, r.Width - 14, Math.Min(r.Height - 4, LogicalToDeviceUnits(24)));
@@ -199,20 +199,19 @@ internal sealed class LayoutMap : Control
     private int Neighbour(int index, Keys direction)
     {
         if (index < 0 || index >= _monitors.Count) return _monitors.Count == 0 ? -1 : 0;
-        // Use the same coordinate slots as the schematic. Physical centres
-        // would make a portrait neighbour appear to be below its aligned row.
-        var xs = _monitors.Select(m => m.Rect.Left).Distinct().Order().ToArray();
-        var ys = _monitors.Select(m => m.Rect.Top).Distinct().Order().ToArray();
-        var origin = _monitors[index];
-        int x = Array.IndexOf(xs, origin.Rect.Left), y = Array.IndexOf(ys, origin.Rect.Top);
+        var origin = _monitors[index].Rect;
+        double x = origin.Left + origin.Width / 2d, y = origin.Top + origin.Height / 2d;
         bool horizontal = direction is Keys.Left or Keys.Right;
         int sign = direction is Keys.Left or Keys.Up ? -1 : 1;
         return _monitors.Select((m, i) =>
         {
-            int dx = Array.IndexOf(xs, m.Rect.Left) - x, dy = Array.IndexOf(ys, m.Rect.Top) - y;
-            return new { Index = i, Forward = sign * (horizontal ? dx : dy), Across = Math.Abs(horizontal ? dy : dx), Distance = dx * dx + dy * dy };
+            double dx = m.Rect.Left + m.Rect.Width / 2d - x, dy = m.Rect.Top + m.Rect.Height / 2d - y;
+            bool aligned = horizontal ? m.Rect.Top < origin.Bottom && m.Rect.Bottom > origin.Top
+                : m.Rect.Left < origin.Right && m.Rect.Right > origin.Left;
+            return new { Index = i, Forward = sign * (horizontal ? dx : dy), Aligned = aligned,
+                Across = Math.Abs(horizontal ? dy : dx), Distance = dx * dx + dy * dy };
         }).Where(c => c.Forward > 0)
-          .OrderBy(c => c.Across == 0 ? 0 : 1).ThenBy(c => c.Distance).ThenBy(c => c.Across).ThenBy(c => c.Index)
+          .OrderBy(c => c.Aligned ? 0 : 1).ThenBy(c => c.Distance).ThenBy(c => c.Across).ThenBy(c => c.Index)
           .Select(c => c.Index).DefaultIfEmpty(index).First();
     }
     protected override void OnMouseClick(MouseEventArgs e)

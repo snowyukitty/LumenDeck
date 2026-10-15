@@ -143,7 +143,7 @@ internal partial class MainForm : Form
         _map.AllDisplaysChanged += show => { _showAllDisplays = show; ApplyDisplayView(); };
 
         // ---- cards ---------------------------------------------------------
-        _list = new FlowLayoutPanel
+        _list = new DisplayCardList
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.TopDown,

@@ -15,15 +15,6 @@ internal partial class MainForm
         foreach (var card in _cards)
             card.Visible = _showAllDisplays || card.Monitor.StableKey == _selectedMonitorKey;
         _list.ResumeLayout(true);
-        if (!_showAllDisplays)
-        {
-            // Hiding an autosized card can leave WS_HSCROLL set even after
-            // HorizontalScroll.Visible becomes false. Reset native scroll state
-            // against the selected card's settled extent, before focusing it.
-            _list.AutoScroll = false;
-            _list.AutoScroll = true;
-            _list.PerformLayout();
-        }
         _map.Refresh(_monitors.FirstOrDefault(m => m.StableKey == _selectedMonitorKey));
     }
 
