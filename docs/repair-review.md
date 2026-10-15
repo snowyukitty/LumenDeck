@@ -67,6 +67,25 @@ The source-path script initially hit this host's PowerShell execution policy;
 the same checked-in script passed with a process-local `-ExecutionPolicy Bypass`.
 No machine policy was changed. Hosted CI was not dispatched.
 
+## Local portable candidate
+
+Implementation commit: `114eed4d91f96faa142a3f74fdf1322c5bd9998c`.
+Both executables report product version `1.4.0+114eed4d91f96faa142a3f74fdf1322c5bd9998c`.
+The verified ZIP is
+`dist/build-28975414b34d45e9bb9d125145444cdc/verified/LumenDeck-1.4.0-win-x64.zip`.
+SHA-256: `244c5cccdeec700f7191e4639a750f0ad7079483a2515b4d081422bf4d2be42d`.
+
+The package verifier passed the exact file allowlist, payload hashes, matching
+versions, bundled source-path checks, runtime-independent CLI startup and synthetic
+GUI startup. The archive contains the two executables, license, quickstart and hash
+manifest. A committed-source screenshot run passed 45 checks; inspected PNGs and
+their receipt are in `artifacts/review-20261015/verified-preview`.
+
+Work remains on `fix/project-review-20261015`; no push, release or installed-app
+replacement was performed. The project lease is released at handoff. Future work
+should start with the physical display acceptance limits below, preserving initial
+settings and recovery data, rather than treating fixture tests as hardware proof.
+
 ## Limits
 
 No physical display brightness, gamma, blackout, or power operation was performed.
