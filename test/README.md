@@ -1,7 +1,9 @@
 # Tests
 
-Screenshot regression checks cover three staggered displays, 96% brightness,
-scaled captions/readouts and non-overlapping window sections. They rebuild cards
+Screenshot regression checks cover three staggered displays, a selected 71%
+brightness value, compact readouts, visible per-display presets and non-overlapping
+window sections. They verify managed and native horizontal scrollbar state after
+synthetic brightness, contrast and warmth requests. They rebuild cards
 after moving a fixture window to each attached monitor's DPI, on the private test
 desktop with fake display and gamma writers:
 

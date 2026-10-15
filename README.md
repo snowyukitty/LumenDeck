@@ -15,6 +15,9 @@ from one window, or one command.**
 **Start here:** [Download](#install) · [Set up your desk](#your-first-desk-setup) ·
 [Troubleshoot](#troubleshooting) · [Contribute](CONTRIBUTING.md)
 
+Current source checkpoint: **1.4.1** · [Changes](CHANGELOG.md) ·
+[Build and package status](docs/release-readiness.md).
+
 An external monitor may not have a brightness slider in Windows. Microsoft's
 [brightness guide](https://support.microsoft.com/en-us/windows/hardware/display-graphics/change-display-brightness-and-color-in-windows)
 points users to the monitor's own buttons when that slider is unavailable.

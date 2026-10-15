@@ -99,7 +99,7 @@ physical monitor compatibility.
 ## Desk remote presentation
 
 MainForm.Navigation owns selected StableKey and the All displays view. LayoutMap
-owns schematic geometry and accessible selection, not hardware operations. Selection
+projects Windows desktop geometry and owns accessible selection, not hardware operations. Selection
 shows/hides existing MonitorCards; it never rebinds one shared editor to another
 monitor while a request is pending. DdcWorker.Observe returns immutable snapshots
 under its queue lock, keeping requested and observed values distinct without changing

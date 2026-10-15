@@ -6,9 +6,38 @@ Notable changes, newest first. Format follows
 
 ## [Unreleased]
 
-The current development candidate is 1.4.0, including the desk remote,
-spatial keyboard navigation and optional Windows Mica title bar. It remains a test candidate
-until release acceptance is complete.
+No further changes recorded.
+
+## [1.4.1] — 2026-10-15
+
+Versioned desktop checkpoint following owner review of the compact interface.
+The GUI, CLI, window title, About information and package use one shared version.
+This entry records the source milestone; publication status and remaining hardware
+acceptance are tracked in [release readiness](docs/release-readiness.md).
+
+### Changed
+
+- Brightness, contrast and warmth share compact value typography and row heights,
+  leaving room for everyday adjustments and per-display presets.
+- The desk map uses one uniform projection of Windows desktop coordinates,
+  preserving adjacency, negative origins and mixed-resolution vertical overlap.
+  Compact tiles show numbers; the caption and card retain the full identity.
+- Native previews and package evidence are regenerated for 1.4.1. Portable guidance
+  describes the actual map, compact selection and graceful update procedure.
+
+### Fixed
+
+- Slightly staggered displays no longer become separate, equally spaced rows.
+- Adjustment feedback no longer leaves a stale native horizontal scrollbar. Actual
+  overflow and the vertical scroll position remain available.
+- The full UI suite includes the staggered three-display scenario after synthetic
+  adjustment requests, alongside geometry and native scrollbar checks.
+
+## Development history through 1.4.0
+
+The following entries retain the accumulated development history, including the
+desk remote, spatial keyboard navigation and optional Windows Mica title bar.
+They are not a list of published releases.
 
 ### Added
 
@@ -30,11 +59,6 @@ until release acceptance is complete.
 
 ### Changed
 
-- Brightness, contrast and warmth now share the same compact value typography and
-  row height. The oversized brightness percentage no longer consumes working space.
-- The desk map preserves Windows desktop coordinates with one uniform scale,
-  including adjacency, negative origins and mixed-resolution vertical overlap.
-  Compact tiles show numbers, with full identity in the caption and card header.
 - Public preview generation follows native monitor DPI, retains an original-pixel
   master and validates capture/build hashes before exporting uniform derivatives.
 - Arrow keys on the desk schematic follow screen positions, prefer aligned
@@ -74,9 +98,6 @@ until release acceptance is complete.
 - Readouts and caption columns measure scaled text, including
   cards created after display discovery on a high-DPI monitor. Minimum window
   dimensions scale with DPI; restoring the header settles its docking bounds.
-- Slightly staggered displays no longer turn into separate, equally spaced rows.
-- Observation feedback no longer leaves a stale native horizontal scrollbar after
-  layout. The list preserves actual overflow and its vertical scroll position.
 - Night saver selectors wrap within narrow command rows. DPI changes settle the
   final command width before measuring children and avoid rounding-height churn.
 - Refused GUI warmth requests retain the previous readout, saved warmth and

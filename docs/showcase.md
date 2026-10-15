@@ -1,6 +1,6 @@
 # Source-bound showcase
 
-The images show the 1.4.0 development candidate with fictitious displays. They
+The images show the 1.4.1 source checkpoint with fictitious displays. They
 prove interface layout, not hardware compatibility, calibrated luminance, energy
 savings or a published release. The original charcoal/amber brand assets remain.
 

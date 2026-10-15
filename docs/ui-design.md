@@ -86,7 +86,8 @@ compact readouts and visible per-display presets at native 125% and 150% scaling
 The source-bound capture procedure and actual-size review are in [showcase](showcase.md).
 100/150/200% fixture renders replay native DPI layout and explicitly scale fonts for
 the isolated 96-DPI HDC. They are simulated DPI proofs, not a claim of physical monitor
-acceptance. Existing native 100/125% crossing checks remain separate.
+acceptance. Native crossing checks use the host's available monitor scaling and
+remain separate; the current checkpoint exercised 125% and 150%.
 
 ## Windows material
 
@@ -113,8 +114,8 @@ and [DWM attribute contract](https://learn.microsoft.com/en-us/windows/win32/api
 Verification uses the actual WinForms controls and synthetic display fixtures.
 Inspect native renders at the minimum window size, regular widths and simulated
 150%/200% component sizes. Bounds checks cover wrapping, scrolling, focus routing
-and unavailable controls. Native 100%/125% transitions now run on a private test
-desktop, with bounded layout work and stable dimensions; see the
+and unavailable controls. Native transitions run on a private test desktop using
+the host's available monitor scaling, with bounded layout work and stable dimensions; see the
 [DPI repair evidence](cross-display-dpi.md). Foreground pointer dragging, other DPI
 combinations and screen-reader announcements still need manual acceptance.
 The isolated renderer does not capture DWM-composited title-bar appearance.

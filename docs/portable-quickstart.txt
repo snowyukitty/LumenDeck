@@ -3,7 +3,7 @@ LumenDeck for Windows 10 / 11 (x64)
 Get started
 1. Extract the entire ZIP into a folder you want to keep.
 2. Open LumenDeck.exe. No .NET installation or administrator access is needed.
-3. Use Identify to find each screen, select it on the schematic desk, then
+3. Use Identify to find each screen, select it on the desk map, then
    adjust its supported brightness or warmth. Click a value or press F2 for
    exact entry. Check the requested/observed status after an adjustment.
    Day / Evening / Night use estimated luminance; Custom requests the
@@ -15,12 +15,13 @@ If it cannot reveal the window, use the existing tray icon or retry once startup
 finishes. Normal user permissions are recommended; administrator access is not
 required.
 
-The schematic desk remains available in short windows. Select one screen for
+The desk map remains available in short windows. Select one screen for
 its detail, or enable All displays for the complete card list. The map follows
 the card you focus. Scroll to reach secondary controls. The diagram preserves
-relative position and orientation, not physical scale.
+Windows desktop coordinates, adjacency and pixel proportions, not physical size.
 Click a display to enter its brightness control, or warmth if brightness is
-unavailable. The selected screen has an outline and SELECTED marker.
+unavailable. The selected screen has a strong outline. Compact tiles show numbers;
+larger tiles can also show names and a SELECTED marker. The caption identifies it.
 Desk actions opens desk-wide presets, Warmth off and Night saver. Active Night
 saver keeps its recovery controls available. Restore screen on an individual
 card remains separate from Restore night desk.
