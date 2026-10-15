@@ -1,16 +1,57 @@
 {
-  "sourceVersion": "4e27b377b8696d41d167e7a49705ca8612291df0",
+  "sourceVersion": "6a0bd4ed17cb8c908f119c555573ae8e99a00503",
   "sourceDirty": false,
   "build": "Release, development source; not a released-version preview",
   "assemblyVersion": "1.4.0",
-  "guiAssemblySha256": "46c44b84f5704b4a9e8f594497caa8d51203acd34ff17ecf7a206592cb5a6631",
-  "coreAssemblySha256": "9ff31b3b76944836c0d6a93967698aa37c871c8d1747c2125d67fb2ded430d96",
-  "dotnetSdk": "10.0.303",
-  "python": "3.12.6",
-  "pillow": "12.2.0",
+  "guiAssemblySha256": "839729b6189d5d0d0c4814ab4c3caa560f879f12cc92c51d46f5e4c9fe80f07a",
+  "coreAssemblySha256": "2909fc6c0ce0e6bc0b3c536f6700ca1765077ae9d3255ade8cb989ddda3724d6",
+  "dotnetSdk": "10.0.302",
+  "python": "3.12.10",
+  "pillow": "12.3.0",
   "windowsVersion": "10.0.26300",
-  "deviceDpi": 96,
-  "scaling": "100%; original native pixel sizes, not upscaled",
+  "nativeCaptures": {
+    "documentation.png": {
+      "width": 1524,
+      "height": 1094,
+      "deviceDpi": 144,
+      "clientSize": [
+        1502,
+        1038
+      ],
+      "sha256": "a0974c6775b834137d2cbb9956387b85eaecc3fa13417c6c26abfa22c44ea6ca"
+    },
+    "portfolio.png": {
+      "width": 1800,
+      "height": 1125,
+      "deviceDpi": 144,
+      "clientSize": [
+        1778,
+        1069
+      ],
+      "sha256": "81e7f3294d8a09cdefd15fbfe9d707f7a1a8ecb5016824cb64dddd89e0e8f37d"
+    },
+    "compact.png": {
+      "width": 930,
+      "height": 720,
+      "deviceDpi": 144,
+      "clientSize": [
+        908,
+        664
+      ],
+      "sha256": "fdfce4ebda980bd53fafde4ce136f0e109885f3d1f203b542c3803eeee71244c"
+    },
+    "stacked.png": {
+      "width": 1524,
+      "height": 1094,
+      "deviceDpi": 144,
+      "clientSize": [
+        1502,
+        1038
+      ],
+      "sha256": "ee3dfcf024355f2d8133a7215cb883f936cf861ffe164dfe3ad6b12322229e65"
+    }
+  },
+  "scaling": "Actual per-capture native DPI and pixel dimensions are recorded below; no upscaling",
   "fixture": "DeskRemoteChecks.DeskDisplays, synthetic stable identities, private test desktop and temporary settings",
   "displays": [
     {
@@ -31,57 +72,44 @@
   "warmth": "neutral gamma tint target; not a measured colour preview",
   "estimates": "Generic profiles; 203 and 160 estimated nits, not measured light",
   "method": "Actual MainForm.DrawToBitmap, complete native window bounds on a private desktop; DWM composition is not captured",
-  "composition": "None. Portfolio master is the complete native 1200x750 window; no crop, repaint, stretching or invented controls.",
-  "nativeClientSizes": {
-    "documentation": [
-      1000,
-      690
-    ],
-    "portfolio": [
-      1184,
-      711
-    ],
-    "compact": [
-      604,
-      441
-    ],
-    "stacked": [
-      1000,
-      690
-    ]
-  },
+  "composition": "None. Portfolio native master is the complete window at its recorded DPI; no crop, repaint, stretching or invented controls.",
   "stackedFixture": "Two landscape fixtures share a left coordinate; Reading 24 is below Studio 27 and selected.",
-  "derivatives": "Uniform Pillow LANCZOS downsampling from the 1200x750 master to 480x300 and 320x200",
+  "derivatives": "Uniform Pillow LANCZOS downsampling from portfolio-native.png to 1200x750, 480x300 and 320x200",
   "artifacts": {
     "screenshot.png": {
-      "width": 1016,
-      "height": 729,
-      "sha256": "b2c689c4e80a34b19595625009537abe52c035083ea473fbfdea37cdf29a37d9"
+      "width": 1524,
+      "height": 1094,
+      "sha256": "a0974c6775b834137d2cbb9956387b85eaecc3fa13417c6c26abfa22c44ea6ca"
+    },
+    "portfolio-native.png": {
+      "width": 1800,
+      "height": 1125,
+      "sha256": "81e7f3294d8a09cdefd15fbfe9d707f7a1a8ecb5016824cb64dddd89e0e8f37d"
+    },
+    "screenshot-compact.png": {
+      "width": 930,
+      "height": 720,
+      "sha256": "fdfce4ebda980bd53fafde4ce136f0e109885f3d1f203b542c3803eeee71244c"
+    },
+    "screenshot-stacked.png": {
+      "width": 1524,
+      "height": 1094,
+      "sha256": "ee3dfcf024355f2d8133a7215cb883f936cf861ffe164dfe3ad6b12322229e65"
     },
     "portfolio-1200x750.png": {
       "width": 1200,
       "height": 750,
-      "sha256": "38c03d1d8651334c2575319b8a9715d1f230821675a77238d6f55a22025c681e"
-    },
-    "screenshot-compact.png": {
-      "width": 620,
-      "height": 480,
-      "sha256": "35934fa59c3899009f392555cda5c308cb85242babdce1eeb4711e62f5e35e1c"
-    },
-    "screenshot-stacked.png": {
-      "width": 1016,
-      "height": 729,
-      "sha256": "5f975346088828604c830a9ebd4d4bd7cd81805bd45d83913e7f1270949958e6"
+      "sha256": "5c1208f263c8929c810106607b0ca89c6d3d7e79c468cffdc023add117548d59"
     },
     "portfolio-480x300.png": {
       "width": 480,
       "height": 300,
-      "sha256": "7398eaf7ee8ef794d2d117f50e0ab96265ecf9e69aed04ff3aefd5f70b2aa2b7"
+      "sha256": "56af9072e9a768b7720bc2fc76a4d0a3679c739ee7c924fa7f4a2c2375705ea9"
     },
     "portfolio-320x200.png": {
       "width": 320,
       "height": 200,
-      "sha256": "6e07699be731c7810abb04810adeb2448aae4dd8d1c8b500b92cec5f30ef11e8"
+      "sha256": "5326cd19c7aa8421d6465c29572bcd4bc32a91d841cde5bd490161e13c9b0220"
     }
   }
 }

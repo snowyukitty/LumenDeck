@@ -1,114 +1,61 @@
 # Release readiness
 
-## 1.4.0 desk-remote development candidate
+## Current 1.4.0 repair candidate
 
-Updated 2026-10-13. Source `4e27b377b8696d41d167e7a49705ca8612291df0` produces the new
-native desk remote and spatial keyboard navigation. It is a local portable
-candidate and source checkpoint, not an approved published release or replacement
-of the older installation below.
+Updated 2026-10-15. This is a verified local portable candidate and source
+checkpoint, not a published release or replacement of the installed application.
 
 | Item | Recorded value |
 | --- | --- |
-| GUI and CLI build | `1.4.0+4e27b377b8696d41d167e7a49705ca8612291df0` |
+| Source commit | `6a0bd4ed17cb8c908f119c555573ae8e99a00503` - display repairs and native-DPI capture tools |
+| GUI recorded build | `1.4.0+6a0bd4ed17cb8c908f119c555573ae8e99a00503` |
 | Package | `LumenDeck-1.4.0-win-x64.zip` |
-| SHA-256 | `0cbc46c6c3cb0dc844730baee54eee35ac162c192fc5a1eafc5a0c616b691e59` |
+| SHA-256 | `4076253b458fcea46aa7a93438a029b6973863b8191cab1175ab6fdee57d4487` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.4.0.0` for both executables |
-| Verification | Release warnings-as-errors build; 4,558 ControlTests; 2,140 AppTests; 385 native capture checks |
+| Verification | Release warnings-as-errors builds; 4,586 ControlTests; 2,224 AppTests; 30 committed-source native showcase checks; 6 capture-export regression tests |
 
-Extracted-package validation passes the file allowlist, hashes, matching build
-versions, mapped source paths, standalone CLI and synthetic GUI startup with
-SDK/runtime lookup removed. The package regression suite also checks malformed
-archives, install inputs, isolated state preservation and bounded bundle parsing.
-No real monitor operation or installed-app replacement is part of those probes.
-See [current checkpoint](checkpoint.md) for the local artifact path and remaining
-hardware, screen-reader and clean-machine acceptance. The README preview is bound
-to this source, with fictitious monitors disclosed in its caption.
+Both executable product versions match the recorded GUI build. The extracted
+package passes its exact file allowlist, hashes, versions, bundled source-path
+checks, standalone CLI and synthetic GUI startup with SDK/runtime lookup removed.
+Package regressions cover altered/extra/version inputs, launch-failure environment
+restoration, running-app refusal and isolated installer-state preservation.
 
-## Previously installed 1.3.0 candidate
+[scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) verifies this
+single candidate record against the ZIP digest, checksum sidecar and both actual
+executable payloads. Historical candidates are described separately below so the
+record cannot ambiguously match multiple Package/SHA-256 rows.
 
-The following historical record describes the earlier installed candidate. Its
-checks and counts belong to that candidate; they do not replace the newer evidence
-above. No GitHub release/tag was created for either candidate.
+See the [checkpoint](checkpoint.md) for the local artifact path, scope and evidence;
+[packaging](packaging.md) defines the reproducible verification contract and limits.
+The [public preview receipt](assets/screenshot.json) is bound to this source and
+uses fictitious displays. Package probes never change the real installation or
+exercise monitor control.
 
-## Recorded candidate
+## Historical candidates
 
-| Item | Recorded value |
-| --- | --- |
-| Source commit | `e34bffc2e57d63ed8f30ad28dbb2eae328e54c98` - versioned native interface and Mica test candidate |
-| GUI recorded build | `1.3.0+e34bffc2e57d63ed8f30ad28dbb2eae328e54c98` |
-| Package | `LumenDeck-1.3.0-win-x64.zip` |
-| SHA-256 | `2acc497de41bfdc3a782bf3e519ed8bf537622d10a99e296f9d89869aa34a2c1` |
-| Distribution | Self-contained Windows x64 GUI and CLI |
-| File version | `1.3.0.0` for both executables |
-| Version status | Installed local candidate; source features remain Unreleased |
+The first 1.4.0 desk-remote candidate used source `4e27b37` and the initial repair
+candidate used `114eed4`. Their evidence remains in Git history and the
+[repair review](repair-review.md). They are superseded by the record above.
 
-The recorded source is the clean snapshot used for both executables. It includes
-the material refinement, optional Mica title bar and deterministic post-modal
-settings-save lifecycle checks. Builder verification passed on the actual ZIP.
-No old app was running at installation. Installed GUI/CLI hashes match the exact payload and their source/build
-versions match this record. Desktop and Start Menu shortcuts target the installed
-GUI, CLI help/version pass, and all three application JSON files retained their
-pre-install hashes before normal startup. Previous installed/publish binaries,
-both shortcuts and the three JSON files were backed up privately.
-The installed main window was launched and verified visible and responding with
-the expected 1.3.0 build, without new error-log content. This is startup evidence,
-not completed physical-display or Mica visual acceptance.
-No GitHub release or tag has been created.
-
-## Earlier candidate source verification
-
-- Release solution and both test projects: warnings-as-errors builds, zero
-  warnings/errors.
-- Current full suites: 4,230 ControlTests and 1,767 AppTests, using synthetic displays,
-  fake transport and isolated settings.
-- Desk-map selection: old focus behavior reproduced before repair; three window
-  sizes, repeated selection, visible adjustment bars, correctly targeted adjustment
-  and replacement-scan reentrancy covered.
-- Night saver: 45 focused control checks and 14 actual-window work-display checks,
-  including lowering a kept primary display and retaining its original brightness.
-- Actual native renders inspected at regular/minimum window sizes, a selected
-  card, narrow long-name card and simulated 200% command/button sizes.
-- Mixed DPI: 64 focused checks, six native 100%/125% crossings on a private
-  desktop, bounded layout counts and stable dimensions. Timings improved from
-  2.4–3.3 seconds to approximately 0.3–0.6 seconds; see [DPI repair](cross-display-dpi.md).
-- Native material: saved/off/refused-save preference behavior, native DWM
-  request readback and unchanged opaque client rendering. Physical composition
-  remains owner acceptance.
-
-These establish their tested software behavior. Physical monitor control,
-foreground pointer dragging, other DPI combinations and screen readers remain
-manual acceptance.
-
-## Package verification contract
-
-The builder publishes self-contained Windows x64 GUI and CLI binaries and verifies
-an allowlisted ZIP containing the two EXEs, license, quickstart and payload hashes.
-Checks cover binary versions, source-path privacy, standalone CLI help/version,
-synthetic GUI startup and recovery from refused package/installer inputs.
-[scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) binds the
-recorded revision and digest to the archive and both actual executable payloads.
-See [packaging](packaging.md) for reproducible commands and their limits.
-
-The actual candidate passed package regressions for valid/tampered/extra/version
-inputs, environment restoration on injected launch failures and running-app
-installer refusal. Installer source-preflight and state-preservation fixtures
-also passed. These fixture results do not establish a transactional install or
-clean-machine download behavior. The owner-profile update is verified by binary
-hashes, shortcut targets, CLI help/version and unchanged settings/profile hashes.
+The previously installed 1.3.0 candidate used source
+`e34bffc2e57d63ed8f30ad28dbb2eae328e54c98`. Its verified installation record is retained
+in [the prior readiness document](https://github.com/snowyukitty/LumenDeck/blob/1c532f5bef6b4998378f57d992896eea2d122906/docs/release-readiness.md).
+That record establishes its own binary/shortcut/state checks, not acceptance of this
+newer candidate. No release or release tag was created for this milestone.
 
 ## Remaining release acceptance
 
 | Area | Required evidence |
 | --- | --- |
-| Hardware | Night saver brightness/restoration, hot-plug and interrupted recovery on a real desk |
-| Native interaction | Actual keyboard/pointer focus, popups, continuous cross-monitor dragging, other DPI/text-size combinations and screen readers |
+| Hardware | Real brightness/gamma acceptance, Night saver/blackout restoration, hot-plug and interrupted recovery, with original state preserved |
+| Native interaction | Foreground keyboard/pointer focus, popups, continuous mixed-DPI dragging, other text sizes, actual contrast themes and screen readers |
 | Download/install | Clean Windows environment and separate-profile install/update/uninstall |
 | Download security | Exact-file unsigned-download and antivirus acceptance; no false-positive finding is claimed |
-| Review | Final source and release-critical content assessment; no whole-app approval is carried from older snapshots |
-| Hosted CI | Check the actual [build workflow](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml) for the pushed source; local success does not prove hosted execution |
+| Review | Candidate-specific source and release-critical content review; older snapshots do not grant whole-app approval |
+| Hosted CI | Actual result for the pushed revision in the [build workflow](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml) |
 | Publication | Explicit approval for the intended release, tag and downloadable assets |
 
-The [checkpoint](checkpoint.md) records current work and the next acceptance steps.
-No release/tag, security submission, issue reply or repository visibility change
-is authorized by successful engineering checks alone.
+Successful fixture and packaging checks do not establish those manual outcomes.
+The source checkpoint, local portable candidate, installed app and published
+release remain separate states.

@@ -2,6 +2,8 @@
 
 Reviewed on 2026-10-15, starting from `1c532f5` on a clean worktree.
 Scope: this repository's display UI, CLI adjustment handling and regression tests.
+This records the initial repair candidate; the [current checkpoint](checkpoint.md)
+and [release readiness](release-readiness.md) contain the final source/package handoff.
 
 ## Reproduced problems
 
@@ -47,8 +49,9 @@ This avoids asserting on WinForms' stale cached ClientSize after an impossible
 below-minimum request. These changes do not relax production layout assertions.
 
 Local logs and native PNGs are in the ignored `artifacts/review-20261015` directory.
-The existing public showcase receipt remains evidence for its recorded older
-source; it is not evidence for these repairs.
+At the initial repair checkpoint, the public showcase still recorded the older
+source. The final checkpoint regenerates it through the native-DPI capture path;
+see [the current receipt](assets/screenshot.json).
 
 Verified locally:
 
@@ -65,7 +68,7 @@ Verified locally:
 
 The source-path script initially hit this host's PowerShell execution policy;
 the same checked-in script passed with a process-local `-ExecutionPolicy Bypass`.
-No machine policy was changed. Hosted CI was not dispatched.
+No machine policy was changed. Hosted CI was not dispatched during this initial review.
 
 ## Local portable candidate
 
@@ -81,10 +84,11 @@ GUI startup. The archive contains the two executables, license, quickstart and h
 manifest. A committed-source screenshot run passed 45 checks; inspected PNGs and
 their receipt are in `artifacts/review-20261015/verified-preview`.
 
-Work remains on `fix/project-review-20261015`; no push, release or installed-app
-replacement was performed. The project lease is released at handoff. Future work
-should start with the physical display acceptance limits below, preserving initial
-settings and recovery data, rather than treating fixture tests as hardware proof.
+This initial candidate was committed on `fix/project-review-20261015` without a
+push, release or installed-app replacement. Its lease was released before the
+subsequent milestone work. The final source/package/GitHub handoff is recorded in
+the current checkpoint. Physical display acceptance still needs initial-state
+preservation and recovery checks; fixture tests are not hardware proof.
 
 ## Limits
 

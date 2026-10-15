@@ -38,7 +38,7 @@ lumendeck-cli -m "left" -b 55 -w 5000
 </p>
 
 <p align="center"><sub>Actual native window from a development build with fictitious displays;
-released versions may differ. The desk diagram is schematic, not to scale.<br>
+released versions may differ. Captured at native 150% scaling; the desk diagram is schematic, not to scale.<br>
 62% gives an <b>estimated 203 nits</b> from a generic profile; the app does not measure light.
 Warmth is a gamma tint target. The second fixture has no contrast support.<br>
 <a href="docs/assets/screenshot.json">Source and capture receipt</a> ·

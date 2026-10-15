@@ -1,93 +1,85 @@
 # Current checkpoint
 
-The 2026-10-15 local repair review is recorded in [repair review](repair-review.md).
-The milestone and package record below describe the earlier source checkpoint.
-
-Updated 2026-10-13. The completed milestone is the **1.4.0 desk-remote development
-candidate**, prepared on `feat/desk-remote` for the `main` GitHub checkpoint.
-It builds on the clean `435a62d` baseline; no unrelated changes were discarded.
-The dated `feat/night-desk` and dirty `.gitignore` observations were not current.
+Updated 2026-10-15. This milestone completes the **1.4.0 display-layout and
+adjustment-reliability repair candidate**, following review of a real staggered
+desk screenshot. Work started from clean source `1c532f5` on
+`fix/project-review-20261015`; unrelated files were preserved.
 
 ## Delivered behavior
 
-- Native selected-display workspace with a schematic screen selector, explicit
-  outline/SELECTED marker, repeated identity and capability summary.
-- Principal supported adjustment with readable exact-entry values. Unsupported
-  brightness stays explained and warmth becomes principal. Estimates and gamma
-  targets are explicitly distinct from measured light.
-- One-action All displays mode uses the same cards. Entering a card synchronizes
-  the selected screen; returning to detail keeps that screen and control.
-- Spatial arrows follow the diagram, prefer aligned neighbours, stop at edges
-  and never transiently focus a slider. Home/End use layout order; Enter/Space
-  opens controls. Ctrl+Page Up/Down retains wrapping, control-preserving navigation.
-- Selection and focus are separate accessible states. Hidden/disabled/stale items
-  reject activation, hit testing resolves virtual items, and native selection/
-  focus events carry the right child identity without duplicate announcements.
-- Desk-wide actions stay secondary; Night saver and independent screen blackout
-  keep their separate saved-state and recovery paths. Existing tray behavior stays.
-- Requested, last observed, pending, matching readback, failed and unconfirmed
-  values remain bound to monitor identity. WMI acceptance alone is unconfirmed.
-- Native shared components reflow at compact sizes and for stacked desks. Narrow
-  tile names use measured wrapping or an explicit ellipsis; the caption, selected
-  control header and accessibility name retain the full identity.
-- README, portable ZIP quickstart, keyboard guide, architecture/accessibility
-  documentation and source-bound imagery describe the implemented application.
+- Scaled brightness captions stay on one line and principal percentages retain
+  their full height, including cards built after asynchronous display discovery.
+- Staggered schematic displays retain readable identifiers. Header/map sections
+  settle without overlap after compact-window and DPI transitions.
+- Nested Night saver controls wrap inside their command row. Native fractional-DPI
+  transitions settle parent widths before measuring children and avoid an extra
+  command-height rounding correction.
+- Refused GUI gamma requests restore the prior model/readout and preserve saved
+  warmth and Custom. Successful retry still persists normally.
+- Explicit CLI requests report unsupported/refused brightness or contrast without
+  replacing Custom. Signed percentage steps handle surrounding whitespace consistently.
+- Public previews now use actual native DPI, including minimum and stacked windows.
+  Their original-pixel master, uniform derivatives and capture/build hashes bind the
+  evidence to committed source and reject stale or altered inputs.
 
-Final implementation/capture source: `4e27b377b8696d41d167e7a49705ca8612291df0`.
-The capture source and all six image hashes are in [the receipt](assets/screenshot.json).
-Documentation/artwork commits follow this immutable implementation commit.
-See [design](ui-design.md), [display I/O](display-io.md) and [showcase](showcase.md).
+The implementation and capture tools are committed at
+`6a0bd4ed17cb8c908f119c555573ae8e99a00503`; documentation and generated images follow
+that immutable source. The product repairs themselves were introduced in `114eed4`.
+See [repair details](repair-review.md), [capture method](showcase.md) and
+[image receipt](assets/screenshot.json).
 
 ## Verification
 
-- Release solution and test-project builds pass with warnings treated as errors.
-- Full ControlTests: **4,558** passed; full actual-window AppTests: **2,140** passed.
-- Final source-bound native capture: **385** focused desk-remote checks passed.
-- Fixture coverage includes 1/2/4 displays, mixed capabilities, regular/minimum/
-  wide windows, stacked/offset layouts, exact entry, keyboard and accessible
-  selection, in-flight writes while switching, failure/reconnect/restoration,
-  reentrant focus callbacks, tray/lifecycle behavior and resource disposal.
-- Native WinEvent hooks verify selected/focused child IDs. Private-desktop native
-  focus plus protected key callbacks prove no intermediate slider focus.
-- Simulated 100/150/200% layout and system-colour contrast checks pass. The private
-  HDC remains 96 DPI: these do not establish real 150/200% monitor acceptance.
-  Existing native 100/125% transitions also pass.
-- Source-path privacy/canary checks pass. Self-contained GUI/CLI publish succeeds;
-  extracted-package checks cover allowlisted contents, SHA-256, matching versions,
-  runtime-independent CLI and synthetic GUI startup. Package negative cases,
-  isolated installer-state preservation and bounded bundle-path checks pass.
-- Actual native PNGs and 480x300/320x200 derivatives were inspected. The selector
-  and principal value survive thumbnail reduction; no controls were repainted,
-  no portrait window was stretched and no hardware state was changed for images.
+| Check actually run | Result |
+| --- | --- |
+| Release solution and both test-project builds, warnings as errors | Passed, no warnings/errors |
+| Full ControlTests on the repaired product | 4,586 passed; product source unchanged by subsequent capture tooling |
+| Full AppTests including the new showcase layouts | 2,224 passed |
+| Focused native showcase generation from committed source | 30 passed |
+| Capture exporter regressions | 6 tests passed, including stale source/build, changed pixels/dimensions and invalid portfolio masters |
+| Screenshot-like staggered displays after native DPI rebuild | Passed at 125% and 150% |
+| Native cross-display DPI round trips | 64 passed with existing layout-work limits |
+| Release source-path/privacy canaries | Passed |
+| Extracted portable package and package regressions | Passed; allowlist, hashes, versions, startup probes and refusal/state-preservation cases |
+| Candidate identity record against archive and both executables | Passed |
 
-## Portable candidate and publication
+The complete native documentation, minimum and stacked images, portfolio master and
+1200x750/480x300/320x200 derivatives were visually inspected. Captures use fictitious
+displays on a private desktop. The owner's screenshot and monitor identities are not
+published. Full AppTests includes synthetic 100/150/200% layout coverage; native
+125/150% transitions are separate evidence. Neither establishes foreground dragging
+or physical driver acceptance. Detailed local logs remain under the ignored
+`artifacts/review-20261015` directory.
 
-The local verified package is
-`artifacts/milestone-1.4.0-4e27b37/package/LumenDeck-1.4.0-win-x64.zip`.
-SHA-256: `0cbc46c6c3cb0dc844730baee54eee35ac162c192fc5a1eafc5a0c616b691e59`.
-Both executables report `1.4.0+4e27b377b8696d41d167e7a49705ca8612291df0` with file version `1.4.0.0`.
-See [release readiness](release-readiness.md) for the candidate and prior installation.
+## Portable candidate and GitHub handoff
 
-The owner requested a GitHub push. The checkpoint updates the default branch after
-local verification; the existing build workflow runs on pushes and performs its
-own build, synthetic tests and packaging. No workflow was weakened or disabled.
-Remote CI results remain separately observable in
-[GitHub Actions](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml).
-No release/tag is published and the previously installed 1.3.0 candidate is not
-replaced. Local intermediate packages are preserved in ignored artifacts.
+The verified local package is
+`dist/build-0128e70c80d94f90a86044843e65337a/verified/LumenDeck-1.4.0-win-x64.zip`.
+SHA-256: `4076253b458fcea46aa7a93438a029b6973863b8191cab1175ab6fdee57d4487`.
+Both executables report `1.4.0+6a0bd4ed17cb8c908f119c555573ae8e99a00503`, file version
+`1.4.0.0`. [Release readiness](release-readiness.md) is the single current identity
+record consumed by `Check-ReleaseRecord.ps1`. Previous candidates are retained.
 
-## Remaining acceptance and handoff
+The owner requested a GitHub checkpoint. The completed unit is fast-forwarded to
+`main` and pushed once after local verification. The existing workflow runs on all
+branches, builds and tests on Windows, and uploads a verified CI package; it does
+not publish releases or deploy the app. No workflow was weakened or disabled.
+Check the exact pushed revision in [GitHub Actions](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml);
+local results do not imply hosted success. The session handoff reports the actual
+remote outcome without another documentation-only CI run.
 
-No physical brightness, gamma, power or blackout test was authorized or performed.
-Real DDC/WMI/gamma, Night saver/blackout restoration, hot-plug/crash recovery and
-emitted-light behavior need a concrete authorized test with initial-state preservation
-and verified restoration. Narrator speech, complete UI Automation pattern coverage,
-actual Windows contrast-theme switching and foreground 150/200% mixed-DPI dragging
-remain manual acceptance. Fixture tests are not reported as those human checks.
-Clean-machine installation/release acceptance remains separate from package probes.
+No release/tag or installed-app replacement is part of this checkpoint. The running
+installation remains separate from this new portable candidate.
 
-Scope is this repository only; the IconFlow source study was read-only. The project
-lease is released at handoff. Resume from this checkpoint and the capture receipt,
-inspect Git status before changing files, and regenerate source-bound images after
-any visible UI change. Preserve the distinction between source checkpoint, local
-portable candidate, installed application and published release.
+## Resume and remaining acceptance
+
+Physical DDC/WMI/gamma, Night saver/blackout restoration, hot-plug/interrupted
+recovery and emitted-light behavior were not exercised. A hardware acceptance pass
+should preserve initial settings and verify restoration. Foreground mixed-DPI
+pointer dragging, compositor appearance, Narrator speech, real contrast-theme
+switching and clean-machine install/update/uninstall remain manual acceptance.
+
+Scope was this repository: product UI/CLI repairs, regression/capture tools,
+generated synthetic previews, changelog and developer documentation. The project
+lease is released at handoff. Resume by checking Git status and this checkpoint;
+keep source, portable candidate, installed application and published release distinct.
