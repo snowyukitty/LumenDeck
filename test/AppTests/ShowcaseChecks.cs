@@ -7,8 +7,21 @@ internal static partial class Program
 {
     private static string FileDigest(string path) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
 
+    private static Size ShowcaseSize(Size desired, Size trackLimit, bool portfolio)
+    {
+        if (!portfolio) return new Size(Math.Min(desired.Width, trackLimit.Width), Math.Min(desired.Height, trackLimit.Height));
+        int unit = Math.Min((int)Math.Ceiling(desired.Width / 8.0), Math.Min(trackLimit.Width / 8, trackLimit.Height / 5));
+        return new Size(unit * 8, unit * 5);
+    }
+
     private static void CheckShowcase(string directory, string renderDirectory)
     {
+        Assert(ShowcaseSize(new Size(1200, 750), new Size(1040, 788), true) == new Size(1040, 650),
+            "small native desktops retain an exact 8:5 window within their tracking limit");
+        Assert(ShowcaseSize(new Size(1500, 938), new Size(2000, 1200), true) == new Size(1504, 940),
+            "fractional DPI rounds the native portfolio up uniformly");
+        Assert(ShowcaseSize(new Size(1016, 729), new Size(1040, 788), false) == new Size(1016, 729),
+            "reachable ordinary window dimensions are unchanged");
         if (renderDirectory != null) Directory.CreateDirectory(renderDirectory);
         var captures = new Dictionary<string, object>();
         foreach (bool stacked in new[] { false, true })
@@ -38,18 +51,14 @@ internal static partial class Program
                 : new[] { ("documentation", new Size(1016, 729)), ("portfolio", new Size(1200, 750)), ("compact", new Size(620, 480)) };
             foreach (var (name, logicalSize) in sizes)
             {
-                var requested = form.LogicalToDeviceUnits(logicalSize);
-                // Preserve an exact 8:5 aspect ratio even at fractional/custom DPI.
-                // The portfolio derivative is downsampled from this native window.
-                if (name == "portfolio")
-                {
-                    int unit = Math.Max(150, (int)Math.Ceiling(requested.Width / 8.0));
-                    requested = new Size(unit * 8, unit * 5);
-                }
+                // Form.SetBoundsCore clamps to the host's MaxWindowTrackSize,
+                // including on small hosted desktops. Exercise reachable bounds;
+                // the exporter still refuses any master smaller than 1200x750.
+                var requested = ShowcaseSize(form.LogicalToDeviceUnits(logicalSize), SystemInformation.MaxWindowTrackSize, name == "portfolio");
                 form.Size = requested;
                 Application.DoEvents();
                 PumpUntil(() => !Private<bool>(form, "_dpiLayoutPending") && !Private<bool>(form, "_deskLayoutPending"), "showcase final layout settles");
-                Assert(form.Size == requested, $"{name} capture has the requested native outer bounds");
+                Assert(form.Size == requested, $"{name} capture has the requested native outer bounds: expected={requested}, actual={form.Size}, dpi={form.DeviceDpi}, limit={SystemInformation.MaxWindowTrackSize}");
                 var map = Private<LayoutMap>(form, "_map");
                 Assert(map.Visible && (!stacked || map.Dock == DockStyle.Left), "showcase retains its usable display selector");
                 var list = Private<FlowLayoutPanel>(form, "_list");

@@ -48,6 +48,9 @@ It sizes the actual outer window in logical units, including the minimum window,
 and records per-image DPI, dimensions, hashes and loaded GUI/core identities.
 These layout checks also run in the full AppTests suite. The exporter rejects stale
 builds, changed captures, nonuniform aspect ratios and upscaled portfolio masters.
+The layout harness respects the host's native maximum window tracking size;
+undersized hosted desktops still exercise a real 8:5 window, while public export
+requires a native master of at least 1200x750 and fails explicitly below it.
 Run its regression checks with `python -B -m unittest discover -s test -p test_showcase_export.py`
 (requires Pillow). Public capture generation remains an explicit local operation.
 

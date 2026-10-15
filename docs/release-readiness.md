@@ -13,13 +13,15 @@ checkpoint, not a published release or replacement of the installed application.
 | SHA-256 | `4076253b458fcea46aa7a93438a029b6973863b8191cab1175ab6fdee57d4487` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.4.0.0` for both executables |
-| Verification | Release warnings-as-errors builds; 4,586 ControlTests; 2,224 AppTests; 30 committed-source native showcase checks; 6 capture-export regression tests |
+| Verification | Release warnings-as-errors builds; 4,586 ControlTests; 2,227 AppTests including the hosted-size fixture correction; 30 committed-source native showcase checks; 6 capture-export regression tests |
 
 Both executable product versions match the recorded GUI build. The extracted
 package passes its exact file allowlist, hashes, versions, bundled source-path
 checks, standalone CLI and synthetic GUI startup with SDK/runtime lookup removed.
 Package regressions cover altered/extra/version inputs, launch-failure environment
 restoration, running-app refusal and isolated installer-state preservation.
+The hosted-size follow-up changes tests/documentation only; this candidate's
+product source and recorded images remain unchanged.
 
 [scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) verifies this
 single candidate record against the ZIP digest, checksum sidecar and both actual

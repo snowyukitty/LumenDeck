@@ -21,8 +21,14 @@ Capture dimensions follow the host's real monitor DPI. At 150%, the documentatio
 window is 1524x1094, the native portfolio master is 1800x1125 and the minimum window
 is 930x720 physical pixels. The receipt, rather than these examples, records the
 actual run. The portfolio window has an exact 8:5 ratio, with rounding upwards to
-whole eight/five-pixel units at fractional DPI; it is never smaller than 1200x750.
+whole eight/five-pixel units at fractional DPI. Export requires at least 1200x750.
 The application's ordinary default remains 940x820 logical pixels.
+
+Windows limits normal window dimensions to the desktop's maximum tracking size
+(see [Form.SetBoundsCore](https://github.com/dotnet/winforms/blob/v10.0.0/src/System.Windows.Forms/System/Windows/Forms/Form.cs)).
+On a small hosted desktop, the layout checks exercise the largest reachable 8:5
+window. Export explicitly refuses an undersized master instead of enlarging it;
+public capture generation requires a desktop that permits at least 1200x750.
 
 ## Repeat
 

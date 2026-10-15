@@ -22,9 +22,10 @@ desk screenshot. Work started from clean source `1c532f5` on
   Their original-pixel master, uniform derivatives and capture/build hashes bind the
   evidence to committed source and reject stale or altered inputs.
 
-The implementation and capture tools are committed at
-`6a0bd4ed17cb8c908f119c555573ae8e99a00503`; documentation and generated images follow
-that immutable source. The product repairs themselves were introduced in `114eed4`.
+The recorded portable build and public captures use immutable source
+`6a0bd4ed17cb8c908f119c555573ae8e99a00503`. A subsequent test-only correction respects
+the native maximum window size on small hosted desktops; it does not change the
+product or the recorded 150% images. The product repairs were introduced in `114eed4`.
 See [repair details](repair-review.md), [capture method](showcase.md) and
 [image receipt](assets/screenshot.json).
 
@@ -34,7 +35,7 @@ See [repair details](repair-review.md), [capture method](showcase.md) and
 | --- | --- |
 | Release solution and both test-project builds, warnings as errors | Passed, no warnings/errors |
 | Full ControlTests on the repaired product | 4,586 passed; product source unchanged by subsequent capture tooling |
-| Full AppTests including the new showcase layouts | 2,224 passed |
+| Full AppTests including the new showcase layouts and hosted-size correction | 2,227 passed |
 | Focused native showcase generation from committed source | 30 passed |
 | Capture exporter regressions | 6 tests passed, including stale source/build, changed pixels/dimensions and invalid portfolio masters |
 | Screenshot-like staggered displays after native DPI rebuild | Passed at 125% and 150% |
@@ -61,12 +62,21 @@ Both executables report `1.4.0+6a0bd4ed17cb8c908f119c555573ae8e99a00503`, file v
 record consumed by `Check-ReleaseRecord.ps1`. Previous candidates are retained.
 
 The owner requested a GitHub checkpoint. The completed unit is fast-forwarded to
-`main` and pushed once after local verification. The existing workflow runs on all
+`main` after local verification. The existing workflow runs on all
 branches, builds and tests on Windows, and uploads a verified CI package; it does
 not publish releases or deploy the app. No workflow was weakened or disabled.
 Check the exact pushed revision in [GitHub Actions](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml);
 local results do not imply hosted success. The session handoff reports the actual
 remote outcome without another documentation-only CI run.
+
+The first [hosted run](https://github.com/snowyukitty/LumenDeck/actions/runs/38695703456)
+passed compilation, privacy and ControlTests, then rejected the new portfolio
+fixture's requested 1200-pixel width on the runner's smaller desktop. WinForms
+clamps normal windows to `MaxWindowTrackSize`. The follow-up derives reachable
+native dimensions and preserves the exact 8:5 ratio, size/visibility/scrollbar
+assertions and export's minimum-resolution requirement. Small-desktop and fractional
+DPI sizing cases are explicitly checked. The follow-up is pushed for a new hosted
+result; no failed assertion or workflow check is disabled.
 
 No release/tag or installed-app replacement is part of this checkpoint. The running
 installation remains separate from this new portable candidate.
