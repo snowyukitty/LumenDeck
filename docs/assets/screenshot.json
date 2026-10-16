@@ -1,15 +1,45 @@
 {
-  "sourceVersion": "818fa7b8ad9ee911bbf0b63dbe42c4c807c98405",
+  "sourceVersion": "cc08d8aac9e751205c2e076fd721c789dc6df220",
   "sourceDirty": false,
   "build": "Release, development source; not a released-version preview",
   "assemblyVersion": "1.4.1",
-  "guiAssemblySha256": "011de7668587f58d9f5cd8c89d1b27460e13b0f768b9ef3761b70e61d740db41",
-  "coreAssemblySha256": "7c505f34da4416025829fa3120e4df9ab90ad335afa35e504f788537060af975",
+  "guiAssemblySha256": "744ccd0897c709d71a91a41aaaecd775ec50f2adfbcc7eee954c7b955c674af7",
+  "coreAssemblySha256": "9be0855abaa5874270c78fdc32e963073386b70e9bde43d9417bb996b042aee9",
   "dotnetSdk": "10.0.302",
   "python": "3.12.10",
   "pillow": "12.3.0",
   "windowsVersion": "10.0.26300",
   "nativeCaptures": {
+    "theme-paper.png": {
+      "width": 1524,
+      "height": 1094,
+      "deviceDpi": 144,
+      "clientSize": [
+        1502,
+        1038
+      ],
+      "sha256": "9b9c0b5dc804765cd6ccf19b1765b12cef7daa0d1beea996502c4a2b8824af77"
+    },
+    "theme-ocean.png": {
+      "width": 1524,
+      "height": 1094,
+      "deviceDpi": 144,
+      "clientSize": [
+        1502,
+        1038
+      ],
+      "sha256": "109714811318241fa758962c8be907fb80d4cf6c883f4fe2bf08fbc01a0d32f0"
+    },
+    "theme-violet.png": {
+      "width": 1524,
+      "height": 1094,
+      "deviceDpi": 144,
+      "clientSize": [
+        1502,
+        1038
+      ],
+      "sha256": "09c5aa231ad0be2d0b1eed29df43d55f3b1a78fd0b3094e3f0da53e726b3445e"
+    },
     "documentation.png": {
       "width": 1524,
       "height": 1094,
@@ -18,7 +48,7 @@
         1502,
         1038
       ],
-      "sha256": "39f43d481c4901dcd4a0b2ebe53a3204689fc5b137ce588f6489cb446b55182e"
+      "sha256": "3b28349a72cee91591d5e2c3a7cfd2275137aa7cf4045753efbafdaed3fc313f"
     },
     "portfolio.png": {
       "width": 1800,
@@ -28,7 +58,7 @@
         1778,
         1069
       ],
-      "sha256": "e149822b3052d4034f41d96d50717968105b7a81dd829b76a8559a0acdfbe354"
+      "sha256": "7fbe8adca2887c564a45fdc6261a06f4aeb5af97b2adb73f72dc1438e3b97904"
     },
     "compact.png": {
       "width": 930,
@@ -38,7 +68,7 @@
         908,
         664
       ],
-      "sha256": "96e990b9343fe59d4d32eb2f9fab648dab189129e18cfcfcb840648c409eb77d"
+      "sha256": "5952a4e430ec0fe61dcd70430f6acc1683203e613c59122e65a46ce23791187e"
     },
     "stacked.png": {
       "width": 1524,
@@ -48,7 +78,7 @@
         1502,
         1038
       ],
-      "sha256": "a425a8a76c210d241b5e35216f23d5976785551204af7965799894ac303eb6f6"
+      "sha256": "6e35ab4c9daa1a45c740eba0b9ca87ae9285541972beba6df7b238d1f5007e36"
     }
   },
   "scaling": "Actual per-capture native DPI and pixel dimensions are recorded below; no upscaling",
@@ -79,37 +109,52 @@
     "screenshot.png": {
       "width": 1524,
       "height": 1094,
-      "sha256": "39f43d481c4901dcd4a0b2ebe53a3204689fc5b137ce588f6489cb446b55182e"
+      "sha256": "3b28349a72cee91591d5e2c3a7cfd2275137aa7cf4045753efbafdaed3fc313f"
     },
     "portfolio-native.png": {
       "width": 1800,
       "height": 1125,
-      "sha256": "e149822b3052d4034f41d96d50717968105b7a81dd829b76a8559a0acdfbe354"
+      "sha256": "7fbe8adca2887c564a45fdc6261a06f4aeb5af97b2adb73f72dc1438e3b97904"
     },
     "screenshot-compact.png": {
       "width": 930,
       "height": 720,
-      "sha256": "96e990b9343fe59d4d32eb2f9fab648dab189129e18cfcfcb840648c409eb77d"
+      "sha256": "5952a4e430ec0fe61dcd70430f6acc1683203e613c59122e65a46ce23791187e"
     },
     "screenshot-stacked.png": {
       "width": 1524,
       "height": 1094,
-      "sha256": "a425a8a76c210d241b5e35216f23d5976785551204af7965799894ac303eb6f6"
+      "sha256": "6e35ab4c9daa1a45c740eba0b9ca87ae9285541972beba6df7b238d1f5007e36"
+    },
+    "theme-paper.png": {
+      "width": 1524,
+      "height": 1094,
+      "sha256": "9b9c0b5dc804765cd6ccf19b1765b12cef7daa0d1beea996502c4a2b8824af77"
+    },
+    "theme-ocean.png": {
+      "width": 1524,
+      "height": 1094,
+      "sha256": "109714811318241fa758962c8be907fb80d4cf6c883f4fe2bf08fbc01a0d32f0"
+    },
+    "theme-violet.png": {
+      "width": 1524,
+      "height": 1094,
+      "sha256": "09c5aa231ad0be2d0b1eed29df43d55f3b1a78fd0b3094e3f0da53e726b3445e"
     },
     "portfolio-1200x750.png": {
       "width": 1200,
       "height": 750,
-      "sha256": "5eee1539ae93af5f2f710e5f50688b5852ad0311c71f850c1b25b6a6d791a571"
+      "sha256": "a62c6bb80c5ab3c14739b4b948ee038d25ae257e4b9a8a3530640dc7dbf69444"
     },
     "portfolio-480x300.png": {
       "width": 480,
       "height": 300,
-      "sha256": "29471cfe40f3769eb6367008b53eeafe9c9b900ccab7d241a6cf5636899316ce"
+      "sha256": "1ff8cbef5902744dbea0b101c738c27058f7ca9fa05822b7c27355e18eb77564"
     },
     "portfolio-320x200.png": {
       "width": 320,
       "height": 200,
-      "sha256": "fcb0dc6697148532f216a42c8605c0f9bc3c86bd262882ffbc3384fec8098271"
+      "sha256": "e6f214c27cb3d0138837ae73098ce75b48e7fb85b22df9b2f78f3d7f74c41697"
     }
   }
 }

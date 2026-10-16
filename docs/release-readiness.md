@@ -2,19 +2,19 @@
 
 ## Current 1.4.1 candidate
 
-Updated 2026-10-16. This checkpoint restores the always-visible Night saver action
-and separates its low work-display brightness from reading presets. It retains the
-accepted compact interface. It is not a published release.
+Updated 2026-10-16. This checkpoint adds four persistent live app themes across
+the native interface while preserving the compact layout, visible Night saver
+and its low work-display brightness. It is not a published release.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `818fa7b8ad9ee911bbf0b63dbe42c4c807c98405` - 1.4.1 Night saver repair |
-| GUI recorded build | `1.4.1+818fa7b8ad9ee911bbf0b63dbe42c4c807c98405` |
+| Source commit | `cc08d8aac9e751205c2e076fd721c789dc6df220` - 1.4.1 multi-theme checkpoint |
+| GUI recorded build | `1.4.1+cc08d8aac9e751205c2e076fd721c789dc6df220` |
 | Package | `LumenDeck-1.4.1-win-x64.zip` |
-| SHA-256 | `825fc9cc31804c71fc4b00aaff27a49557aebd0db5c5cdc28dfeba3cf1388b0e` |
+| SHA-256 | `acf611ffed5ae6b61f2aa75c69d170643e44f0da0c88077b74cc2aec98098bf5` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.4.1.0` for both executables |
-| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,377 AppTests; 33 committed-source showcase checks; 6 capture-export regressions; extracted package and installer/bundle regressions |
+| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,612 AppTests; 228 final focused theme checks; 40 committed-source showcase checks; 6 capture-export regressions; extracted package and installer/bundle regressions |
 
 Both executable product versions match the recorded GUI build. The extracted
 package passes its exact file allowlist, hashes, versions, bundled source-path
@@ -35,8 +35,9 @@ physical monitor control.
 ## Historical candidates
 
 The `31af655` compact milestone was installed as 1.4.1 with matching binary hashes,
-preserved settings and a verified responsive startup. This Night saver follow-up
-supersedes its portable candidate without changing the shared version or settings schema.
+preserved settings and a verified responsive startup. The `818fa7b` Night saver
+repair was prepared next. This multi-theme candidate supersedes both portable
+packages, retaining version 1.4.1 and adding the `ThemeId` preference.
 
 The `3da37c6` compact desktop build was installed as 1.4.0, with matching binary
 hashes, preserved settings and verified desktop shortcuts/startup. The owner then
