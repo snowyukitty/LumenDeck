@@ -11,6 +11,7 @@ internal static partial class Program
 
     private static void CheckMaterial(string directory, string renderDirectory)
     {
+        CheckSurfaceRecipes();
         if (renderDirectory != null) Directory.CreateDirectory(renderDirectory);
         using (var fixture = new Fixture(directory, enumerate: _ => DeskDisplays(3), allDisplays: false,
             onRestore: (_, _) => true))

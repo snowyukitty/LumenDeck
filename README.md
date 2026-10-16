@@ -15,7 +15,7 @@ from one window, or one command.**
 **Start here:** [Download](#install) · [Set up your desk](#your-first-desk-setup) ·
 [Troubleshoot](#troubleshooting) · [Contribute](CONTRIBUTING.md)
 
-Current source checkpoint: **1.4.2** · [Changes](CHANGELOG.md) ·
+Current source checkpoint: **1.4.3** · [Changes](CHANGELOG.md) ·
 [Build and package status](docs/release-readiness.md).
 
 An external monitor may not have a brightness slider in Windows. Microsoft's

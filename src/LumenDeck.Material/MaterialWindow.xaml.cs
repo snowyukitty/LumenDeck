@@ -90,21 +90,21 @@ public partial class MaterialWindow : Window
         _finish = finish;
         bool dark = finish == "smoke", ceramic = finish == "ceramic";
         Set("Ink", dark ? "#F0F1F3" : "#252A30");
-        Set("Muted", dark ? "#B9C0CC" : "#565E67");
-        Set("Accent", dark ? "#EDC791" : "#78531F");
+        Set("Muted", dark ? "#D4DCE7" : "#3F4A56");
+        Set("Accent", dark ? "#FFD49C" : "#684516");
         Set("AccentWash", dark ? "#242E2923" : "#1478531F");
         Set("AccentEdge", dark ? "#887C6B53" : "#6678531F");
         Set("Edge", dark ? "#33D2DBE5" : "#2A444D59");
         Set("Divider", dark ? "#21C4CEDD" : "#20535C65");
         Set("Hover", dark ? "#354F5863" : "#2447515B");
         Set("Pressed", dark ? "#60545F6C" : "#3547515B");
-        Set("Track", dark ? "#FF535B67" : "#FF929BA4");
+        Set("Track", dark ? "#FF959FAE" : "#FF65727F");
         Set("Thumb", dark ? "#F3F3F0" : "#FFFFFF");
         Set("StudyBar", dark ? "#AE171C24" : ceramic ? "#F0EEE9" : "#B9ECF0F3");
         Set("MenuSurface", dark ? "#242A33" : ceramic ? "#FCFAF6" : "#F4F7FA");
-        Resources["Surface"] = new LinearGradientBrush(
-            (Color)ColorConverter.ConvertFromString(dark ? "#DD2D323B" : ceramic ? "#FFFCFAF6" : "#E8FFFFFF"),
-            (Color)ColorConverter.ConvertFromString(dark ? "#EA24282F" : ceramic ? "#FFF8F5EF" : "#EEEFF3F5"), 90);
+        Resources["SurfaceRim"] = new LinearGradientBrush(
+            (Color)ColorConverter.ConvertFromString(dark ? "#65EAF2FF" : "#E6FFFFFF"),
+            (Color)ColorConverter.ConvertFromString(dark ? "#1F9DADBF" : "#454E6276"), 90);
         if (SystemParameters.HighContrast)
         {
             foreach (string key in new[] { "Ink", "Muted", "Accent", "Edge", "Divider", "Track" }) Resources[key] = SystemColors.WindowTextBrush;
@@ -118,12 +118,14 @@ public partial class MaterialWindow : Window
     {
         bool dark = _finish == "smoke", ceramic = _finish == "ceramic";
         _native = NativeBackdrop.Apply(this, dark, _backdrop, ceramic || _exporting);
-        Resources["Foundation"] = SystemParameters.HighContrast ? SystemColors.WindowBrush : Brush(_native.Requested
-            ? (dark ? "#30141A23" : "#38E9EEF3")
-            : (dark ? "#20262F" : ceramic ? "#F1EEE7" : "#E2E9EF"));
+        var recipe = SurfaceRecipe.For(dark, ceramic, _native.Requested, _backdrop == 3);
+        Resources["Foundation"] = SystemParameters.HighContrast ? SystemColors.WindowBrush : Brush(recipe.Foundation);
+        Resources["Surface"] = SystemParameters.HighContrast ? SystemColors.WindowBrush : recipe.Surface;
+        if (SystemParameters.HighContrast) Resources["SurfaceRim"] = SystemColors.WindowTextBrush;
+        SurfaceShadow.Visibility = SystemParameters.HighContrast ? Visibility.Collapsed : Visibility.Visible;
         MaterialNote.Text = _exporting
             ? "LumenDeck · opaque reference render; native backdrop is not captured"
-            : $"{char.ToUpperInvariant(_finish[0])}{_finish[1..]} · {(_native.Requested ? (_backdrop == 3 ? "Glass" : "Mica") : "Solid")}";
+            : $"{char.ToUpperInvariant(_finish[0])}{_finish[1..]} · {(_native.Requested ? (_backdrop == 3 ? "Glass · Windows controls blur and inactive appearance" : "Mica · wallpaper-informed") : "Solid")}";
         ThemeButton.Content = $"Theme · {char.ToUpperInvariant(_finish[0])}{_finish[1..]} ▾";
         AutomationProperties.SetName(ThemeButton,
             $"Theme, {_finish}, {(_native.Requested ? (_backdrop == 3 ? "Glass" : "Mica") : "Solid")} surface");
@@ -158,7 +160,7 @@ public partial class MaterialWindow : Window
         EmptyState.Text = state.Reading ? "Reading displays…" : "No displays available. Try Refresh or open Connection help in Settings.";
         RefreshMap();
         var display = Selected;
-        ControlSurface.Visibility = display == null ? Visibility.Collapsed : Visibility.Visible;
+        SurfaceFrame.Visibility = display == null ? Visibility.Collapsed : Visibility.Visible;
         if (display == null) { DisplayName.Text = state.Reading ? "Reading displays…" : "No display selected"; DisplayInfo.Text = ""; DisplayRole.Text = ""; return; }
         DisplayName.Text = display.Name;
         DisplayInfo.Text = $"{display.Position} · {display.Bounds.Width} × {display.Bounds.Height}";
@@ -314,6 +316,9 @@ public partial class MaterialWindow : Window
         yield return Item("Material · Mica", MaterialAction.BackdropMica, save && _finish != "ceramic", _finish != "ceramic" && _backdropName == "mica");
         yield return Item("Material · Glass", MaterialAction.BackdropGlass, save && _finish != "ceramic", _finish != "ceramic" && _backdropName == "glass");
         yield return Item("Material · Solid", MaterialAction.BackdropSolid, save && _finish != "ceramic", _finish != "ceramic" && _backdropName == "solid");
+        yield return new MenuItem { Header = new TextBlock {
+            Text = "Mica follows your wallpaper. Glass blurs windows behind it while active; Windows may use a solid appearance when inactive.",
+            MaxWidth = 280, TextWrapping = TextWrapping.Wrap }, IsEnabled = false, Focusable = false, FontSize = 12, Opacity = 1 };
     }
     private void ThemeClick(object sender, RoutedEventArgs e)
     {

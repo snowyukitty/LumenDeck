@@ -157,7 +157,10 @@
      </StackPanel>
     </Grid>
     <TextBlock x:Name="EmptyState" Text="Reading displays…" Margin="0,0,0,16" />
-    <Border x:Name="ControlSurface" CornerRadius="14" BorderThickness="1" BorderBrush="{DynamicResource Edge}" Background="{DynamicResource Surface}">
+    <Grid x:Name="SurfaceFrame">
+    <Border x:Name="SurfaceShadow" CornerRadius="14" BorderBrush="#26080D14" BorderThickness="0,0,0,2"
+      Margin="1,0,1,-3" IsHitTestVisible="False" />
+    <Border x:Name="ControlSurface" CornerRadius="14" BorderThickness="1" BorderBrush="{DynamicResource SurfaceRim}" Background="{DynamicResource Surface}">
      <StackPanel Margin="24,20,24,18">
       <TextBlock x:Name="WarningText" Foreground="{DynamicResource Accent}" Margin="0,0,0,10" Visibility="Collapsed" />
       <Grid><TextBlock Text="Brightness" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -201,6 +204,7 @@
       </StackPanel>
      </StackPanel>
     </Border>
+    </Grid>
     <TextBlock x:Name="Message" Text="Reading displays…" Style="{StaticResource Meta}" Margin="2,14,0,0" />
    </StackPanel>
   </ScrollViewer>

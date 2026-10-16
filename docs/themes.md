@@ -5,6 +5,11 @@ for Smoke, Frost and Ceramic. Settings > Appearance opens the same choices. Smok
 See the [functional interface guide](material-interface.md) for behavior, saved
 preferences and fallback limits.
 
+Since 1.4.3 Glass and Mica use different surface densities, with a directional
+content rim, stronger secondary text and opaque compatibility fallbacks.
+Mica follows wallpaper; Glass requests background Acrylic and follows Windows
+activation policy. See the [layering and validation notes](material-interface.md#material-layering-in-143).
+
 | Finish | Opaque reference render |
 | --- | --- |
 | Smoke | [Open](assets/material-smoke.png) |

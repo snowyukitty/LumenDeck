@@ -8,6 +8,22 @@ Notable changes, newest first. Format follows
 
 No further changes recorded.
 
+## [1.4.3] — 2026-10-16
+
+Desktop/source checkpoint improving material layering and readability.
+
+### Changed
+
+- Glass and Mica use separate authored surface recipes. Glass retains more of
+  the native backdrop through the content card while stabilizing outer text.
+- Content has a directional rim and a short contact edge. Secondary text,
+  accents and slider tracks have stronger contrast; Solid fallback is opaque.
+- Appearance guidance distinguishes wallpaper-informed Mica from background
+  Acrylic and explains Windows-controlled inactive appearance.
+- A device-free controlled-scene bench records partial captures, native
+  foreground checks and source identities. Contrast preflight covers extreme
+  compositor colors; native active Glass acceptance remains explicitly separate.
+
 ## [1.4.2] — 2026-10-16
 
 Desktop/source checkpoint improving theme discoverability.

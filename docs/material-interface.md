@@ -64,6 +64,40 @@ activation channel. WinForms/WPF modeless keyboard interop is enabled explicitly
 
 ## Boundary and verification
 
+### Material layering in 1.4.3
+
+Glass and Mica now have distinct authored surface recipes. The old nearly opaque
+card hid most of the native layer: the encoded-alpha coefficient through both
+foundation and card was 6.7–10.8% for Smoke and 5.2–7.0% for Frost. Glass now
+retains 14.3–19.4% and 9.0–14.0%, respectively. These are layer calculations,
+not measured light, native blur strength or a design-quality score.
+
+Glass moves tint into the foundation for stable outer text and uses a lighter
+card overlay. Mica keeps a denser reading surface. A directional rim and short
+contact edge distinguish the content plane without a second blur or text shadow.
+Solid/compatibility/opaque-reference surfaces have fully opaque gradients;
+high contrast replaces authored surfaces and removes the decorative contact edge.
+Secondary text, accent and slider tracks have stronger contrast.
+
+Mica is an opaque, wallpaper-informed Windows material. Glass requests background
+Acrylic; its blur, tint and inactive appearance follow Windows policy. The menu
+and footer explain this distinction. Existing saved appearance choices are retained.
+See [Microsoft Mica guidance](https://learn.microsoft.com/en-us/windows/apps/design/style/mica),
+[Acrylic guidance](https://learn.microsoft.com/en-us/windows/apps/design/style/acrylic)
+and the [DWM role/build contract](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwm_systembackdrop_type),
+reviewed 2026-10-16. Microsoft recommends selective Acrylic use; full-window Glass
+remains an explicit optional presentation, with Mica the default.
+
+The [controlled bench](../experiments/MaterialBench/README.md) separates active
+foreground evidence from visible-only capture. One baseline active Smoke/Glass
+pair showed background response in the foundation and much less in the card.
+That run stopped on focus loss before a Solid control. The candidate's complete
+visible-only run recorded another foreground window and zero A/B response; it
+does **not** verify active Glass or establish the cause of that null response.
+The new contrast checks use extreme compositor colors in an encoded-alpha model;
+they are preflight, not rendered-pixel accessibility certification. Candidate
+foreground blur quality remains unverified.
+
 `LumenDeck.Material` references neither Core nor the hardware/settings assemblies.
 It receives immutable snapshots and sends commands to `MainForm.Material.cs` on
 the UI thread. A command resolves the current stable display key and scan
