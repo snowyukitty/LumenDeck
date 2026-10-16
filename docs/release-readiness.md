@@ -1,35 +1,46 @@
 # Release readiness
 
-## Current 1.4.3 candidate
+## Current 1.4.4 candidate
 
-Updated 2026-10-16. Glass/Mica surface recipes are distinct; content contours and
-text/slider contrast are stronger. The visible Theme menu explains material
-behavior. This is a source/installed-desktop checkpoint, not a published release.
+Updated 2026-10-16. Research-informed comfort starting points and an offline
+adjustment guide are installed locally. This is a desktop/source checkpoint;
+no release or release tag was published.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `4c6efe1ba0b6a1e5799ac5621eca4d0f99ac22ef` - 1.4.3 material fidelity checkpoint |
-| GUI recorded build | `1.4.3+4c6efe1ba0b6a1e5799ac5621eca4d0f99ac22ef` |
-| Package | `LumenDeck-1.4.3-win-x64.zip` |
-| SHA-256 | `2d0eb2977dd2b155d807641d04ce04fda0effd0824d4b2eef531799ced4b4bc6` |
+| Source commit | `84525462dbb0ef2b3f88c05b5191bde5a422cea7` - comfort presets and guidance |
+| GUI recorded build | `1.4.4+84525462dbb0ef2b3f88c05b5191bde5a422cea7` |
+| Package | `LumenDeck-1.4.4-win-x64.zip` |
+| SHA-256 | `343da77e1cf3bab20cadd5f2ac71f0caefd489d25e2a88485937a57c24017d13` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
-| File version | `1.4.3.0` for both executables |
-| Verification | Warnings-as-errors build; 2,846 AppTests; 232 focused material checks and 253 original reference/capture checks; source-path canaries; extracted package startup; 24 installer/22 bundle checks; installed hashes/settings/shortcuts/startup verified |
+| File version | `1.4.4.0` for both executables |
+| Verification | Warnings-as-errors build; 2,849 AppTests; 4,680 ControlTests before final wording trim; 235 final preset/guide checks; 262 material capture checks; package/startup and installed identities verified |
 
-Both executable product versions match the recorded build. The exact allowlist,
-hashes, versions, bundled source paths, standalone CLI and synthetic GUI startup
-pass with SDK/runtime lookup removed. Package regressions cover altered/extra/
-version inputs, caller environment, running-app refusal and isolated installer
-state. ControlTests remain unchanged and required in hosted CI; they were not
-rerun locally. The actual hosted result is reported at handoff.
+The archive passes the five-file allowlist, SHA-256, version, mapped source-path,
+standalone CLI and synthetic GUI startup checks. Installed payload hashes match
+its verified files. Three state files were preserved byte-for-byte during the
+replacement; preferences and remembered manual levels remained intact after
+startup. One responsive installed process has a main window, no startup error-log
+growth and no outstanding blackout or dim recovery records.
+
+The first full AppTests attempt hit its three-minute deadline while ControlTests
+were running concurrently. A sequential rerun passed all 2,849 checks without
+changing the deadline. ControlTests first caught an old Day preview expectation;
+it was updated from 43% to 31% for the new 160-nit target on the 400/50 profile.
+The full suite then passed. Final shorter editor wording was covered again by
+235 focused checks, including narrow and scaled layouts.
+
+Computer Use could not connect to its native pipe. Normal process close was
+attempted; keep-running retained the old instance, which was force-terminated
+under standing owner authorization. Existing recovery state was preserved.
+Startup health is process/window identity, responsiveness and error-log evidence,
+not a native screenshot or optical measurement. Synthetic guide and material
+renders were visually inspected. Unchanged installer/bundle regression suites
+and hosted CI were not rerun; package content checks did run.
 
 [scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) checks this
-record against the ZIP digest, checksum sidecar and both executable payloads.
-See [checkpoint](checkpoint.md) for installation and native-evidence limits,
-[packaging](packaging.md) for the contract and [reference receipt](assets/material-reference.json)
-for the opaque synthetic images. The package source adds only those references
-to the implementation commit. Active native Glass quality remains unverified;
-partial and zero-response captures are preserved as such.
+record against the archive and both executable payloads. See
+[checkpoint](checkpoint.md) and [comfort research](comfort-research.md).
 
 ## Historical candidates
 
