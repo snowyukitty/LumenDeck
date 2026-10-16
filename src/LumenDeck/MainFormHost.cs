@@ -15,6 +15,7 @@ internal sealed class MainFormHost
     public required Func<PanelProfileStore, ProfileEditorContext, ProfileEditorForm> CreateProfileEditor { get; init; }
     public required Action<IWin32Window, string> ShowProfileReadError { get; init; }
     public bool ShowTrayIcon { get; init; } = true;
+    public bool EnableMaterialInterface { get; init; }
     public Func<Func<SettingsSaveResult>, SettingsSaveResult> WriteSettings { get; init; } = write => write();
     public Func<IntPtr, int, uint, uint, bool> RegisterHotKey { get; init; } = Native.RegisterHotKey;
     public Func<IntPtr, int, bool> UnregisterHotKey { get; init; } = Native.UnregisterHotKey;
@@ -34,6 +35,7 @@ internal sealed class MainFormHost
     public static MainFormHost CreateDefault() => new()
     {
         Settings = AppSettings.Load(), Worker = new DdcWorker(),
+        EnableMaterialInterface = true,
         EnumerateMonitors = () => MonitorService.Enumerate(), SaveGamma = DisplayGamma.Save,
         RepairStartup = StartupEntry.RepairIfStale, ReadStartupState = StartupEntry.ReadState,
         SetStartup = StartupEntry.Set,

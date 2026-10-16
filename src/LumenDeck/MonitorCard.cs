@@ -478,6 +478,52 @@ internal sealed class MonitorCard : Panel
     /// </summary>
     public event Action<MonitorCard> BrightnessRequested;
 
+    internal string BrightnessStatus { get { UpdateObservation(); return _reading.Text; } }
+    internal string ContrastStatus
+    {
+        get
+        {
+            UpdateObservation();
+            if (!Monitor.SupportsContrast) return "No contrast interface detected.";
+            return _worker.Observe(Monitor, DdcWorker.Feature.Contrast).Kind is DdcWorker.ObservationKind.Observed or DdcWorker.ObservationKind.Confirmed
+                ? "" : _contrastReading.Text;
+        }
+    }
+    internal string EstimateText => _nits.Text;
+    internal string WarningText => _adjustmentNotice.Message;
+    internal void DismissWarning() => _adjustmentNotice.Dismiss();
+    internal void OpenExtraControls()
+    {
+        if (Monitor.FeaturesLoaded) ToggleExtras();
+        else if (!_featuresLoading) _onFeaturesRequested(this);
+    }
+
+    /// <summary>Both presentations use the same manual-edit and recovery path.</summary>
+    internal void RequestManualAdjustment(AdjustmentControl control, int value)
+    {
+        if (IsDisposed || Disposing || !Enabled) return;
+        switch (control)
+        {
+            case AdjustmentControl.Brightness when _brightness.Enabled && Monitor.SupportsBrightness:
+                _brightness.SetValueSilently(value); OnBrightness(); break;
+            case AdjustmentControl.Contrast when _contrast.Enabled && Monitor.SupportsContrast:
+                _contrast.SetValueSilently(value); OnContrast(); break;
+            case AdjustmentControl.Warmth when _warmth.Enabled:
+                _warmth.SetValueSilently(WarmthFromKelvin(value)); OnWarmth(); break;
+        }
+    }
+
+    internal void RequestPreset(string name)
+    {
+        if (IsDisposed || Disposing || !Enabled) return;
+        if (_presetButtons.TryGetValue(name, out var preset)) preset.PerformClick();
+        else if (name == Presets.CustomName)
+        {
+            if (RestoreCustom()) { _onChanged(this, false); _report($"{Monitor.DisplayName}: your own settings requested. Check any card warnings."); }
+            else _report($"{Monitor.DisplayName}: move a slider first to save your Custom settings.");
+        }
+    }
+
     private void OnBrightness()
     {
         if (_suppress || !Monitor.SupportsBrightness) return;

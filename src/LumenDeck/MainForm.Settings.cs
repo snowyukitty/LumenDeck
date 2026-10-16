@@ -149,7 +149,7 @@ internal partial class MainForm
 
     private void ShowPresetEditor()
     {
-        if (_reallyClosing || IsDisposed || Disposing || !Visible || WindowState == FormWindowState.Minimized ||
+        if (_reallyClosing || IsDisposed || Disposing || !UiVisible ||
             _presetEditor != null || _scheduleEditor != null || _profileEditorOpening) return;
         // Capture values only: a display-change rebuild can dispose cards and
         // monitors while the modal editor's message loop is running.
@@ -163,7 +163,7 @@ internal partial class MainForm
         {
             using var editor = _host.CreatePresetEditor(context, SavePresetLevelsAsync);
             _presetEditor = editor;
-            if (editor.ShowDialog(this) != DialogResult.OK && !_reallyClosing && !IsDisposed)
+            if (editor.ShowDialog(DialogOwner) != DialogResult.OK && !_reallyClosing && !IsDisposed)
                 SetStatus("Preset targets closed. Targets and displays were not changed.");
         }
         finally { _presetEditor = null; }

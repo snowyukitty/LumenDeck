@@ -19,6 +19,14 @@ the same development version.
 
 ### Added
 
+- Functional WPF material interface: Smoke, Frost and Ceramic with native backdrop
+  requests and opaque fallbacks. Real brightness, contrast, warmth, presets,
+  Night saver, settings and schedule editors share the established controller.
+- Inline exact entry, compact readouts, uniform Windows desktop geometry and
+  persistent appearance choices. Settings can return to the complete classic
+  interface; advanced advertised controls remain available there.
+- Material integration regressions and extracted-package WPF startup verification.
+
 - **Settings > Theme**: Amber, Paper, Ocean and Violet, saved per Windows account.
   A successful save updates existing windows, editors, menus, native frames and
   cached surfaces without restarting, rescanning displays or losing draft input.

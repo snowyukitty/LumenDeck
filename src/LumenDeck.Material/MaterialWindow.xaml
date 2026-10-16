@@ -1,0 +1,213 @@
+<Window x:Class="LumenDeck.Material.MaterialWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="LumenDeck" Width="880" Height="830" MinWidth="660" MinHeight="610"
+ Background="Transparent" Foreground="{DynamicResource Ink}" FontFamily="Segoe UI" FontSize="14"
+ WindowStartupLocation="CenterScreen" Icon="AppIcon.png" UseLayoutRounding="True" SnapsToDevicePixels="True">
+ <Window.Resources>
+  <Style TargetType="ContextMenu">
+   <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+   <Setter Property="FontSize" Value="13" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu">
+    <Border Background="{DynamicResource MenuSurface}" BorderBrush="{DynamicResource Edge}" BorderThickness="1" CornerRadius="9" Padding="6">
+     <ScrollViewer MaxHeight="540" CanContentScroll="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+     </ScrollViewer>
+    </Border>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="MenuItem">
+   <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+   <Setter Property="Padding" Value="8,7" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
+    <Grid>
+     <Border x:Name="MenuFace" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /><ColumnDefinition Width="18" /></Grid.ColumnDefinitions>
+       <TextBlock x:Name="CheckMark" Text="✓" Visibility="Hidden" Foreground="{DynamicResource Accent}" />
+       <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" />
+       <TextBlock x:Name="SubmenuMark" Grid.Column="2" Text="›" HorizontalAlignment="Right" Visibility="Hidden" />
+      </Grid>
+     </Border>
+     <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsSubmenuOpen}" Placement="Right" HorizontalOffset="2" AllowsTransparency="True" Focusable="False">
+      <Border Background="{DynamicResource MenuSurface}" BorderBrush="{DynamicResource Edge}" BorderThickness="1" CornerRadius="9" Padding="6">
+       <ScrollViewer MaxHeight="540" CanContentScroll="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+       </ScrollViewer>
+      </Border>
+     </Popup>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="MenuFace" Property="Background" Value="{DynamicResource Hover}" /></Trigger>
+     <Trigger Property="IsChecked" Value="True"><Setter TargetName="CheckMark" Property="Visibility" Value="Visible" /></Trigger>
+     <Trigger Property="HasItems" Value="True"><Setter TargetName="SubmenuMark" Property="Visibility" Value="Visible" /></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5" /></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="Separator"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator">
+   <Border Background="{DynamicResource Divider}" Height="1" Margin="8,5" />
+  </ControlTemplate></Setter.Value></Setter></Style>
+  <Style TargetType="ScrollBar">
+   <Setter Property="Width" Value="10" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+    <Track x:Name="PART_Track" IsDirectionReversed="True" Orientation="Vertical">
+     <Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False">
+      <RepeatButton.Template><ControlTemplate><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template>
+     </RepeatButton></Track.DecreaseRepeatButton>
+     <Track.Thumb><Thumb MinHeight="24">
+      <Thumb.Template><ControlTemplate><Border Background="Transparent" Padding="3,0">
+       <Border Background="{DynamicResource Track}" CornerRadius="2" />
+      </Border></ControlTemplate></Thumb.Template>
+     </Thumb></Track.Thumb>
+     <Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False">
+      <RepeatButton.Template><ControlTemplate><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template>
+     </RepeatButton></Track.IncreaseRepeatButton>
+    </Track>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style>
+  <Style x:Key="Meta" TargetType="TextBlock">
+   <Setter Property="Foreground" Value="{DynamicResource Muted}" /><Setter Property="FontSize" Value="12" />
+   <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style TargetType="Button">
+   <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+   <Setter Property="Background" Value="Transparent" /><Setter Property="BorderBrush" Value="Transparent" />
+   <Setter Property="BorderThickness" Value="1" /><Setter Property="Padding" Value="14,8" />
+   <Setter Property="MinHeight" Value="36" /><Setter Property="Cursor" Value="Hand" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Face" CornerRadius="7" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}"
+      BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Face" Property="Background" Value="{DynamicResource Hover}" /></Trigger>
+     <Trigger Property="IsPressed" Value="True"><Setter TargetName="Face" Property="Background" Value="{DynamicResource Pressed}" /></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource Accent}" /></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.48" /></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Background" Value="{DynamicResource AccentWash}" />
+   <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+   <Setter Property="BorderBrush" Value="{DynamicResource AccentEdge}" />
+   <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style TargetType="Slider">
+   <Setter Property="Height" Value="32" /><Setter Property="IsMoveToPointEnabled" Value="True" />
+   <Setter Property="Minimum" Value="0" /><Setter Property="Maximum" Value="100" />
+   <Setter Property="SmallChange" Value="1" /><Setter Property="LargeChange" Value="10" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
+    <Grid Background="Transparent">
+     <Border x:Name="Focus" CornerRadius="7" BorderBrush="Transparent" BorderThickness="1" Margin="0,-2" />
+     <Track x:Name="PART_Track" VerticalAlignment="Center" Margin="4,0" Height="24">
+      <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+       <RepeatButton.Template><ControlTemplate><Border Background="{DynamicResource Accent}" Height="4" CornerRadius="2" /></ControlTemplate></RepeatButton.Template>
+      </RepeatButton></Track.DecreaseRepeatButton>
+      <Track.Thumb><Thumb Width="18" Height="24">
+       <Thumb.Template><ControlTemplate><Grid Background="Transparent">
+        <Ellipse Height="18" Width="18" Fill="{DynamicResource Thumb}" Stroke="{DynamicResource Edge}" StrokeThickness="1" />
+        <Ellipse Height="6" Width="6" Fill="{DynamicResource Accent}" />
+       </Grid></ControlTemplate></Thumb.Template>
+      </Thumb></Track.Thumb>
+      <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+       <RepeatButton.Template><ControlTemplate><Border Background="{DynamicResource Track}" Height="4" CornerRadius="2" /></ControlTemplate></RepeatButton.Template>
+      </RepeatButton></Track.IncreaseRepeatButton>
+     </Track>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource Accent}" /></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </Window.Resources>
+ <Grid x:Name="Root" Background="{DynamicResource Foundation}">
+  <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+  <Grid Margin="28,18,28,12">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+    <Image Source="AppIcon.png" Width="24" Height="24" Margin="0,0,10,0" />
+    <TextBlock Text="LumenDeck" FontWeight="SemiBold" FontSize="18" VerticalAlignment="Center" />
+   </StackPanel>
+   <Button Grid.Column="1" x:Name="SettingsButton" Content="Settings" Margin="0,0,12,0" Click="SettingsClick" />
+   <Button Grid.Column="2" x:Name="NightButton" Style="{StaticResource Primary}" Click="NightClick" MinWidth="148" Content="Night saver" />
+  </Grid>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="28,8,28,20">
+   <StackPanel>
+    <Grid Margin="0,0,0,22">
+     <Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+     <StackPanel VerticalAlignment="Center">
+      <TextBlock Text="YOUR DISPLAYS" Style="{StaticResource Meta}" FontWeight="SemiBold" FontSize="10" Margin="0,0,0,8" />
+      <Viewbox Height="98" Width="230" HorizontalAlignment="Left" Stretch="Uniform">
+       <Canvas x:Name="Map" Width="7200" Height="2800" />
+      </Viewbox>
+      <TextBlock Text="Windows desktop arrangement" Style="{StaticResource Meta}" FontSize="11" Margin="0,8,0,0" />
+     </StackPanel>
+     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="18,0,0,0">
+      <TextBlock x:Name="DisplayRole" Style="{StaticResource Meta}" Text="DISPLAY" FontSize="11" Margin="0,0,0,5" />
+      <TextBlock x:Name="DisplayName" Text="Reading displays…" FontSize="24" FontWeight="SemiBold" />
+      <TextBlock x:Name="DisplayInfo" Text="" Style="{StaticResource Meta}" Margin="0,4,0,8" />
+      <StackPanel Orientation="Horizontal" Margin="-14,0,0,0">
+       <Button x:Name="IdentifyButton" Content="Identify" Click="IdentifyClick" /><Button x:Name="RefreshButton" Content="Refresh" Click="RefreshClick" />
+      </StackPanel>
+     </StackPanel>
+    </Grid>
+    <TextBlock x:Name="EmptyState" Text="Reading displays…" Margin="0,0,0,16" />
+    <Border x:Name="ControlSurface" CornerRadius="14" BorderThickness="1" BorderBrush="{DynamicResource Edge}" Background="{DynamicResource Surface}">
+     <StackPanel Margin="24,20,24,18">
+      <TextBlock x:Name="WarningText" Foreground="{DynamicResource Accent}" Margin="0,0,0,10" Visibility="Collapsed" />
+      <Grid><TextBlock Text="Brightness" FontWeight="SemiBold" VerticalAlignment="Center" />
+       <Button x:Name="BrightnessValue" Content="—" Foreground="{DynamicResource Accent}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Right" Padding="8,2" Click="ExactBrightnessClick" ToolTip="Enter exact brightness" />
+      </Grid>
+      <Slider x:Name="Brightness" Value="0" Margin="-4,9,-4,0" AutomationProperties.Name="Brightness" ValueChanged="BrightnessChanged" />
+      <TextBlock x:Name="BrightnessNote" Text="" Style="{StaticResource Meta}" Margin="0,2,0,20" />
+      <Border Height="1" Background="{DynamicResource Divider}" Margin="0,0,0,16" />
+      <Grid Margin="0,0,0,10">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="66" /></Grid.ColumnDefinitions>
+       <TextBlock Text="Contrast" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" />
+       <Slider x:Name="Contrast" Grid.Column="1" Value="50" AutomationProperties.Name="Contrast" ValueChanged="ContrastChanged" />
+       <Button x:Name="ContrastValue" Grid.Column="2" Content="—" Padding="4,2" HorizontalAlignment="Right" Click="ExactContrastClick" ToolTip="Enter exact contrast" />
+      </Grid>
+      <TextBlock x:Name="ContrastNote" Text="" Style="{StaticResource Meta}" Margin="100,0,0,8" />
+      <Grid>
+       <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="66" /></Grid.ColumnDefinitions>
+       <TextBlock Text="Warmth" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" />
+       <Slider x:Name="Warmth" Grid.Column="1" Minimum="0" Maximum="3500" Value="0" SmallChange="50" LargeChange="500" AutomationProperties.Name="Warmth amount" ValueChanged="WarmthChanged" />
+       <Button x:Name="WarmthValue" Grid.Column="2" Content="off" Padding="4,2" HorizontalAlignment="Right" Click="ExactWarmthClick" ToolTip="Enter exact kelvin" />
+      </Grid>
+      <TextBlock Text="Warmth uses software gamma tint." Style="{StaticResource Meta}" Margin="100,3,0,20" />
+      <Grid>
+       <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+       <StackPanel Orientation="Horizontal" Margin="-10,0,0,0">
+        <Button x:Name="DayButton" Content="Day" Padding="10,6" Click="DayClick" />
+        <Button x:Name="EveningButton" Content="Evening" Padding="10,6" Click="EveningClick" />
+        <Button x:Name="ReadingButton" Content="Night" Padding="10,6" Click="ReadingClick" />
+       <Button Content="Custom" Padding="10,6" Click="CustomClick" />
+       </StackPanel>
+       <Button Grid.Column="1" Content="Display actions" Padding="10,6" Click="DisplayActionsClick" />
+      </Grid>
+      <StackPanel x:Name="ExactRow" Visibility="Collapsed" Margin="0,12,0,0">
+       <TextBlock x:Name="ExactLabel" Style="{StaticResource Meta}" Margin="0,0,0,6" />
+       <StackPanel Orientation="Horizontal">
+        <TextBox x:Name="ExactInput" Width="100" Padding="8,5" Foreground="{DynamicResource Ink}" Background="{DynamicResource StudyBar}" BorderBrush="{DynamicResource Edge}" KeyDown="ExactKeyDown" AutomationProperties.Name="Exact adjustment value" />
+        <Button Content="Apply" Click="ApplyExactClick" Margin="8,0,0,0" />
+        <Button Content="Cancel" Click="CancelExactClick" />
+       </StackPanel>
+       <TextBlock x:Name="ExactError" Foreground="{DynamicResource Accent}" Margin="0,4,0,0" />
+      </StackPanel>
+     </StackPanel>
+    </Border>
+    <TextBlock x:Name="Message" Text="Reading displays…" Style="{StaticResource Meta}" Margin="2,14,0,0" />
+   </StackPanel>
+  </ScrollViewer>
+  <Border Grid.Row="2" Background="{DynamicResource StudyBar}" BorderBrush="{DynamicResource Divider}" BorderThickness="0,1,0,0" Padding="22,10">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+    <StackPanel><TextBlock x:Name="SaveNote" Style="{StaticResource Meta}" FontSize="11" />
+     <TextBlock x:Name="MaterialNote" Style="{StaticResource Meta}" FontSize="11" Margin="0,3,0,0" /></StackPanel>
+    <Button Grid.Column="1" Content="Desk actions" Click="DeskActionsClick" />
+   </Grid>
+  </Border>
+ </Grid>
+</Window>

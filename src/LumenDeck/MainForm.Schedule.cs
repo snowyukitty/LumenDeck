@@ -4,6 +4,7 @@ internal partial class MainForm
 {
     private readonly System.Windows.Forms.Timer _scheduleTimer;
     private PresetScheduleForm _scheduleEditor;
+    private string _materialScheduleSummary;
 
     /// <summary>
     /// The period this window last requested. Kept in memory on purpose: a new
@@ -56,6 +57,7 @@ internal partial class MainForm
         string summary = period == null ? null
             : $"On: {period.Preset} since {PresetSchedule.Format(period.Start.TimeOfDay)}; {period.NextPreset} at {PresetSchedule.Format(period.Next.TimeOfDay)}.";
         _preferencesMenu.SetScheduleSummary(summary);
+        _materialScheduleSummary = summary;
         // NotifyIcon.Text throws above 127 characters; this stays well below.
         _tray.Text = period == null ? Text
             : $"{Text} - {period.Preset} until {PresetSchedule.Format(period.Next.TimeOfDay)}";
@@ -63,7 +65,7 @@ internal partial class MainForm
 
     private void ShowScheduleEditor()
     {
-        if (_reallyClosing || IsDisposed || Disposing || !Visible || WindowState == FormWindowState.Minimized ||
+        if (_reallyClosing || IsDisposed || Disposing || !UiVisible ||
             _scheduleEditor != null || _presetEditor != null || _profileEditorOpening) return;
         var rows = PresetSchedule.Names.Select(name =>
         {
@@ -75,7 +77,7 @@ internal partial class MainForm
         {
             using var editor = _host.CreateScheduleEditor(context, Outlook, SaveScheduleAsync);
             _scheduleEditor = editor;
-            if (editor.ShowDialog(this) != DialogResult.OK && !_reallyClosing && !IsDisposed)
+            if (editor.ShowDialog(DialogOwner) != DialogResult.OK && !_reallyClosing && !IsDisposed)
                 SetStatus("Preset schedule closed. The schedule and displays were not changed.");
         }
         finally { _scheduleEditor = null; }

@@ -67,6 +67,20 @@ internal static class StartupVerification
                     if (!activation.Start() ||
                         !InstanceActivation.RequestAsync(channel, 2000, _ => { }).GetAwaiter().GetResult() ||
                         Volatile.Read(ref reveals) != 1) return;
+                    // Exercise WPF XAML, resources and native material fallback in the
+                    // extracted single-file package without constructing a device controller.
+                    var material = new LumenDeck.Material.MaterialWindow(new MaterialProbeHost())
+                    {
+                        WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+                        Left = -30000, Top = -30000, ShowActivated = false, ShowInTaskbar = false,
+                    };
+                    try
+                    {
+                        System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(material);
+                        material.Show(); material.UpdateLayout(); material.RefreshState();
+                        if (material.ActualWidth < 600 || material.FindName("NightButton") == null) return;
+                    }
+                    finally { material.Shutdown(); }
                     result = 0;
                 }
                 finally { form.BeginInvoke((Action)form.Close); }
@@ -94,5 +108,17 @@ internal static class StartupVerification
             ShowInTaskbar = false;
         }
         protected override bool ShowWithoutActivation => true;
+    }
+
+    private sealed class MaterialProbeHost : LumenDeck.Material.IMaterialHost
+    {
+        public LumenDeck.Material.MaterialSnapshot Capture() => new(1, "", [], false,
+            "Synthetic package verification", false, false, false, "", "smoke", "solid", false,
+            false, false, false, false, "No settings accessed", "");
+        public void Execute(LumenDeck.Material.MaterialAction action, string key, int generation, int value = 0) =>
+            throw new InvalidOperationException("The package probe cannot execute product actions.");
+        public void CloseRequested() { }
+        public void MinimiseRequested() { }
+        public void VisibilityChanged() { }
     }
 }

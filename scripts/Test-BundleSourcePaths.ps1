@@ -22,6 +22,8 @@ $text = $null
 $header = [BitConverter]::ToInt64($blob, $marker - 8)
 if ($header -le 0 -or $header -gt $blob.Length - 12) { throw 'Invalid bundle manifest offset.' }
 $reader = [IO.BinaryReader]::new([IO.MemoryStream]::new($blob, $false))
+$required = @($ApplicationAssembly, 'LumenDeck.Core.dll')
+if ($ApplicationAssembly -ceq 'LumenDeck.dll') { $required += 'LumenDeck.Material.dll' }
 function Read-BundleName {
     [long]$length = 0
     for ($shift = 0; $shift -le 28; $shift += 7) {
@@ -55,12 +57,12 @@ try {
         }
         $total += $size
         if ($total -gt 512MB -or -not $names.Add($name)) { throw 'Oversized or duplicate bundle entries.' }
-        if ($name -ceq $ApplicationAssembly -or $name -ceq 'LumenDeck.Core.dll') {
+        if ($required -ccontains $name) {
             if ($kind -ne 1) { throw 'Expected a managed application assembly.' }
             $owned.Add([pscustomobject]@{Name=$name;Offset=$offset;Size=$size;Compressed=$compressed;Length=$length})
         }
     }
-    if ($owned.Count -ne 2) { throw 'Application and Core assemblies must each appear once.' }
+    if ($owned.Count -ne $required.Count) { throw 'Required product assemblies must each appear once.' }
     foreach ($entry in $owned) {
         if ($entry.Compressed -gt 0) {
             $entryStream = [IO.MemoryStream]::new($blob, [int]$entry.Offset, [int]$entry.Length, $false)
@@ -85,5 +87,5 @@ try {
         }
         Assert-LumenDeckSourcePaths $data $entry.Name (Split-Path -Parent $PSScriptRoot)
     }
-    Write-Host 'PASS: bundled app/Core assemblies have mapped paths and no physical checkout prefix.'
+    Write-Host 'PASS: bundled product assemblies have mapped paths and no physical checkout prefix.'
 } finally { $reader.Dispose() }

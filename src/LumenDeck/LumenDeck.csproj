@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -33,7 +34,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="System.IO" />
     <ProjectReference Include="..\LumenDeck.Core\LumenDeck.Core.csproj" />
+    <ProjectReference Include="..\LumenDeck.Material\LumenDeck.Material.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -47,6 +47,13 @@ internal static partial class Program
             {
                 try
                 {
+                    if (args.Length is 1 or 2 && args[0] == "--material-only")
+                    {
+                        CheckMaterial(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
+                        Console.WriteLine($"PASS: {_checks} material integration checks; synthetic displays only.");
+                        result = 0;
+                        return;
+                    }
                     if (args.Length is 1 or 2 && args[0] == "--themes-only")
                     {
                         CheckThemes(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
@@ -228,6 +235,7 @@ internal static partial class Program
                     }
                     CheckPreferences(directory);
                     CheckThemes(directory, null);
+                    CheckMaterial(directory, null);
                     CheckBackgroundSettings(directory);
                     CheckPresetTargetLifecycle(directory);
                     CheckWarmthFailure(directory);

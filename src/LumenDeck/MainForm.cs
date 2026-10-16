@@ -124,6 +124,8 @@ internal partial class MainForm : Form
         _preferencesMenu.ScheduleRequested += ShowScheduleEditor;
         _bar.SetPresetHelp(_settings.PresetLevels);
         _preferencesMenu.Opening += (_, _) => SynchronizePreferences();
+        _preferencesMenu.Items.Add(new ToolStripSeparator());
+        _preferencesMenu.Items.Add("Material interface", null, (_, _) => RequestMaterialInterface(true));
         _bar.SettingsButton.Click += (_, _) =>
         {
             _preferencesMenu.Show(_bar.SettingsButton, new Point(0, _bar.SettingsButton.Height));
@@ -279,7 +281,8 @@ internal partial class MainForm : Form
         // Minimising from here takes the ordinary path, the same one a click on
         // the minimise box has always taken. The window is briefly visible; that
         // is the honest price and it beats not starting.
-        if (_settings.StartMinimised) WindowState = FormWindowState.Minimized;
+        if (_host.EnableMaterialInterface && _settings.UseMaterialInterface) OpenMaterialWindow(!_settings.StartMinimised);
+        else if (_settings.StartMinimised) WindowState = FormWindowState.Minimized;
 
         await RebuildAsync();
     }
@@ -342,13 +345,13 @@ internal partial class MainForm : Form
 
     private void ShowConnectionHelp()
     {
-        if (_reallyClosing || IsDisposed || Disposing || !Enabled || !Visible || WindowState == FormWindowState.Minimized) return;
+        if (_reallyClosing || IsDisposed || Disposing || !Enabled || !UiVisible) return;
         _scanFocus?.CancelRecovery();
         if (_connectionHelp == null || _connectionHelp.IsDisposed)
         {
             _connectionHelp = _host.CreateConnectionHelp();
             _connectionHelp.SetMonitors(_monitors, _scanState);
-            _connectionHelp.Show(this);
+            _connectionHelp.Show(DialogOwner);
         }
         else _connectionHelp.Reveal();
     }
@@ -429,7 +432,7 @@ internal partial class MainForm : Form
 
     private async void ShowProfileEditor(MonitorCard card)
     {
-        if (_reallyClosing || IsDisposed || Disposing || !Visible || WindowState == FormWindowState.Minimized ||
+        if (_reallyClosing || IsDisposed || Disposing || !UiVisible ||
             card.IsDisposed || !_cards.Contains(card) || _profileEditorOpening) return;
         _profileEditorOpening = true;
         int visibilityGeneration = _visibilityGeneration;
@@ -448,19 +451,19 @@ internal partial class MainForm : Form
                 System.Text.Json.JsonException or ArgumentException or InvalidOperationException)
             {
                 if (visibilityGeneration == _visibilityGeneration && !_reallyClosing && !IsDisposed && !Disposing &&
-                    Visible && WindowState != FormWindowState.Minimized)
+                    UiVisible)
                 {
                     SetStatus("Could not open the brightness estimate profile.", StatusKind.Warn);
-                    _host.ShowProfileReadError(this,
+                    _host.ShowProfileReadError(DialogOwner,
                         "Could not read the profile file safely. Review panels.json for invalid or duplicate entries, or check folder permissions. Nothing was changed.");
                 }
                 return;
             }
             if (visibilityGeneration != _visibilityGeneration || _reallyClosing || IsDisposed || Disposing ||
-                !Visible || WindowState == FormWindowState.Minimized) return;
+                !UiVisible) return;
             using var editor = _host.CreateProfileEditor(store, context);
             _profileEditor = editor;
-            if (editor.ShowDialog(this) != DialogResult.OK || _reallyClosing || IsDisposed)
+            if (editor.ShowDialog(DialogOwner) != DialogResult.OK || _reallyClosing || IsDisposed)
             {
                 if (!_reallyClosing && !IsDisposed) SetStatus("Brightness estimate editor closed.");
                 return;
@@ -767,6 +770,8 @@ internal partial class MainForm : Form
     {
         if (IsDisposed) return;
         if (InvokeRequired) { BeginInvoke(new Action(() => SetStatus(text, kind))); return; }
+        _materialStatus = text;
+        _materialWarning = kind == StatusKind.Warn;
         _status.Set(text, kind);
     }
 
@@ -869,7 +874,7 @@ internal partial class MainForm : Form
         string name = card.Monitor.DisplayName;
         string current = _settings.ScreenBlankHotkeyFor(key);
         using var dialog = new ScreenBlankHotkeyDialog(name, current);
-        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        if (dialog.ShowDialog(DialogOwner) != DialogResult.OK) return;
 
         string selected = dialog.SelectedShortcut ?? current;
         ScreenBlankHotkey.TryParse(selected, out var selectedHotkey);
@@ -1245,6 +1250,7 @@ internal partial class MainForm : Form
     /// </summary>
     private void RevealWindow()
     {
+        if (_materialActive) { OpenMaterialWindow(); return; }
         Show();
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         Activate();
@@ -1266,6 +1272,7 @@ internal partial class MainForm : Form
         {
             e.Cancel = true;
             WindowState = FormWindowState.Minimized;
+            if (_materialActive) _materialWindow?.Hide();
         }
         // Owned-form cancellation arrives before this override; subscribed
         // handlers can also cancel inside base. Neither may tear resources down.
@@ -1277,6 +1284,11 @@ internal partial class MainForm : Form
             return;
         }
 
+        _materialWindow?.Shutdown();
+        _materialWindow = null;
+        _connectionHelp?.Close();
+        _keyboardHelp?.Close();
+        _about?.Close();
         _generation++;              // invalidate any rebuild still in flight
         _reallyClosing = true;
         UnregisterScreenBlankHotkeys();

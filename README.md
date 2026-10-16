@@ -37,17 +37,12 @@ lumendeck-cli -m "left" -b 55 -w 5000
 ```
 
 <p align="center">
-  <img src="docs/assets/screenshot.png" alt="LumenDeck desk remote: two fictitious displays in Windows desktop proportions, Studio 27 selected, compact brightness, contrast, warmth and recovery controls" width="1000">
+  <img src="docs/assets/material-smoke.png" alt="Functional material interface with synthetic displays, compact brightness and visible Night saver" width="900">
 </p>
 
-<p align="center"><sub>Actual native window from a development build with fictitious displays;
-released versions may differ. Captured at native 150% scaling; the map preserves Windows desktop coordinates and pixel proportions, not physical screen sizes.<br>
-62% gives an <b>estimated 203 nits</b> from a generic profile; the app does not measure light.
-Warmth is a gamma tint target. The second fixture has no contrast support.<br>
-<a href="docs/assets/screenshot.json">Source and capture receipt</a> ·
-<a href="docs/showcase.md">Repeat the capture</a> ·
-<a href="docs/assets/portfolio-1200x750.png">Portfolio image</a>.
-DWM-composited Mica is not captured.</sub></p>
+Opaque WPF reference render with fictitious displays; desktop blur and native
+window frame are not captured. [Source receipt](docs/assets/material-reference.json)
+· [Material interface guide](docs/material-interface.md).
 
 ---
 
@@ -68,35 +63,29 @@ DWM-composited Mica is not captured.</sub></p>
 | **Identify** | Puts each monitor's name on its own glass |
 | **Laptop panels** | Internal displays via `WmiMonitorBrightnessMethods` |
 | **Command line** | Scriptable, with JSON output and meaningful exit codes |
-| **Four app themes** | Amber, Paper, Ocean and Violet; switch live in Settings, with Windows high-contrast priority |
+| **Material finishes** | Smoke, Frost and Ceramic; Mica, Glass or Solid, with Windows high-contrast priority. Four palette themes remain in the classic panel |
 | **Tray app** | Lives in the notification area; optional start-with-Windows |
 
-LumenDeck works as a **desk remote**: choose a screen, adjust its supported
-controls, check the result, and restore when needed. The selector and selected
-control header repeat the display identity. Brightness, contrast and warmth use
-compact, consistently sized readouts. Selecting a display focuses brightness, or
-warmth when brightness is unavailable. A stacked desk can use a side selector in
-a wider window.
+LumenDeck works as a **desk remote**: choose a display, adjust its supported
+controls, check the observation, and restore when needed. The default material
+interface connects brightness, contrast, warmth, presets and Night saver to the
+same device controller, settings and recovery paths as the classic panel.
 
-**All displays** reveals every monitor card for repeated adjustments. The same
-components reflow at smaller widths. **Night saver** stays first in the toolbar;
-while active, the same button becomes **End Night saver**. **Desk actions…** opens
-desk-wide presets, warmth restoration and the work-display choice. A short window
-gives expanded commands their own scrolling viewport. Identify, Refresh, Help
-(connection troubleshooting) and Settings stay available beside the selector.
+**Night saver** remains visible at the top. **Display actions** contains blackout,
+shortcuts and brightness estimates. **Desk actions** applies desk-wide presets
+and chooses the retained Night saver display. **Settings** opens preset targets,
+schedules, startup preferences and appearance choices.
 
-**Settings > Theme** offers Amber (warm dark), Paper (soft light), Ocean (cool
-dark) and Violet (quiet dark). The choice saves for the next launch and updates
-open windows immediately after a successful save. Themes change the app's
-appearance; brightness, warmth and Night saver keep their existing state.
-[Compare the four themes](docs/themes.md).
+**Settings > Appearance** offers Smoke, Frost and Ceramic. Smoke and Frost can use
+Mica, Glass or Solid; Ceramic stays opaque. Choices apply after a confirmed save
+without rescanning or changing displays. [Compare finishes and classic themes](docs/themes.md).
 
-Click a display to focus its brightness or available warmth control. The selector
-also supports spatial arrows (without edge wrapping), Home/End, and Enter to
-open controls. In All displays, the map follows the card you focus.
-**Ctrl + Page Up / Page Down** moves between
-displays while preserving the current control where available. Exact entry and
-one-unit keyboard adjustments keep the hardware's native range.
+Click an adjustment's value or focus its slider and press F2/Enter for exact entry.
+Arrows adjust one hardware unit (50 K for warmth); Shift makes ten-unit steps.
+**Ctrl + Page Up / Page Down** switches displays. **Advanced controls (classic)**
+opens the complete optional monitor controls; **Settings > Material interface**
+returns to the material window. The classic panel retains All displays and spatial
+map navigation. [Read the functional interface guide](docs/material-interface.md).
 
 Brightness distinguishes its **requested value**, **last observed value**, pending
 readback, matching readback and unconfirmed/failed requests. Contrast requests
@@ -105,12 +94,10 @@ a light measurement; WMI write acceptance alone remains unconfirmed. Switching
 selection never transfers a pending result to another screen. Warmth remains an
 explicitly labeled gamma tint target, and estimated nits stay secondary.
 
-Charcoal and amber remain the default. Windows contrast themes use system
-foregrounds and surfaces. The optional **Settings > Use Windows Mica title bar**
-remains available; see the [interface design notes](docs/ui-design.md).
-Moving between monitors with different scaling batches DPI layout to avoid
-repeated card measurement and command-bar flickering; see the
-[repair and verification notes](docs/cross-display-dpi.md).
+Smoke is the default material finish. Windows contrast themes use system
+foregrounds and surfaces. Unsupported native material or disabled transparency
+uses an opaque fallback. Shared editors keep their classic palette. See the
+[interface design notes](docs/ui-design.md).
 If an adjustment fails or cannot be confirmed, its card keeps a notice with
 Connection help and Dismiss. Other actions and retries do not erase that history;
 dismissing the notice does not confirm the change. Refresh replaces the cards

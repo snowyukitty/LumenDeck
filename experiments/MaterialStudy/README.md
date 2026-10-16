@@ -1,5 +1,8 @@
 # Native material study
 
+> Historical design study. The functional production integration now lives in
+> `src/LumenDeck.Material`; see [the interface guide](../../docs/material-interface.md).
+
 An isolated, interactive design experiment for LumenDeck. **This is not a new
 production client or an installable upgrade.** It has no project reference to the
 display engine, does not enumerate monitors, and does not read or write product

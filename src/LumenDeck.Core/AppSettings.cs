@@ -261,6 +261,9 @@ internal sealed class AppSettings
     public bool UseMicaTitleBar { get; set; }
     /// <summary>Application palette only; never a monitor adjustment.</summary>
     public string ThemeId { get; set; } = "amber";
+    public bool UseMaterialInterface { get; set; } = true;
+    public string MaterialFinish { get; set; } = "smoke";
+    public string MaterialBackdrop { get; set; } = "mica";
     public bool MinimiseToTray { get; set; } = true;
     public string NightWorkMonitorKey { get; set; } = "";
 

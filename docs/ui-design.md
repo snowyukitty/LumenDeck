@@ -1,13 +1,18 @@
 # Native desk remote
 
 The primary sequence is screen identity, supported adjustment, observed result,
-and recovery. The native WinForms architecture, Core/GUI/CLI boundary and tray
-remain intact. Existing brand assets are unchanged.
+and recovery. The default WPF material presentation shares the existing WinForms
+controller, Core/GUI/CLI boundary, tray and restoration logic. Existing brand assets
+are unchanged. See [functional material interface](material-interface.md) for the
+current architecture, controls, saved finishes and verification boundaries.
 
-A separate [native material study](../experiments/MaterialStudy/README.md) explores
-Smoke, Frost and Ceramic finishes with a quieter composition and optional DWM
-backdrops. It is an interactive prototype, not the shipping interface or an
-approved framework migration. Its reference renders do not capture desktop blur.
+The isolated [native material study](../experiments/MaterialStudy/README.md) records
+the earlier design experiment. Production implementation lives in
+`src/LumenDeck.Material` and `MainForm.Material.cs`.
+
+The sections below describe the retained **classic panel**, available in Settings
+and for advanced controls. They are not claims of feature-for-feature WPF keyboard
+or layout parity.
 
 ## Hierarchy and reflow
 

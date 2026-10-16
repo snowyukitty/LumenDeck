@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 . (Join-Path $repo 'scripts\SourcePathGuard.ps1')
 if (-not $Files) {
-    $Files = foreach ($project in @('LumenDeck', 'LumenDeck.Cli', 'LumenDeck.Core')) {
+    $Files = foreach ($project in @('LumenDeck', 'LumenDeck.Cli', 'LumenDeck.Core', 'LumenDeck.Material')) {
         $assembly = if ($project -eq 'LumenDeck.Cli') { 'lumendeck-cli' } else { $project }
         Join-Path $repo "src\$project\bin\Release\net10.0-windows\$assembly.dll"
     }

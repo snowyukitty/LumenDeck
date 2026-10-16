@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <AssemblyName>LumenDeck.AppTests</AssemblyName>
@@ -11,6 +12,7 @@
     <InformationalVersion>Synthetic AppTests host</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Using Include="System.IO" />
     <ProjectReference Include="../../src/LumenDeck/LumenDeck.csproj" />
   </ItemGroup>
 </Project>

@@ -12,24 +12,24 @@ internal partial class MainForm
 
     private void ShowKeyboardHelp()
     {
-        if (_reallyClosing || IsDisposed || Disposing || !Enabled || !Visible || WindowState == FormWindowState.Minimized) return;
+        if (_reallyClosing || IsDisposed || Disposing || !Enabled || !UiVisible) return;
         _scanFocus?.CancelRecovery();
         if (_keyboardHelp == null || _keyboardHelp.IsDisposed)
         {
             _keyboardHelp = _host.CreateKeyboardHelp();
-            _keyboardHelp.Show(this);
+            _keyboardHelp.Show(DialogOwner);
         }
         else _keyboardHelp.Reveal();
     }
 
     private void ShowAbout()
     {
-        if (_reallyClosing || IsDisposed || Disposing || !Enabled || !Visible || WindowState == FormWindowState.Minimized) return;
+        if (_reallyClosing || IsDisposed || Disposing || !Enabled || !UiVisible) return;
         _scanFocus?.CancelRecovery();
         if (_about == null || _about.IsDisposed)
         {
             _about = _host.CreateAbout();
-            _about.Show(this);
+            _about.Show(DialogOwner);
         }
         else _about.Reveal();
     }

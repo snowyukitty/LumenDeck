@@ -22,8 +22,11 @@ function New-BundleFixture([byte[]]$Payload, [bool]$Compressed, [string]$Mutatio
         }
         $stream.Position = 256
         $entries = @()
-        foreach ($name in @('LumenDeck.dll','LumenDeck.Core.dll')) {
+        foreach ($name in @('LumenDeck.dll','LumenDeck.Core.dll','LumenDeck.Material.dll')) {
             $offset = $stream.Position
+            if ($name -eq 'LumenDeck.Material.dll' -and $Mutation -eq 'material-path') {
+                $Payload = [Text.Encoding]::UTF8.GetBytes('/_/synthetic ' + $repo + '\source.cs')
+            }
             $packed = $Payload
             if ($Compressed) {
                 $buffer = [IO.MemoryStream]::new()
@@ -38,7 +41,7 @@ function New-BundleFixture([byte[]]$Payload, [bool]$Compressed, [string]$Mutatio
         }
         $header = $stream.Position
         $writer.Write([uint32]$(if ($Mutation -eq 'version') { 7 } else { 6 }))
-        $writer.Write([uint32]0); $writer.Write([int]2); $writer.Write('canary')
+        $writer.Write([uint32]0); $writer.Write([int]$entries.Count); $writer.Write('canary')
         $writer.Write((New-Object byte[] 40))
         for ($index = 0; $index -lt $entries.Count; $index++) {
             $entry = $entries[$index]
@@ -52,6 +55,7 @@ function New-BundleFixture([byte[]]$Payload, [bool]$Compressed, [string]$Mutatio
             }
             if ($index -eq 1 -and $Mutation -eq 'missing') { $name = 'Other.dll' }
             if ($index -eq 1 -and $Mutation -eq 'duplicate') { $name = 'LumenDeck.dll' }
+            if ($index -eq 2 -and $Mutation -eq 'missing-material') { $name = 'Other.dll' }
             $writer.Write([long]$offset); $writer.Write([long]$size); $writer.Write([long]$entry.PackedSize)
             $writer.Write([byte]1); $writer.Write([string]$name)
         }
@@ -77,7 +81,9 @@ try {
         @{Mutation='overflow';Expected='Decoded bundle entry exceeds its declared size.'},
         @{Mutation='short';Expected='Decoded bundle entry size differs from its manifest.'},
         @{Mutation='name';Expected='Invalid bundle string length.'},
-        @{Mutation='missing';Expected='Application and Core assemblies must each appear once.'},
+        @{Mutation='missing';Expected='Required product assemblies must each appear once.'},
+        @{Mutation='missing-material';Expected='Required product assemblies must each appear once.'},
+        @{Mutation='material-path';Expected='Physical checkout path remains in LumenDeck.Material.dll.'},
         @{Mutation='duplicate';Expected='Oversized or duplicate bundle entries.'},
         @{Mutation='';Payload=[Text.Encoding]::UTF8.GetBytes('unmapped compiler output');Expected='Mapped source path was not observed in LumenDeck.dll.'},
         @{Mutation='';Payload=[Text.Encoding]::UTF8.GetBytes('/_/synthetic ' + $repo + '\source.cs');Expected='Physical checkout path remains in LumenDeck.dll.'},
