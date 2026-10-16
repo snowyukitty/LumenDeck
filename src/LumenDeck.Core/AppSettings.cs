@@ -259,6 +259,8 @@ internal sealed class AppSettings
     public bool StartMinimised { get; set; }
     /// <summary>Optional Windows 11 title-bar material; content stays opaque.</summary>
     public bool UseMicaTitleBar { get; set; }
+    /// <summary>Application palette only; never a monitor adjustment.</summary>
+    public string ThemeId { get; set; } = "amber";
     public bool MinimiseToTray { get; set; } = true;
     public string NightWorkMonitorKey { get; set; } = "";
 

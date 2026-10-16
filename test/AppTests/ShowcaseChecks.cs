@@ -68,6 +68,31 @@ internal static partial class Program
                     "showcase principal adjustment fits the viewport");
                 Assert(!list.HorizontalScroll.Visible && (GetWindowLong(list.Handle, -16) & 0x00100000) == 0,
                     "showcase has no managed or native horizontal scrollbar");
+                if (name == "documentation")
+                {
+                    var menu = Private<PreferencesMenu>(form, "_preferencesMenu");
+                    foreach (var palette in Theme.Palettes.Where(p => p.Id != "amber"))
+                    {
+                        ThemeChoice(menu, palette.Id).PerformClick();
+                        SettleSettings(fixture);
+                        Assert(Theme.Id == palette.Id && !list.HorizontalScroll.Visible &&
+                            list.ClientRectangle.Contains(new Rectangle(list.PointToClient(principal.PointToScreen(Point.Empty)), principal.Size)),
+                            $"{palette.Id} native showcase preserves the compact adjustment layout");
+                        if (renderDirectory == null) continue;
+                        string themeName = $"theme-{palette.Id}.png";
+                        string themePath = Path.Combine(renderDirectory, themeName);
+                        using var themed = new Bitmap(form.Width, form.Height);
+                        form.DrawToBitmap(themed, new Rectangle(Point.Empty, form.Size));
+                        themed.Save(themePath);
+                        captures[themeName] = new
+                        {
+                            width = themed.Width, height = themed.Height, deviceDpi = form.DeviceDpi,
+                            clientSize = new[] { form.ClientSize.Width, form.ClientSize.Height }, sha256 = FileDigest(themePath),
+                        };
+                    }
+                    ThemeChoice(menu, "amber").PerformClick();
+                    SettleSettings(fixture);
+                }
                 if (renderDirectory == null) continue;
                 string filename = name + ".png";
                 string path = Path.Combine(renderDirectory, filename);

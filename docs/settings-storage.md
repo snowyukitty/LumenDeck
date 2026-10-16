@@ -1,6 +1,6 @@
 # Settings storage and recovery
 
-`settings.json` contains preferences, saved warmth and Custom levels, edited preset
+`settings.json` contains preferences (including the app palette `ThemeId`), saved warmth and Custom levels, edited preset
 targets, the preset schedule, shortcuts,
 the night-work display choice, and recovery markers for reversible screen
 blackouts. GUI and CLI share the file under `%APPDATA%\LumenDeck`.

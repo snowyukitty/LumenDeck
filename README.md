@@ -68,6 +68,7 @@ DWM-composited Mica is not captured.</sub></p>
 | **Identify** | Puts each monitor's name on its own glass |
 | **Laptop panels** | Internal displays via `WmiMonitorBrightnessMethods` |
 | **Command line** | Scriptable, with JSON output and meaningful exit codes |
+| **Four app themes** | Amber, Paper, Ocean and Violet; switch live in Settings, with Windows high-contrast priority |
 | **Tray app** | Lives in the notification area; optional start-with-Windows |
 
 LumenDeck works as a **desk remote**: choose a screen, adjust its supported
@@ -83,6 +84,12 @@ while active, the same button becomes **End Night saver**. **Desk actions…** o
 desk-wide presets, warmth restoration and the work-display choice. A short window
 gives expanded commands their own scrolling viewport. Identify, Refresh, Help
 (connection troubleshooting) and Settings stay available beside the selector.
+
+**Settings > Theme** offers Amber (warm dark), Paper (soft light), Ocean (cool
+dark) and Violet (quiet dark). The choice saves for the next launch and updates
+open windows immediately after a successful save. Themes change the app's
+appearance; brightness, warmth and Night saver keep their existing state.
+[Compare the four themes](docs/themes.md).
 
 Click a display to focus its brightness or available warmth control. The selector
 also supports spatial arrows (without edge wrapping), Home/End, and Enter to

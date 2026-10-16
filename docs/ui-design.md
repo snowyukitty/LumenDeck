@@ -55,6 +55,15 @@ help; expanded options show the target beside the selector. Status describes a
 request, with confirmation left to the card's observation. Automatic presets skip
 the dimmed display; manual brightness choices take over. See [Night saver](night-saver.md).
 
+## Multiple themes
+
+Four palettes share this task layout: Amber, Paper, Ocean and Violet. Colour and
+material are independent from density and geometry; theme selection never changes
+control sizes or display-map coordinates. Paper uses softer shadows and dark
+accent text, while all dark themes preserve layered surfaces and restrained rims.
+The single Theme submenu keeps this preference outside the adjustment rows.
+See [themes](themes.md) for previews, persistence and the semantic binding contract.
+
 ## Evidence and accessibility
 
 DdcWorker keeps a locked per-monitor/per-feature observation alongside its existing
@@ -75,7 +84,7 @@ and Windows contrast-theme switching remain manual acceptance, not inferred from
 property check. No automatic light/dark theme tracking is added.
 
 The theme shares fonts. Paint paths and temporary brushes are disposed; cards cache
-one current surface including contrast state. Each card disposes its observation timer,
+one current surface including contrast state and theme revision. Each card disposes its observation timer,
 ToolTip and cached bitmap. Tests also retain the existing repeated rebuild/disposal,
 DPI transition, shortcut, overlay, settings and tray lifecycle coverage.
 
@@ -103,7 +112,7 @@ remain separate; the current checkpoint exercised 125% and 150%.
 **Settings > Use Windows Mica title bar** is off by default. It uses the documented
 `DWMWA_SYSTEMBACKDROP_TYPE` main-window material on Windows 11 build 22621 and
 later, resets caption/text colors to the system defaults only after a successful
-request, and restores the slate frame when disabled. High contrast skips the
+request, and restores the selected palette frame when disabled. High contrast skips the
 request. The native frame retains Windows resizing, caption buttons and rounded
 corner handling. The setting activates only after its save succeeds; refused
 storage leaves both the active preference and frame unchanged.

@@ -38,14 +38,13 @@ internal sealed class PresetEditorView : UserControl
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _save = save ?? throw new ArgumentNullException(nameof(save));
         Font = Theme.Body;
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         _scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, TabStop = false };
-        _content = new TableLayoutPanel
+        _content = Theme.Colors(new TableLayoutPanel
         {
             Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1,
-            Padding = new Padding(18), BackColor = Theme.Base,
-        };
+            Padding = new Padding(18),
+        }, back: () => Theme.Base);
         _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _scroll.Controls.Add(_content);
         Controls.Add(_scroll);
@@ -60,11 +59,11 @@ internal sealed class PresetEditorView : UserControl
             var current = _context.Current.FirstOrDefault(l => string.Equals(l.Name, builtIn.Name, StringComparison.OrdinalIgnoreCase)) ?? builtIn;
             Add(Copy(builtIn.Name, Theme.H2));
             Add(Copy($"{builtIn.Description}. Default: {builtIn.Nits} nits, {builtIn.Kelvin} K."));
-            var line = new FlowLayoutPanel
+            var line = Theme.Colors(new FlowLayoutPanel
             {
                 AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = true,
-                Margin = new Padding(0, 0, 0, 4), BackColor = Theme.Base,
-            };
+                Margin = new Padding(0, 0, 0, 4),
+            }, back: () => Theme.Base);
             var nits = Number($"{builtIn.Name} target luminance (nits)", current.Nits, Presets.MinTargetNits, Presets.MaxTargetNits, 10);
             var kelvin = Number($"{builtIn.Name} warmth (kelvin)", current.Kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin, 100);
             line.Controls.AddRange([Unit("Target"), nits, Unit("nits"), Unit("Warmth", 18), kelvin, Unit("K")]);
@@ -82,11 +81,11 @@ internal sealed class PresetEditorView : UserControl
             Add(Copy($"{_context.WithoutBrightness} display{(_context.WithoutBrightness == 1 ? " has" : "s have")} no brightness control; presets request only warmth there."));
         _status = Copy(SaveNote);
         _status.AccessibleRole = AccessibleRole.Alert;
-        var footer = new TableLayoutPanel
+        var footer = Theme.Colors(new TableLayoutPanel
         {
             Dock = DockStyle.Bottom, AutoSize = true, ColumnCount = 1,
-            Padding = new Padding(18, 10, 18, 18), BackColor = Theme.Bar,
-        };
+            Padding = new Padding(18, 10, 18, 18),
+        }, back: () => Theme.Bar);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.Controls.Add(_status, 0, 0);
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top, WrapContents = true, Margin = new Padding(0) };
@@ -104,24 +103,24 @@ internal sealed class PresetEditorView : UserControl
         UpdateDraft();
     }
 
-    private static WholeNumberInput Number(string name, int value, int minimum, int maximum, int step) => new()
+    private static WholeNumberInput Number(string name, int value, int minimum, int maximum, int step) => Theme.Colors(new WholeNumberInput()
     {
         Minimum = minimum, Maximum = maximum, Value = Math.Clamp(value, minimum, maximum), Increment = step,
-        Width = 92, BackColor = Theme.Sunken, ForeColor = Theme.Ink, AccessibleName = name,
+        Width = 92, AccessibleName = name,
         AccessibleDescription = $"Whole number from {minimum} to {maximum}.", Margin = new Padding(0, 0, 6, 4),
-    };
+    }, back: () => Theme.Sunken, fore: () => Theme.Ink);
 
-    private static Label Unit(string text, int left = 0) => new()
+    private static Label Unit(string text, int left = 0) => Theme.Colors(new Label()
     {
-        Text = text, AutoSize = true, ForeColor = Theme.InkMuted, UseMnemonic = false,
+        Text = text, AutoSize = true, UseMnemonic = false,
         Margin = new Padding(left, 6, 6, 0),
-    };
+    }, fore: () => Theme.InkMuted);
 
-    private static Label Copy(string text, Font font = null) => new()
+    private static Label Copy(string text, Font font = null) => Theme.Colors(new Label()
     {
-        Text = text, AutoSize = true, Font = font ?? Theme.Body, ForeColor = font == null ? Theme.InkMuted : Theme.Ink,
+        Text = text, AutoSize = true, Font = font ?? Theme.Body,
         Margin = new Padding(0, 0, 0, 10), UseMnemonic = false,
-    };
+    }, fore: () => font == null ? Theme.InkMuted : Theme.Ink);
 
     private void Add(Control control) => _content.Controls.Add(control, 0, _content.RowCount++);
 
@@ -143,8 +142,8 @@ internal sealed class PresetEditorView : UserControl
             bool kelvinValid = row.Kelvin.TryGetDraft(out int kelvin);
             if (!nitsValid) invalid.Add($"{row.BuiltIn.Name} target");
             if (!kelvinValid) invalid.Add($"{row.BuiltIn.Name} warmth");
-            row.Nits.ForeColor = nitsValid ? Theme.Ink : Theme.Warn;
-            row.Kelvin.ForeColor = kelvinValid ? Theme.Ink : Theme.Warn;
+            Theme.Colors(row.Nits, fore: () => nitsValid ? Theme.Ink : Theme.Warn);
+            Theme.Colors(row.Kelvin, fore: () => kelvinValid ? Theme.Ink : Theme.Warn);
             if (nitsValid && kelvinValid) levels.Add(row.BuiltIn with { Nits = nits, Kelvin = kelvin });
         }
         return invalid.Count == 0;
@@ -161,7 +160,7 @@ internal sealed class PresetEditorView : UserControl
             // the changing estimate travels in the description.
             row.Preview.Text = row.Preview.AccessibleDescription =
                 level == null ? "Preview unavailable until this preset's values are valid." : Preview(level);
-            row.Preview.ForeColor = level == null ? Theme.Warn : Theme.Info;
+            Theme.Colors(row.Preview, fore: () => level == null ? Theme.Warn : Theme.Info);
         }
         _saveButton.Enabled = valid;
         if (!valid)
@@ -169,11 +168,11 @@ internal sealed class PresetEditorView : UserControl
             string correction = $"Check {string.Join(", ", invalid)}. Use whole numbers: " +
                 $"{Presets.MinTargetNits}-{Presets.MaxTargetNits} nits and {GammaControl.MinKelvin}-{GammaControl.MaxKelvin} K. Nothing has been saved.";
             _status.Text = _saveButton.AccessibleDescription = correction;
-            _status.ForeColor = Theme.Warn;
+            Theme.Colors(_status, fore: () => Theme.Warn);
             return;
         }
         _status.Text = _saveFeedback ?? SaveNote;
-        _status.ForeColor = _saveFeedback == null ? Theme.InkMuted : Theme.Warn;
+        Theme.Colors(_status, fore: () => _saveFeedback == null ? Theme.InkMuted : Theme.Warn);
         _saveButton.AccessibleDescription = "Save these preset targets. Saving does not adjust any display.";
     }
 
@@ -222,7 +221,7 @@ internal sealed class PresetEditorView : UserControl
         IsSaving = true;
         foreach (var row in _rows) row.Nits.Enabled = row.Kelvin.Enabled = false;
         _saveButton.Enabled = _defaults.Enabled = _cancel.Enabled = false;
-        _status.ForeColor = Theme.InkMuted;
+        Theme.Colors(_status, fore: () => Theme.InkMuted);
         _status.Text = "Saving preset targets… Previous targets stay active until the save is confirmed.";
         PendingSave = CommitAsync(levels);
     }

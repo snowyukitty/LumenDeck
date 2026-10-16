@@ -52,6 +52,10 @@ Cancel/Escape discard the draft. Refresh replacing the card or disabling the
 control cancels the open entry.
 
 Settings
+Settings > Theme offers Amber, Paper, Ocean and Violet. It saves your choice and
+updates open windows after the write succeeds. Windows high contrast takes
+priority. Switching themes leaves display adjustments and Night saver unchanged.
+
 Settings keeps the last save outcome visible even after other messages appear.
 Settings ! means a save was not confirmed. Retry saving active settings saves
 the values currently in effect; a failed preference or shortcut choice must be

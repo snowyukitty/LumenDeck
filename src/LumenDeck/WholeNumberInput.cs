@@ -6,6 +6,8 @@ namespace LumenDeck;
 // the user repairs it, including on blur, Enter, arrow keys and spinner clicks.
 internal sealed class WholeNumberInput : NumericUpDown
 {
+    public WholeNumberInput() => Theme.Colors(this, back: () => Theme.Sunken, fore: () => Theme.Ink);
+
     public bool TryGetDraft(out int value)
     {
         var culture = CultureInfo.CurrentCulture;

@@ -14,16 +14,15 @@ internal class ConnectionHelpForm : Form
     {
         Text = "LumenDeck — Connection help";
         Font = Theme.Body;
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(460, 400);
         Size = new Size(640, 720);
         ShowInTaskbar = false;
         MinimizeBox = false;
-        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true,
-            FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(12), BackColor = Theme.Bar };
+        var footer = Theme.Colors(new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true,
+            FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(12),}, back: () => Theme.Bar);
         var close = new Button { Text = "Close", AutoSize = true, MinimumSize = new Size(100, 32), DialogResult = DialogResult.Cancel };
         close.Click += (_, _) => Close();
         CancelButton = close;

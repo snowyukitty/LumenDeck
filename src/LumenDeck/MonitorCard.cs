@@ -52,7 +52,7 @@ internal sealed class MonitorCard : Panel
     private bool _extrasBuilt;
     private bool _featuresLoading;
     private Bitmap _surface;
-    private (Size Size, int State, int Dpi, int Divider, Padding Padding) _surfaceKey;
+    private (Size Size, int State, int Dpi, int Divider, Padding Padding, int ThemeRevision) _surfaceKey;
 
     // One ToolTip for the whole card, disposed with it. A `new ToolTip()` per
     // button looks harmless and is not: cards are rebuilt on every display
@@ -92,7 +92,7 @@ internal sealed class MonitorCard : Panel
         // MinimumSize is what stops that, and the owner sets it with the width.
         AutoSize = true;
         AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        BackColor = Theme.Base;
+        Theme.Colors(this, back: () => Theme.Base);
         Padding = new Padding(Theme.CardPad, 14, Theme.CardPad, 14);
         Margin = new Padding(0, 0, 0, Theme.Gap);
 
@@ -138,35 +138,32 @@ internal sealed class MonitorCard : Panel
         _brightness.ValueChanged += (_, _) => OnBrightness();
         AddRow(row++, "Brightness", _brightness, m.SupportsBrightness ? null : "unavailable");
 
-        _reading = new Label
+        _reading = Theme.Colors(new Label
         {
-            Name = "adjustment-reading", AutoSize = true, Font = Theme.Small,
-            ForeColor = Theme.InkMuted, BackColor = Color.Transparent,
+            Name = "adjustment-reading", AutoSize = true, Font = Theme.Small, BackColor = Color.Transparent,
             Margin = new Padding(2, 0, 0, 4), UseMnemonic = false,
-        };
+        }, fore: () => Theme.InkMuted);
         _grid.Controls.Add(_reading, 1, row++);
         _observationTimer.Tick += (_, _) => UpdateObservation();
         _observationTimer.Start();
 
-        _nits = new Label
+        _nits = Theme.Colors(new Label
         {
             Font = Theme.Small,
-            ForeColor = Theme.InkFaint,
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(2, 0, 0, 6),
             BackColor = Color.Transparent,
-        };
+        }, fore: () => Theme.InkFaint);
         _grid.Controls.Add(_nits, 1, row++);
         if (onProfileRequested != null)
         {
-            var edit = new LinkLabel
+            var edit = Theme.Colors(new LinkLabel
             {
-                Text = "Edit brightness estimate…", AutoSize = true, LinkColor = Theme.Info,
+                Text = "Edit brightness estimate…", AutoSize = true,
                 Name = "brightness-profile",
-                ActiveLinkColor = Theme.AmberLight, VisitedLinkColor = Theme.Info,
                 Margin = new Padding(0, 0, 0, 8), AccessibleName = $"{_displayContext}: Edit brightness estimate profile",
-            };
+            }, link: () => Theme.Info, activeLink: () => Theme.AmberLight, visitedLink: () => Theme.Info);
             edit.LinkClicked += (_, _) => onProfileRequested(this);
             _grid.Controls.Add(edit, 1, row++);
         }
@@ -181,26 +178,23 @@ internal sealed class MonitorCard : Panel
         _tips.SetToolTip(_contrast, "Click the number or press F2 to enter an exact hardware value. Arrows: one unit; Shift: ten units.");
         _contrast.ValueChanged += (_, _) => OnContrast();
         AddRow(row++, "Contrast", _contrast, m.SupportsContrast ? null : "unavailable");
-        _contrastReading = new Label
+        _contrastReading = Theme.Colors(new Label
         {
-            Name = "contrast-reading", AutoSize = true, Font = Theme.Small,
-            ForeColor = Theme.InkMuted, BackColor = Color.Transparent, Visible = false,
+            Name = "contrast-reading", AutoSize = true, Font = Theme.Small, BackColor = Color.Transparent, Visible = false,
             Margin = new Padding(2, 0, 0, 4), UseMnemonic = false,
-        };
+        }, fore: () => Theme.InkMuted);
         _grid.Controls.Add(_contrastReading, 1, row++);
 
 
         if ((!m.SupportsBrightness || !m.SupportsContrast) && onConnectionHelp != null)
         {
-            var help = new LinkLabel
+            var help = Theme.Colors(new LinkLabel
             {
                 Text = "Why are controls unavailable?", AutoSize = true,
                 AccessibleName = $"{_displayContext}: Why are controls unavailable?",
-                Name = "connection-help",
-                LinkColor = Theme.Info, ActiveLinkColor = Theme.AmberLight,
-                VisitedLinkColor = Theme.Info, Font = Theme.Small,
+                Name = "connection-help", Font = Theme.Small,
                 BackColor = Color.Transparent, Margin = new Padding(2, 0, 0, 8),
-            };
+            }, link: () => Theme.Info, activeLink: () => Theme.AmberLight, visitedLink: () => Theme.Info);
             help.LinkClicked += (_, _) => onConnectionHelp();
             _grid.Controls.Add(help, 1, row++);
             _tips.SetToolTip(help, DisplaySupport.Describe(m).Guidance);
@@ -233,11 +227,11 @@ internal sealed class MonitorCard : Panel
         _tips.SetToolTip(_warmth, "Click the number or press F2 to enter Kelvin. Arrows: 50 K; Shift: 500 K. 6500 K restores neutral colour.");
         _warmth.ValueChanged += (_, _) => OnWarmth();
         AddRow(row++, "Warmth", _warmth, null);
-        _grid.Controls.Add(new Label
+        _grid.Controls.Add(Theme.Colors(new Label
         {
             Text = "Gamma tint target · not a measured colour preview", AutoSize = true,
-            Font = Theme.Small, ForeColor = Theme.InkFaint, Margin = new Padding(2, 0, 0, 4),
-        }, 1, row++);
+            Font = Theme.Small, Margin = new Padding(2, 0, 0, 4),
+        }, fore: () => Theme.InkFaint), 1, row++);
 
         // Per-monitor blacking is deliberately a Windows overlay plus the
         // lowest supported brightness. It is less power-efficient than DDC
@@ -260,29 +254,26 @@ internal sealed class MonitorCard : Panel
         _screenBlankButton.Click += (_, _) => _onScreenBlankToggle(this);
         blankRow.Controls.Add(_screenBlankButton);
 
-        _screenBlankShortcut = new LinkLabel
+        _screenBlankShortcut = Theme.Colors(new LinkLabel
         {
             Name = "screen-shortcut",
             Font = Theme.Small,
-            LinkColor = Theme.Info,
-            ActiveLinkColor = Theme.AmberLight,
-            VisitedLinkColor = Theme.Info,
             LinkBehavior = LinkBehavior.NeverUnderline,
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Enabled = true,
             Margin = new Padding(0, 8, 0, 6),
             BackColor = Color.Transparent,
-        };
+        }, link: () => Theme.Info, activeLink: () => Theme.AmberLight, visitedLink: () => Theme.Info);
         _screenBlankShortcut.LinkClicked += (_, _) => _onConfigureScreenBlankHotkey(this);
         SetScreenBlankShortcutText(_settings?.ScreenBlankHotkeyFor(m.StableKey));
         blankRow.Controls.Add(_screenBlankShortcut);
-        blankRow.Controls.Add(new Label
+        blankRow.Controls.Add(Theme.Colors(new Label
         {
             Text = m.SupportsBrightness ? "min brightness" : "blackout only",
-            AutoSize = true, Font = Theme.Small, ForeColor = Theme.InkMuted,
+            AutoSize = true, Font = Theme.Small,
             Margin = new Padding(8, 8, 0, 6), BackColor = Color.Transparent,
-        });
+        }, fore: () => Theme.InkMuted));
         AddRow(row++, "Screen", blankRow, null);
         SetScreenBlankState(false);
 
@@ -340,21 +331,17 @@ internal sealed class MonitorCard : Panel
         _grid.Controls.Add(presets, 1, row++);
 
         // ---- extras, collapsed --------------------------------------------
-        _disclosure = new LinkLabel
+        _disclosure = Theme.Colors(new LinkLabel
         {
             Text = m.HasPhysicalHandle ? "Show this monitor's other controls" : "",
             Name = "other-controls",
             Font = Theme.Small,
-            LinkColor = Theme.Info,
-            ActiveLinkColor = Theme.AmberLight,
-            VisitedLinkColor = Theme.Info,
             LinkBehavior = LinkBehavior.NeverUnderline,
-            ForeColor = Theme.InkFaint,
             AutoSize = true,
             Enabled = m.HasPhysicalHandle,
             Margin = new Padding(2, 10, 0, 0),
             BackColor = Color.Transparent,
-        };
+        }, link: () => Theme.Info, activeLink: () => Theme.AmberLight, visitedLink: () => Theme.Info, fore: () => Theme.InkFaint);
         SetDisclosureText(_disclosure.Text);
         if (m.HasPhysicalHandle)
             _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
@@ -394,36 +381,35 @@ internal sealed class MonitorCard : Panel
             BackColor = Color.Transparent,
         };
 
-        host.Controls.Add(new Label
+        host.Controls.Add(Theme.Colors(new Label
         {
             Text = m.DisplayName,
             UseMnemonic = false,
             Font = Theme.H1,
-            ForeColor = Theme.Ink,
             AutoSize = true,
             Margin = new Padding(0, 1, 10, 0),
             BackColor = Color.Transparent,
-        });
+        }, fore: () => Theme.Ink));
 
         if (!string.IsNullOrEmpty(m.SizeLabel))
-            host.Controls.Add(Chip(m.SizeLabel, Theme.InkMuted));
+            host.Controls.Add(Chip(m.SizeLabel, () => Theme.InkMuted));
 
         if (!string.IsNullOrWhiteSpace(m.PositionLabel))
-            host.Controls.Add(Chip(m.PositionLabel, Theme.Info));
+            host.Controls.Add(Chip(m.PositionLabel, () => Theme.Info));
 
         if (m.IsInternalPanel)
-            host.Controls.Add(Chip("built-in", Theme.InkMuted));
+            host.Controls.Add(Chip("built-in", () => Theme.InkMuted));
         else if (!m.SupportsBrightness)
-            host.Controls.Add(Chip("brightness unavailable", Theme.Warn));
+            host.Controls.Add(Chip("brightness unavailable", () => Theme.Warn, warning: true));
 
         host.Controls.Add(Chip(m.SupportsBrightness
             ? m.SupportsContrast ? "brightness · contrast · gamma tint" : "brightness · gamma tint"
-            : "gamma tint available", Theme.InkMuted));
+            : "gamma tint available", () => Theme.InkMuted));
 
         return host;
     }
 
-    private static Control Chip(string text, Color color) => new ChipLabel(text, color);
+    private static Control Chip(string text, Func<Color> color, bool warning = false) => new ChipLabel(text, color, warning);
 
     private Slider MakeSlider(bool enabled, int min, int max, int value)
     {
@@ -442,16 +428,15 @@ internal sealed class MonitorCard : Panel
 
     private void AddRow(int row, string caption, Control editor, string note)
     {
-        _grid.Controls.Add(new Label
+        _grid.Controls.Add(Theme.Colors(new Label
         {
             Text = caption,
             Font = Theme.Body,
-            ForeColor = editor.Enabled ? Theme.InkMuted : Theme.InkFaint,
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(2, 8, 8, 0),
             BackColor = Color.Transparent,
-        }, 0, row);
+        }, fore: () => editor.Enabled ? Theme.InkMuted : Theme.InkFaint), 0, row);
 
         if (note == null)
         {
@@ -472,16 +457,15 @@ internal sealed class MonitorCard : Panel
         host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         host.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         host.Controls.Add(editor, 0, 0);
-        host.Controls.Add(new Label
+        host.Controls.Add(Theme.Colors(new Label
         {
             Text = note,
             Font = Theme.Small,
-            ForeColor = Theme.Warn,
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(6, 8, 0, 0),
             BackColor = Color.Transparent,
-        }, 1, 0);
+        }, fore: () => Theme.Warn), 1, 0);
         _grid.Controls.Add(host, 1, row);
     }
 
@@ -746,14 +730,14 @@ internal sealed class MonitorCard : Panel
                 ? "This monitor advertises no other adjustable controls."
                 : "");
             _disclosure.Enabled = false;
-            _disclosure.LinkColor = Theme.InkFaint;
+            Theme.Colors(_disclosure, link: () => Theme.InkFaint);
             return;
         }
 
         _disclosure.Enabled = true;
         _disclosure.Links.Clear();
         SetDisclosureText($"Show {n} more control{(n == 1 ? "" : "s")} on this monitor");
-        _disclosure.LinkColor = Theme.Info;
+        Theme.Colors(_disclosure, link: () => Theme.Info);
         _disclosure.LinkArea = new LinkArea(0, _disclosure.Text.Length);
 
         if (expand) ToggleExtras();
@@ -943,7 +927,7 @@ internal sealed class MonitorCard : Panel
         if (Width < 4 || Height < 5) { base.OnPaint(e); return; }
         var header = _grid.GetControlFromPosition(0, 0);
         int dividerY = header == null ? -1 : _grid.Top + header.Bottom + LogicalToDeviceUnits(3);
-        var key = (Size, (_highlighted ? 2 : 0) | (ContainsFocus ? 1 : 0) | (Theme.HighContrast ? 4 : 0), DeviceDpi, dividerY, Padding);
+        var key = (Size, (_highlighted ? 2 : 0) | (ContainsFocus ? 1 : 0) | (Theme.HighContrast ? 4 : 0), DeviceDpi, dividerY, Padding, Theme.Revision);
         // Transparent children repaint the parent. Cache one current surface per
         // card so they reuse a blit rather than rebuilding paths and gradients.
         if (_surface == null || _surfaceKey != key)
@@ -991,11 +975,14 @@ internal sealed class MonitorCard : Panel
 /// <summary>A small rounded tag. Cheaper to read than a sentence.</summary>
 internal sealed class ChipLabel : Control
 {
-    private readonly Color _color;
+    private readonly Func<Color> _color;
+    private readonly bool _warning;
 
-    public ChipLabel(string text, Color color)
+    public ChipLabel(string text, Func<Color> color, bool warning = false)
     {
         _color = color;
+        _warning = warning;
+        Theme.Observe(this, Invalidate);
         Text = text;
         AccessibleRole = AccessibleRole.StaticText;
         AccessibleName = text;
@@ -1010,7 +997,7 @@ internal sealed class ChipLabel : Control
         Margin = new Padding(0, 2, 6, 0);
     }
 
-    private string LabelText => !Theme.HighContrast && _color == Theme.Warn ? "! " + Text : Text;
+    private string LabelText => _warning ? "! " + Text : Text;
 
     private void UpdateChipSize()
     {
@@ -1032,9 +1019,9 @@ internal sealed class ChipLabel : Control
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         var r = new Rectangle(0, 0, Width - 1, Height - 1);
-        Theme.FillRound(g, r, Height / 2, Color.FromArgb(38, _color));
-        Theme.StrokeRound(g, r, Height / 2, Color.FromArgb(60, _color));
-        TextRenderer.DrawText(g, LabelText, Font, r, Theme.HighContrast ? SystemColors.WindowText : _color,
+        Theme.FillRound(g, r, Height / 2, Theme.ChipFill(_color()));
+        Theme.StrokeRound(g, r, Height / 2, Color.FromArgb(60, _color()));
+        TextRenderer.DrawText(g, LabelText, Font, r, Theme.HighContrast ? SystemColors.WindowText : _color(),
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 }

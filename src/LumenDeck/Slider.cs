@@ -63,6 +63,7 @@ internal sealed class Slider : Control
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw |
                  ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
+        Theme.Observe(this, Invalidate);
         Font = Theme.Value;
         Height = 30;
         TabStop = true;

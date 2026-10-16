@@ -16,8 +16,7 @@ internal class ReferenceForm : Form
     {
         Text = $"LumenDeck — {title}";
         Font = Theme.Body;
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(460, 380);
@@ -26,8 +25,8 @@ internal class ReferenceForm : Form
         ShowIcon = false;
         MinimizeBox = false;
         _guide = new ReferenceView(title, introduction, sections) { Dock = DockStyle.Fill };
-        Footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true,
-            FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(12), BackColor = Theme.Bar };
+        Footer = Theme.Colors(new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true,
+            FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(12),}, back: () => Theme.Bar);
         var close = new Button { Text = "Close", AutoSize = true, MinimumSize = new Size(100, 32), DialogResult = DialogResult.Cancel };
         close.Click += (_, _) => Close();
         CancelButton = close;

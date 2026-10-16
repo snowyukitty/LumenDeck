@@ -14,8 +14,7 @@ internal sealed class SupportReportView : UserControl
     public SupportReportView(Action<string> copy = null)
     {
         _copy = copy ?? (text => Clipboard.SetText(text));
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         Font = Theme.Body;
         Padding = new Padding(16);
         var actions = new FlowLayoutPanel
@@ -28,19 +27,18 @@ internal sealed class SupportReportView : UserControl
         var close = new FlatButton("Close") { AutoSize = true, MinimumSize = new Size(84, 30) };
         close.Click += (_, _) => CloseRequested?.Invoke();
         actions.Controls.AddRange([_copyButton, close]);
-        _status = new Label
+        _status = Theme.Colors(new Label
         {
             Text = "Review the report, then copy it to your issue. Nothing is uploaded.",
-            Dock = DockStyle.Bottom, AutoSize = true, ForeColor = Theme.InkMuted,
+            Dock = DockStyle.Bottom, AutoSize = true,
             UseMnemonic = false, AccessibleRole = AccessibleRole.StatusBar,
-        };
-        _preview = new TextBox
+        }, fore: () => Theme.InkMuted);
+        _preview = Theme.Colors(new TextBox
         {
             Dock = DockStyle.Fill, Multiline = true, ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical, WordWrap = true, Font = Theme.Mono,
-            BackColor = Theme.Sunken, ForeColor = Theme.Ink, BorderStyle = BorderStyle.FixedSingle,
+            ScrollBars = ScrollBars.Vertical, WordWrap = true, Font = Theme.Mono, BorderStyle = BorderStyle.FixedSingle,
             AccessibleName = "Support report preview", TabIndex = 0,
-        };
+        }, back: () => Theme.Sunken, fore: () => Theme.Ink);
         Controls.Add(_preview);
         Controls.Add(_status);
         Controls.Add(actions);

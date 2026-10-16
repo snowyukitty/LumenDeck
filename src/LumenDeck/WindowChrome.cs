@@ -3,13 +3,15 @@ using System.Runtime.InteropServices;
 namespace LumenDeck;
 
 /// <summary>
-/// Native dark window frame and dark system scrollbars/combo boxes, so the
-/// operating system's own parts match the app instead of framing a dark window
-/// in a light title bar. Every call is cosmetic: on a Windows version without
+/// Native frame and system scrollbars/combo boxes follow the current palette.
+/// Passing null to SetWindowTheme removes the previous dark association.
+/// Every call is cosmetic: on a Windows version without
 /// an attribute the call fails and the default appearance remains.
 /// </summary>
 internal static class WindowChrome
 {
+    private sealed class FramePreference { internal bool Mica; }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Form, FramePreference> Frames = new();
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19; // Windows 10 1809-1909
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private const int DWMWA_BORDER_COLOR = 34;                // Windows 11
@@ -34,10 +36,17 @@ internal static class WindowChrome
     public static void Apply(Form form, bool micaTitleBar = false)
     {
         if (form == null || !form.IsHandleCreated) return;
+        var preference = Frames.GetValue(form, owner =>
+        {
+            var value = new FramePreference();
+            Theme.Observe(owner, () => Apply(owner, value.Mica));
+            return value;
+        });
+        preference.Mica = micaTitleBar;
         IntPtr hwnd = form.Handle;
         try
         {
-            int on = 1;
+            int on = Theme.IsDark ? 1 : 0;
             if (DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref on, sizeof(int)) != 0)
                 DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, ref on, sizeof(int));
             int caption = ColorRef(Theme.Bar), text = ColorRef(Theme.Ink), border = ColorRef(Theme.Line);
@@ -45,12 +54,13 @@ internal static class WindowChrome
             DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
             if (Environment.OSVersion.Version.Build >= 22621)
             {
-                int material = micaTitleBar && SupportsMica(Environment.OSVersion.Version, SystemInformation.HighContrast)
+                int material = micaTitleBar && SupportsMica(Environment.OSVersion.Version, Theme.HighContrast)
                     ? DWMSBT_MAINWINDOW : DWMSBT_NONE;
                 if (DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref material, sizeof(int)) == 0 &&
                     material == DWMSBT_MAINWINDOW)
                     caption = text = DWMWA_COLOR_DEFAULT;
             }
+            if (Theme.HighContrast) caption = text = border = DWMWA_COLOR_DEFAULT;
             DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref caption, sizeof(int));
             DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, ref text, sizeof(int));
             DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref border, sizeof(int));
@@ -102,6 +112,7 @@ internal static class WindowChrome
 
     private static void Darken(Control control)
     {
+        if (control is Button button) Theme.StyleButton(button);
         string theme = control switch
         {
             ComboBox => "DarkMode_CFD",
@@ -124,7 +135,7 @@ internal static class WindowChrome
 
     private static void SetTheme(Control control, string theme)
     {
-        try { SetWindowTheme(control.Handle, theme, null); }
+        try { SetWindowTheme(control.Handle, Theme.IsDark ? theme : null, null); }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { }
     }
 

@@ -24,11 +24,11 @@ internal sealed class AdjustmentNotice : FlowLayoutPanel
         Margin = new Padding(0, 0, 0, 10);
         AccessibleRole = AccessibleRole.Alert;
         Visible = false;
-        _message = new Label
+        _message = Theme.Colors(new Label
         {
-            AutoSize = true, Font = Theme.Small, ForeColor = Theme.Warn,
+            AutoSize = true, Font = Theme.Small,
             BackColor = Color.Transparent, Margin = new Padding(0, 0, 8, 6),
-        };
+        }, fore: () => Theme.Warn);
         Controls.Add(_message);
         var help = Link("Connection help");
         help.AccessibleName = $"{_displayContext}: Connection help";
@@ -69,11 +69,9 @@ internal sealed class AdjustmentNotice : FlowLayoutPanel
         Visible = false;
     }
 
-    private static LinkLabel Link(string text) => new()
+    private static LinkLabel Link(string text) => Theme.Colors(new LinkLabel()
     {
-        Text = text, AutoSize = true, Font = Theme.Small,
-        LinkColor = Theme.Info, ActiveLinkColor = Theme.AmberLight,
-        VisitedLinkColor = Theme.Info, BackColor = Color.Transparent,
+        Text = text, AutoSize = true, Font = Theme.Small, BackColor = Color.Transparent,
         Margin = new Padding(0, 0, 14, 6),
-    };
+    }, link: () => Theme.Info, activeLink: () => Theme.AmberLight, visitedLink: () => Theme.Info);
 }

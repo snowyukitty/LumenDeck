@@ -14,27 +14,27 @@ internal sealed class StatusStripe : UserControl
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         Height = 46;
-        BackColor = Theme.Bar;
+        Theme.Colors(this, back: () => Theme.Bar);
         Font = Theme.Small;
         Padding = new Padding(14, 7, 10, 7);
         TabStop = false;
         AccessibleRole = AccessibleRole.StatusBar;
-        _message = new TextBox
+        _message = Theme.Colors(new TextBox
         {
             Dock = DockStyle.Fill, BorderStyle = BorderStyle.None,
             Multiline = true, ReadOnly = true, WordWrap = true,
-            ScrollBars = ScrollBars.Vertical, BackColor = Theme.Bar, ForeColor = Theme.InkMuted,
+            ScrollBars = ScrollBars.Vertical,
             AccessibleName = "Current status",
             AccessibleDescription = "Read-only status. Use arrow keys or scroll to read the full message; select text to copy it.",
             TabIndex = 0,
-        };
+        }, back: () => Theme.Bar, fore: () => Theme.InkMuted);
         Controls.Add(_message);
     }
 
     public void Set(string text, StatusKind kind)
     {
         _kind = kind;
-        _message.ForeColor = kind == StatusKind.Warn ? Theme.Warn : Theme.InkMuted;
+        Theme.Colors(_message, fore: () => kind == StatusKind.Warn ? Theme.Warn : Theme.InkMuted);
         _message.Text = text ?? "";
         AccessibleName = _message.Text;
         if (IsHandleCreated) ((ControlAccessibleObject)AccessibilityObject).NotifyClients(AccessibleEvents.NameChange, -1);

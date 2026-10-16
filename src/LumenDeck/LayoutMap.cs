@@ -19,23 +19,22 @@ internal sealed class LayoutMap : Control
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
             ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        BackColor = Theme.Bar;
+        Theme.Colors(this, back: () => Theme.Bar);
         Height = 140;
         TabStop = true;
         AccessibleName = "Desk displays — Windows desktop layout";
         AccessibleDescription = "Arrow keys select the nearest display in that direction without wrapping. Home and End select the first and last display. Enter opens its controls. Ctrl+Page Down and Ctrl+Page Up move between display controls.";
-        _caption = new Label
+        _caption = Theme.Colors(new Label
         {
             Name = "display-map-caption", Height = 24,
-            Font = Theme.Small, ForeColor = Theme.InkMuted, BackColor = Theme.Bar,
+            Font = Theme.Small,
             TextAlign = ContentAlignment.MiddleLeft, AutoSize = false, AutoEllipsis = true,
             UseMnemonic = false, Padding = new Padding(16, 0, 4, 0),
-        };
-        _all = new CheckBox
+        }, fore: () => Theme.InkMuted, back: () => Theme.Bar);
+        _all = Theme.Colors(new CheckBox
         {
-            Text = "All displays", AutoSize = true, ForeColor = Theme.Ink,
-            BackColor = Theme.Bar, AccessibleName = "Show controls for all displays",
-        };
+            Text = "All displays", AutoSize = true, AccessibleName = "Show controls for all displays",
+        }, fore: () => Theme.Ink, back: () => Theme.Bar);
         _all.CheckedChanged += (_, _) => AllDisplaysChanged?.Invoke(_all.Checked);
         Controls.Add(_all);
         Controls.Add(_caption);

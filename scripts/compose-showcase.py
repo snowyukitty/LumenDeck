@@ -20,6 +20,7 @@ SOURCES = {
     "portfolio-native.png": "portfolio.png",
     "screenshot-compact.png": "compact.png",
     "screenshot-stacked.png": "stacked.png",
+    **{f"theme-{theme}.png": f"theme-{theme}.png" for theme in ("paper", "ocean", "violet")},
 }
 
 
@@ -89,7 +90,7 @@ def export(captures, output):
         with Image.open(output / name) as image:
             receipt["artifacts"][name] = {"width": image.width, "height": image.height, "sha256": sha256(output / name)}
     (output / "screenshot.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-    print("Exported seven native/derived images and their source-bound receipt.")
+    print("Exported ten native/derived images and their source-bound receipt.")
 
 
 if __name__ == "__main__":

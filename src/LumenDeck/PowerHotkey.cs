@@ -121,35 +121,30 @@ internal sealed class ScreenBlankHotkeyDialog : Form
         ShowInTaskbar = false;
         KeyPreview = true;
         ClientSize = new Size(430, 184);
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         Font = Theme.Body;
 
-        Controls.Add(new Label
+        Controls.Add(Theme.Colors(new Label
         {
             Text = $"Press a shortcut for {monitorName}.",
             AutoSize = true,
             Location = new Point(18, 18),
-            ForeColor = Theme.Ink,
-        });
-        Controls.Add(new Label
+        }, fore: () => Theme.Ink));
+        Controls.Add(Theme.Colors(new Label
         {
             Text = "It toggles a reversible black overlay and restores the saved brightness.",
             AutoSize = false,
             Bounds = new Rectangle(18, 42, 394, 34),
-            ForeColor = Theme.InkMuted,
-        });
+        }, fore: () => Theme.InkMuted));
 
-        _captured = new Label
+        _captured = Theme.Colors(new Label
         {
             Text = string.IsNullOrEmpty(current) ? "Press Ctrl/Alt/Shift plus a key" : current,
             AutoSize = false,
             TextAlign = ContentAlignment.MiddleCenter,
             Bounds = new Rectangle(18, 76, 394, 34),
-            BackColor = Theme.Sunken,
-            ForeColor = string.IsNullOrEmpty(current) ? Theme.InkFaint : Theme.AmberLight,
             Font = Theme.Value,
-        };
+        }, back: () => Theme.Sunken, fore: () => string.IsNullOrEmpty(current) ? Theme.InkFaint : Theme.AmberLight);
         Controls.Add(_captured);
 
         _save = new Button
@@ -176,6 +171,7 @@ internal sealed class ScreenBlankHotkeyDialog : Form
             Bounds = new Rectangle(330, 132, 82, 30),
         };
 
+        foreach (var button in new[] { clear, _save, cancel }) Theme.StyleButton(button);
         Controls.Add(clear);
         Controls.Add(_save);
         Controls.Add(cancel);
@@ -195,13 +191,13 @@ internal sealed class ScreenBlankHotkeyDialog : Form
         {
             SelectedShortcut = hotkey.Text;
             _captured.Text = hotkey.Text;
-            _captured.ForeColor = Theme.AmberLight;
+            Theme.Colors(_captured, fore: () => Theme.AmberLight);
             _save.Enabled = true;
         }
         else
         {
             _captured.Text = "Include Ctrl, Alt or Shift plus one other key";
-            _captured.ForeColor = Theme.Warn;
+            Theme.Colors(_captured, fore: () => Theme.Warn);
             _save.Enabled = false;
         }
 

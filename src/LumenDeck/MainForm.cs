@@ -59,6 +59,7 @@ internal partial class MainForm : Form
     private bool _scalingDpi;
     private bool _layingOutCards;
     private bool _dpiLayoutPending;
+    private bool _themeRefreshPending;
     private List<Control> _dpiSuspendedControls;
 
     /// <summary>
@@ -74,14 +75,14 @@ internal partial class MainForm : Form
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _settings = host.Settings;
+        Theme.Select(_settings.ThemeId);
         _worker = host.Worker;
         _blanker = new ScreenBlanker(_settings, _worker, OnScreenBlankStateChanged);
         _nightSaver = new NightSaver(_blanker, _settings, _worker);
 
         // The version a bug report asks for, visible without opening About.
         Text = $"LumenDeck {AboutForm.VersionText}";
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         Font = Theme.Body;
         // AutoScaleMode defaults to None, which leaves the whole layout in raw
         // device pixels under PerMonitorV2. Dpi is what the DPI-aware path wants.
@@ -115,6 +116,7 @@ internal partial class MainForm : Form
         _bar.HelpButton.Click += (_, _) => ShowConnectionHelp();
         _preferencesMenu = new PreferencesMenu();
         _preferencesMenu.ChangeRequested += ChangePreference;
+        _preferencesMenu.ThemeRequested += ChangeTheme;
         _preferencesMenu.RetrySaveRequested += RetrySettingsSave;
         _preferencesMenu.KeyboardHelpRequested += ShowKeyboardHelp;
         _preferencesMenu.AboutRequested += ShowAbout;
@@ -144,15 +146,14 @@ internal partial class MainForm : Form
         _map.AllDisplaysChanged += show => { _showAllDisplays = show; ApplyDisplayView(); };
 
         // ---- cards ---------------------------------------------------------
-        _list = new DisplayCardList
+        _list = Theme.Colors(new DisplayCardList
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             AutoScroll = true,
             Padding = new Padding(14, 12, 14, 12),
-            BackColor = Theme.Base,
-        };
+        }, back: () => Theme.Base);
 
         _status = new StatusStripe { Dock = DockStyle.Bottom };
 
@@ -173,6 +174,7 @@ internal partial class MainForm : Form
 
         // ---- tray ----------------------------------------------------------
         var menu = new ContextMenuStrip { ShowImageMargin = false };
+        PreferencesMenu.Style(menu);
         menu.Items.Add("Show LumenDeck", null, (_, _) => RestoreFromTray());
         menu.Items.Add(new ToolStripSeparator());
         foreach (var level in Presets.Levels)
@@ -369,7 +371,7 @@ internal partial class MainForm : Form
             _minimisedPreference.AccessibleDescription = _minimisedPreference.ToolTipText =
                 SettingsSaveFeedback.Explanation(CurrentSettingsSaveState());
         _preferencesMenu.Synchronize(new PreferenceState(startup, _settings.StartMinimised,
-            _settings.MinimiseToTray, _settings.ReapplyColourOnStart, _settings.UseMicaTitleBar), _settingsWriteRunning);
+            _settings.MinimiseToTray, _settings.ReapplyColourOnStart, _settings.UseMicaTitleBar, _settings.ThemeId), _settingsWriteRunning);
         UpdateSettingsSaveFeedback();
     }
 
@@ -1063,6 +1065,17 @@ internal partial class MainForm : Form
         {
             _displayChangeTimer.Stop();
             _displayChangeTimer.Start();
+        }
+        // SetWindowTheme itself sends WM_THEMECHANGED; observe only system
+        // settings/colours so refreshing native parts cannot create a loop.
+        if (msg.Msg is 0x001A or 0x0015 && IsHandleCreated && !IsDisposed && !_themeRefreshPending)
+        {
+            _themeRefreshPending = true;
+            BeginInvoke((Action)(() =>
+            {
+                _themeRefreshPending = false;
+                if (!IsDisposed) Theme.Refresh();
+            }));
         }
         base.WndProc(ref msg);
     }

@@ -9,6 +9,23 @@ internal partial class MainForm
     private SettingsSaveResult? _settingsSaveOutcome;
     private sealed record ShortcutChange(string Key, string Name, string Previous, string Wanted);
 
+    private void ChangeTheme(string requested)
+    {
+        if (_reallyClosing || _settingsWriteRunning || SettingsSaveFeedback.RequiresReopen(CurrentSettingsSaveState())) return;
+        string wanted = Theme.Normalize(requested);
+        if (wanted == _settings.ThemeId) return;
+        string previous = _settings.ThemeId;
+        _ = SaveSettingsAsync(draft: new SettingsDraft(
+            () => _settings.ThemeId = wanted, () => _settings.ThemeId = previous,
+            "Saving theme…", "The previous theme is still active.", () =>
+            {
+                Theme.Select(wanted);
+                SetStatus(Theme.HighContrast
+                    ? "Theme saved. Windows high contrast is currently in use."
+                    : $"{Theme.Palettes.First(p => p.Id == wanted).Name} theme saved.");
+            }));
+    }
+
     /// <summary>
     /// A settings value captured into a save without becoming active. Install
     /// puts the draft in place, Restore puts the active value back, and

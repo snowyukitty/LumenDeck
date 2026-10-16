@@ -12,15 +12,14 @@ internal sealed class CommandSection : Panel
 
     public CommandSection(string caption)
     {
-        BackColor = Theme.Bar;
+        Theme.Colors(this, back: () => Theme.Bar);
         DoubleBuffered = true;
         Padding = new Padding(16, 8, 16, 8);
         Dock = DockStyle.Top;
-        _caption = new Label
+        _caption = Theme.Colors(new Label
         {
-            Text = caption, AutoSize = true, Font = Theme.Small,
-            ForeColor = Theme.InkMuted, BackColor = Color.Transparent,
-        };
+            Text = caption, AutoSize = true, Font = Theme.Small, BackColor = Color.Transparent,
+        }, fore: () => Theme.InkMuted);
         Commands = new FlowLayoutPanel
         {
             WrapContents = true, BackColor = Color.Transparent,

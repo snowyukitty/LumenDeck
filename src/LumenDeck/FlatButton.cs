@@ -24,6 +24,7 @@ internal sealed class FlatButton : Control
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw |
                  ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
+        Theme.Observe(this, Invalidate);
         Font = Theme.Body;
         Height = 30;
         Width = 84;

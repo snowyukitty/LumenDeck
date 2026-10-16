@@ -2,7 +2,7 @@ namespace LumenDeck;
 
 internal enum AppPreference { WindowsStartup, StartMinimised, KeepRunning, ReapplyWarmth, MicaTitleBar }
 internal sealed record PreferenceState(bool? WindowsStartup, bool StartMinimised, bool KeepRunning, bool ReapplyWarmth,
-    bool MicaTitleBar = false);
+    bool MicaTitleBar = false, string ThemeId = "amber");
 
 /// <summary>Preference presentation only; requests do not optimistically change checks.</summary>
 internal sealed class PreferencesMenu : ContextMenuStrip
@@ -12,6 +12,9 @@ internal sealed class PreferencesMenu : ContextMenuStrip
     private readonly ToolStripLabel _saveInfo;
     private readonly ToolStripMenuItem _retrySave;
     private SettingsSaveState _saveState;
+    private readonly ToolStripMenuItem _themes = new("Theme");
+    private readonly Dictionary<string, ToolStripMenuItem> _themeChoices = new();
+    public event Action<string> ThemeRequested;
     public event Action<AppPreference, bool> ChangeRequested;
     public event Action RetrySaveRequested;
     public event Action KeyboardHelpRequested;
@@ -25,11 +28,26 @@ internal sealed class PreferencesMenu : ContextMenuStrip
         ShowImageMargin = false;
         ShowCheckMargin = true;
         ShowItemToolTips = true;
-        Font = Theme.Body;
-        ForeColor = Theme.Ink;
-        BackColor = Theme.Card;
-        Renderer = new ToolStripProfessionalRenderer(new MenuColors());
+        Style(this);
         AccessibleName = "Application settings";
+        _themes.ToolTipText = _themes.AccessibleDescription =
+            "Choose the app's colours. Saved for the next launch. Windows high contrast takes priority; displays and Night saver are unchanged.";
+        Style(_themes.DropDown);
+        if (_themes.DropDown is ToolStripDropDownMenu themes)
+        {
+            themes.ShowImageMargin = false;
+            themes.ShowCheckMargin = true;
+        }
+        foreach (var palette in Theme.Palettes)
+        {
+            var choice = new ToolStripMenuItem(palette.Name) { CheckOnClick = false };
+            choice.ToolTipText = choice.AccessibleDescription = _themes.AccessibleDescription;
+            choice.Click += (_, _) => { if (choice.Enabled && _themes.Enabled) ThemeRequested?.Invoke(palette.Id); };
+            _themeChoices.Add(palette.Id, choice);
+            _themes.DropDownItems.Add(choice);
+        }
+        Items.Add(_themes);
+        Items.Add(new ToolStripSeparator());
         Add(AppPreference.WindowsStartup, "Start with Windows",
             "Register LumenDeck to start at sign-in for this Windows account.");
         Add(AppPreference.StartMinimised, "Start minimised",
@@ -43,21 +61,20 @@ internal sealed class PreferencesMenu : ContextMenuStrip
         Add(AppPreference.MicaTitleBar, "Use Windows Mica title bar",
             "Use the Windows material in the main title bar on Windows 11 22H2 or later. Content stays opaque. Windows may show a solid fallback when transparency is off or the window is inactive. Does not adjust displays.");
         Items.Add(new ToolStripSeparator());
-        _saveInfo = new ToolStripLabel { ForeColor = Theme.InkMuted, AccessibleRole = AccessibleRole.StaticText };
-        _retrySave = new ToolStripMenuItem { ForeColor = Theme.Ink };
+        _saveInfo = Theme.Colors(new ToolStripLabel { AccessibleRole = AccessibleRole.StaticText }, fore: () => Theme.InkMuted);
+        _retrySave = Theme.Colors(new ToolStripMenuItem(), fore: () => Theme.Ink);
         _retrySave.Click += (_, _) => { if (_retrySave.Enabled) RetrySaveRequested?.Invoke(); };
         Items.Add(_saveInfo);
         Items.Add(_retrySave);
         Items.Add(new ToolStripSeparator());
-        var presets = new ToolStripMenuItem("Preset targets…")
+        var presets = Theme.Colors(new ToolStripMenuItem("Preset targets…")
         {
             ToolTipText = "Choose the estimated luminance and warmth that Day, Evening and Night request. Opening it does not adjust displays.",
             AccessibleDescription = "Edit Day, Evening and Night targets. Opening it does not adjust displays.",
-            ForeColor = Theme.Ink,
-        };
+        }, fore: () => Theme.Ink);
         presets.Click += (_, _) => PresetTargetsRequested?.Invoke();
         Items.Add(presets);
-        _schedule = new ToolStripMenuItem("Preset schedule…") { ForeColor = Theme.Ink };
+        _schedule = Theme.Colors(new ToolStripMenuItem("Preset schedule…") {}, fore: () => Theme.Ink);
         _schedule.Click += (_, _) => ScheduleRequested?.Invoke();
         Items.Add(_schedule);
         SetScheduleSummary(null);
@@ -91,11 +108,10 @@ internal sealed class PreferencesMenu : ContextMenuStrip
 
     private void Add(AppPreference preference, string text, string explanation)
     {
-        var item = new ToolStripMenuItem(text)
+        var item = Theme.Colors(new ToolStripMenuItem(text)
         {
             CheckOnClick = false, ToolTipText = explanation, AccessibleDescription = explanation,
-            ForeColor = Theme.Ink,
-        };
+        }, fore: () => Theme.Ink);
         item.Click += (_, _) => { if (item.Enabled) ChangeRequested?.Invoke(preference, !item.Checked); };
         _choices.Add(preference, item);
         _explanations.Add(preference, explanation);
@@ -104,6 +120,7 @@ internal sealed class PreferencesMenu : ContextMenuStrip
 
     public void Synchronize(PreferenceState state, bool saving = false)
     {
+        foreach (var (id, choice) in _themeChoices) choice.Checked = id == Theme.Normalize(state.ThemeId);
         var startup = _choices[AppPreference.WindowsStartup];
         startup.Checked = state.WindowsStartup == true;
         startup.Enabled = state.WindowsStartup.HasValue;
@@ -133,9 +150,10 @@ internal sealed class PreferencesMenu : ContextMenuStrip
     public void SetSaveState(SettingsSaveState state)
     {
         _saveState = state;
+        _themes.Enabled = state != SettingsSaveState.Saving && !SettingsSaveFeedback.RequiresReopen(state);
         _saveInfo.Text = _saveInfo.AccessibleName = SettingsSaveFeedback.Caption(state);
         _saveInfo.ToolTipText = _saveInfo.AccessibleDescription = SettingsSaveFeedback.Explanation(state);
-        _saveInfo.ForeColor = SettingsSaveFeedback.NeedsAttention(state) ? Theme.Warn : Theme.InkMuted;
+        Theme.Colors(_saveInfo, fore: () => SettingsSaveFeedback.NeedsAttention(state) ? Theme.Warn : Theme.InkMuted);
         _retrySave.Text = state == SettingsSaveState.Waiting ? "Save active settings now" : "Retry saving active settings";
         _retrySave.Enabled = SettingsSaveFeedback.CanRetry(state);
         _retrySave.ToolTipText = _retrySave.AccessibleDescription =
@@ -149,6 +167,13 @@ internal sealed class PreferencesMenu : ContextMenuStrip
                 item.ToolTipText = item.AccessibleDescription = SettingsSaveFeedback.Explanation(state);
             }
         }
+    }
+
+    internal static void Style(ToolStrip menu)
+    {
+        menu.Font = Theme.Body;
+        Theme.Colors(menu, back: () => Theme.Card, fore: () => Theme.Ink);
+        menu.Renderer = new ToolStripProfessionalRenderer(new MenuColors());
     }
 
     private sealed class MenuColors : ProfessionalColorTable

@@ -15,8 +15,7 @@ internal class PresetEditorForm : Form
     {
         Text = "LumenDeck — Preset targets";
         Font = Theme.Body;
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(460, 440);

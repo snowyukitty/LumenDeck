@@ -33,14 +33,13 @@ internal sealed class ProfileEditorView : UserControl
         HasRemovableEntry = store.HasExactEntry;
         _context = context;
         Font = Theme.Body;
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         _scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, TabStop = false };
-        _content = new TableLayoutPanel
+        _content = Theme.Colors(new TableLayoutPanel
         {
             Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1,
-            Padding = new Padding(18), BackColor = Theme.Base,
-        };
+            Padding = new Padding(18),
+        }, back: () => Theme.Base);
         _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _scroll.Controls.Add(_content);
         Controls.Add(_scroll);
@@ -61,21 +60,21 @@ internal sealed class ProfileEditorView : UserControl
         Add(Copy("Floor luminance at brightness 0 (nits)", Theme.H2));
         _floor = Number("Floor luminance", profile.FloorNits);
         Add(_floor);
-        _measured = new CheckBox
+        _measured = Theme.Colors(new CheckBox
         {
             Text = "I measured both endpoints with an instrument", AutoSize = true,
-            Checked = profile.Measured, ForeColor = Theme.Ink, BackColor = Theme.Base,
+            Checked = profile.Measured,
             AccessibleName = "Declare measured peak and floor endpoints", Margin = new Padding(0, 8, 0, 6),
-        };
+        }, fore: () => Theme.Ink, back: () => Theme.Base);
         Add(_measured);
         Add(Copy("Leave unchecked for spec-sheet values or assumptions. The app cannot verify measurements or the panel's full brightness curve."));
         Add(Copy("Sources, picture mode and assumptions", Theme.H2));
-        _note = new TextBox
+        _note = Theme.Colors(new TextBox
         {
             Multiline = true, Height = 78, Dock = DockStyle.Top, ScrollBars = ScrollBars.Vertical,
-            Text = store.CurrentSource == "generic" ? "" : profile.Note ?? "", BackColor = Theme.Sunken, ForeColor = Theme.Ink,
+            Text = store.CurrentSource == "generic" ? "" : profile.Note ?? "",
             AccessibleName = "Profile sources and conditions", Margin = new Padding(0, 0, 0, 10),
-        };
+        }, back: () => Theme.Sunken, fore: () => Theme.Ink);
         Add(_note);
         _preview = Copy("");
         _preview.AccessibleName = "Draft luminance and preset estimates";
@@ -85,11 +84,11 @@ internal sealed class ProfileEditorView : UserControl
             Add(Copy($"Remove affects only this full-name entry. The next match uses {(store.RemovalUsesUserProfile ? "a broader user profile" : "a generic profile")}: peak {fallback.PeakNits}, floor {fallback.FloorNits} nits. No screen adjustment."));
         _status = Copy(SaveNote);
         _status.AccessibleRole = AccessibleRole.Alert;
-        var footer = new TableLayoutPanel
+        var footer = Theme.Colors(new TableLayoutPanel
         {
             Dock = DockStyle.Bottom, AutoSize = true, ColumnCount = 1,
-            Padding = new Padding(18, 10, 18, 18), BackColor = Theme.Bar,
-        };
+            Padding = new Padding(18, 10, 18, 18),
+        }, back: () => Theme.Bar);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.Controls.Add(_status, 0, 0);
         var actions = new FlowLayoutPanel
@@ -111,18 +110,17 @@ internal sealed class ProfileEditorView : UserControl
         UpdatePreview();
     }
 
-    private WholeNumberInput Number(string name, int value) => new()
+    private WholeNumberInput Number(string name, int value) => Theme.Colors(new WholeNumberInput()
     {
-        Minimum = 0, Maximum = int.MaxValue, Value = Math.Max(0, value), Width = 156,
-        BackColor = Theme.Sunken, ForeColor = Theme.Ink, AccessibleName = name,
+        Minimum = 0, Maximum = int.MaxValue, Value = Math.Max(0, value), Width = 156, AccessibleName = name,
         Margin = new Padding(0, 0, 0, 8), ThousandsSeparator = true,
-    };
+    }, back: () => Theme.Sunken, fore: () => Theme.Ink);
 
-    private Label Copy(string text, Font font = null) => new()
+    private Label Copy(string text, Font font = null) => Theme.Colors(new Label()
     {
-        Text = text, AutoSize = true, Font = font ?? Theme.Body, ForeColor = font == null ? Theme.InkMuted : Theme.Ink,
+        Text = text, AutoSize = true, Font = font ?? Theme.Body,
         Margin = new Padding(0, 0, 0, 10), UseMnemonic = false,
-    };
+    }, fore: () => font == null ? Theme.InkMuted : Theme.Ink);
 
     private void Add(Control control) => _content.Controls.Add(control, 0, _content.RowCount++);
 
@@ -157,14 +155,14 @@ internal sealed class ProfileEditorView : UserControl
                 ? "Enter a peak above zero nits (cd/m\u00b2) to enable Save."
                 : "Enter a floor below the peak to enable Save. Both use nits (cd/m\u00b2).";
             _preview.Text = correction;
-            _preview.ForeColor = Theme.Warn;
+            Theme.Colors(_preview, fore: () => Theme.Warn);
             _status.Text = correction;
-            _status.ForeColor = Theme.Warn;
+            Theme.Colors(_status, fore: () => Theme.Warn);
             _save.AccessibleDescription = correction;
             return;
         }
         _status.Text = _saveFeedback ?? SaveNote;
-        _status.ForeColor = _saveFeedback == null ? Theme.InkMuted : Theme.Warn;
+        Theme.Colors(_status, fore: () => _saveFeedback == null ? Theme.InkMuted : Theme.Warn);
         _save.AccessibleDescription = "Save this valid brightness estimate. Saving does not adjust the screen.";
         string current = _context.BrightnessPercent is double percent
             ? $"Brightness captured at opening: estimated {Math.Round(draft.FloorNits + (draft.PeakNits - draft.FloorNits) * percent / 100):0} nits."
@@ -176,7 +174,7 @@ internal sealed class ProfileEditorView : UserControl
             return $"{level.Name}: {Math.Clamp(percent, 0, 100):0}%{limit}";
         });
         _preview.Text = current + "\nPreset brightness targets: " + string.Join(" · ", presets);
-        _preview.ForeColor = Theme.Info;
+        Theme.Colors(_preview, fore: () => Theme.Info);
     }
 
     public void ShowSavePending()
@@ -192,7 +190,7 @@ internal sealed class ProfileEditorView : UserControl
         IsSaving = true;
         _peak.Enabled = _floor.Enabled = _measured.Enabled = _note.Enabled = false;
         _save.Enabled = _remove.Enabled = _cancel.Enabled = false;
-        _status.ForeColor = Theme.InkMuted;
+        Theme.Colors(_status, fore: () => Theme.InkMuted);
         _status.Text = "Saving profile… Wait for the result before closing. The screen is not being adjusted.";
         PendingSave = CommitAsync(draft, remove);
     }

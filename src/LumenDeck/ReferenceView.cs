@@ -10,8 +10,7 @@ internal sealed class ReferenceView : UserControl
 
     public ReferenceView(string title, string introduction, IEnumerable<ReferenceSection> sections)
     {
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         Font = Theme.Body;
         AutoScroll = true;
         Padding = new Padding(20);
@@ -20,21 +19,21 @@ internal sealed class ReferenceView : UserControl
         _content = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, BackColor = Color.Transparent };
         _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        AddText(title, Theme.H1, Theme.Ink);
-        AddText(introduction, Theme.Body, Theme.InkMuted);
+        AddText(title, Theme.H1, () => Theme.Ink);
+        AddText(introduction, Theme.Body, () => Theme.InkMuted);
         foreach (var section in sections)
         {
-            AddText(section.Heading, Theme.H2, Theme.Ink);
-            AddText(section.Body, Theme.Body, Theme.InkMuted);
+            AddText(section.Heading, Theme.H2, () => Theme.Ink);
+            AddText(section.Body, Theme.Body, () => Theme.InkMuted);
         }
         Controls.Add(_content);
     }
 
-    private void AddText(string text, Font font, Color color) => _content.Controls.Add(new Label
+    private void AddText(string text, Font font, Func<Color> color) => _content.Controls.Add(Theme.Colors(new Label
     {
-        Text = text, Font = font, ForeColor = color, AutoSize = true, UseMnemonic = false, BackColor = Color.Transparent,
+        Text = text, Font = font, AutoSize = true, UseMnemonic = false, BackColor = Color.Transparent,
         Margin = new Padding(0, 0, 0, 14),
-    });
+    }, fore: () => color()));
 
     public void ScrollReference(Keys key)
     {

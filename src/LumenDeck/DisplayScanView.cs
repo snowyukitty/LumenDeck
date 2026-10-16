@@ -16,7 +16,7 @@ internal sealed class DisplayScanView : Panel
 
     public DisplayScanView(DisplayScanState state)
     {
-        BackColor = Theme.Card;
+        Theme.Colors(this, back: () => Theme.Card);
         AutoSize = true;
         AutoSizeMode = AutoSizeMode.GrowAndShrink;
         Padding = new Padding(20);
@@ -28,8 +28,8 @@ internal sealed class DisplayScanView : Panel
             BackColor = Color.Transparent, Margin = Padding.Empty,
         };
         _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _heading = TextLine(Theme.H1, Theme.Ink);
-        _description = TextLine(Theme.Body, Theme.InkMuted);
+        _heading = TextLine(Theme.H1, () => Theme.Ink);
+        _description = TextLine(Theme.Body, () => Theme.InkMuted);
         _actions = new FlowLayoutPanel { AutoSize = true, WrapContents = true, Margin = Padding.Empty };
         _refresh = new FlatButton("Refresh") { AutoSize = true, MinimumSize = new Size(100, 30), Primary = true, Margin = new Padding(0, 0, 12, 8) };
         _help = new FlatButton("Connection help") { AutoSize = true, MinimumSize = new Size(150, 30), Margin = new Padding(0, 0, 0, 8) };
@@ -37,15 +37,15 @@ internal sealed class DisplayScanView : Panel
         _help.Click += (_, _) => ConnectionHelpRequested?.Invoke();
         _actions.Controls.AddRange([_refresh, _help]);
         _content.Controls.Add(_actions);
-        _refreshNote = TextLine(Theme.Small, Theme.InkMuted);
+        _refreshNote = TextLine(Theme.Small, () => Theme.InkMuted);
         Controls.Add(_content);
         SetState(state);
     }
 
-    private Label TextLine(Font font, Color color)
+    private Label TextLine(Font font, Func<Color> color)
     {
-        var label = new Label { AutoSize = true, Font = font, ForeColor = color, BackColor = Color.Transparent,
-            Margin = new Padding(0, 0, 0, 12) };
+        var label = Theme.Colors(new Label { AutoSize = true, Font = font, BackColor = Color.Transparent,
+            Margin = new Padding(0, 0, 0, 12) }, fore: () => color());
         _content.Controls.Add(label);
         return label;
     }
@@ -66,7 +66,7 @@ internal sealed class DisplayScanView : Panel
             DisplayScanState.Ready => "Check that your display is connected and enabled in Windows Settings > System > Display. Then try Refresh. A missing slider on a detected display is a different issue; Connection help covers both.",
             _ => "LumenDeck checks the displays when this window opens. Connection help is available offline.",
         };
-        _heading.ForeColor = state == DisplayScanState.Failed ? Theme.Warn : Theme.Ink;
+        Theme.Colors(_heading, fore: () => state == DisplayScanState.Failed ? Theme.Warn : Theme.Ink);
         _refresh.Enabled = state is DisplayScanState.Ready or DisplayScanState.Failed;
         _refresh.AccessibleDescription = _refreshNote.Text =
             "Refresh reads displays again and may reapply saved warmth or recover active blackouts.";

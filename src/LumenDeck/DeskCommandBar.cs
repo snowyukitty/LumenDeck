@@ -18,12 +18,11 @@ internal sealed class DeskCommandBar : Panel
     public FlatButton HelpButton { get; } = new("Help") { Width = 52, Quiet = true, AccessibleName = "Connection help" };
     public FlatButton SettingsButton { get; } = new("Settings") { Width = 76, Quiet = true };
     public FlatButton NightButton { get; } = new("Night saver") { Width = 138 };
-    public ComboBox WorkMonitor { get; } = new()
+    public ComboBox WorkMonitor { get; } = Theme.Colors(new ComboBox()
     {
         DropDownStyle = ComboBoxStyle.DropDownList, Width = 260,
-        BackColor = Theme.Base, ForeColor = Theme.Ink,
         AccessibleName = "Keep working on",
-    };
+    }, back: () => Theme.Base, fore: () => Theme.Ink);
     /// <summary>Carries the preset name; the owner resolves its active target at click time.</summary>
     public event Action<string> LevelPicked;
     public event Action CustomPicked;
@@ -32,7 +31,7 @@ internal sealed class DeskCommandBar : Panel
     {
         Dock = DockStyle.Top;
         DoubleBuffered = true;
-        BackColor = Theme.Bar;
+        Theme.Colors(this, back: () => Theme.Bar);
         var modes = new CommandSection("All monitors") { TabIndex = 1 };
         var tools = new CommandSection("") { TabIndex = 0 };
         var night = new CommandSection("Night saver") { TabIndex = 2 };
@@ -59,7 +58,7 @@ internal sealed class DeskCommandBar : Panel
         tools.Commands.Controls.AddRange([NightButton, IdentifyButton, RefreshButton, HelpButton, SettingsButton, _expand]);
         modes.Commands.Controls.Add(WarmthOffButton);
         SetPresetHelp(Presets.Levels);
-        SettingsButton.SetHelp(_tips, "Windows startup, notification-area behavior, warmth reapplication and preset targets. Does not adjust the screen.");
+        SettingsButton.SetHelp(_tips, "App theme, Windows startup, notification-area behavior, warmth reapplication and preset targets. Does not adjust the screen.");
         HelpButton.SetHelp(_tips, "See which controls responded and how to check a monitor connection. Works offline.");
         IdentifyButton.SetHelp(_tips, "Show each monitor's name on its own screen");
         RefreshButton.SetHelp(_tips, "Re-read displays. This may reapply saved warmth or adjust brightness for active blackouts and pending recovery.");
@@ -72,18 +71,18 @@ internal sealed class DeskCommandBar : Panel
             AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
             WrapContents = true, Margin = new Padding(3),
         };
-        workChoice.Controls.Add(new Label
+        workChoice.Controls.Add(Theme.Colors(new Label
         {
-            Text = "Keep working on", AutoSize = true, ForeColor = Theme.InkMuted,
+            Text = "Keep working on", AutoSize = true,
             Margin = new Padding(0, 5, 8, 0),
-        });
+        }, fore: () => Theme.InkMuted));
         workChoice.Controls.Add(WorkMonitor);
         night.Commands.Controls.Add(workChoice);
-        night.Commands.Controls.Add(new Label
+        night.Commands.Controls.Add(Theme.Colors(new Label
         {
             Text = $"Work brightness: {NightSaver.WorkBrightnessPercent}% or lower",
-            AutoSize = true, ForeColor = Theme.InkMuted, Margin = new Padding(3, 8, 3, 3),
-        });
+            AutoSize = true, Margin = new Padding(3, 8, 3, 3),
+        }, fore: () => Theme.InkMuted));
         foreach (var section in new[] { modes, tools, night })
             foreach (Control control in section.Commands.Controls)
                 if (control is FlatButton button)

@@ -12,12 +12,7 @@ namespace LumenDeck;
 /// </summary>
 internal static class FeatureControls
 {
-    private static readonly Color Ink = Color.FromArgb(228, 228, 234);
-    private static readonly Color InkDim = Color.FromArgb(150, 150, 158);
-    private static readonly Color Warn = Color.FromArgb(210, 155, 95);
-    private static readonly Font FontBody = new("Segoe UI", 9f);
-    private static readonly Font FontSmall = new("Segoe UI", 8.5f);
-    private static readonly Font FontValue = new("Consolas", 10f);
+    private static Font FontBody => Theme.Body;
 
     /// <summary>
     /// Add a row per discovered feature to <paramref name="grid"/>, starting at
@@ -32,17 +27,16 @@ internal static class FeatureControls
         {
             grid.RowCount = Math.Max(grid.RowCount, row + 1);
 
-            var caption = new Label
+            var caption = Theme.Colors(new Label
             {
                 Text = f.Name,
                 UseMnemonic = false,
                 AccessibleName = $"{context}: {f.Name}",
                 Font = FontBody,
-                ForeColor = f.Definition.Risky ? Warn : Ink,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left,
                 Margin = new Padding(4, 7, 8, 0),
-            };
+            }, fore: () => f.Definition.Risky ? Theme.Warn : Theme.Ink);
             grid.Controls.Add(caption, 0, row);
 
             Control editor = f.Definition.Kind switch
@@ -109,15 +103,13 @@ internal static class FeatureControls
 
     private static Control BuildDropdown(VcpFeature f, Monitor m, DdcWorker worker, Action<string> report)
     {
-        var box = new ComboBox
+        var box = Theme.Colors(new ComboBox
         {
             DropDownStyle = ComboBoxStyle.DropDownList,
             Dock = DockStyle.Fill,
             Margin = new Padding(6, 3, 6, 3),
             FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(52, 52, 58),
-            ForeColor = Color.White,
-        };
+        }, back: () => Theme.Sunken, fore: () => Theme.Ink);
 
         foreach (int v in f.AllowedValues)
             box.Items.Add(new ValueItem(v, f.LabelFor(v)));
@@ -156,17 +148,16 @@ internal static class FeatureControls
 
     private static Control BuildActionButton(VcpFeature f, Monitor m, DdcWorker worker, Action<string> report)
     {
-        var b = new Button
+        var b = Theme.Colors(new Button
         {
             Text = "Run",
             Dock = DockStyle.Fill,
             Height = 26,
             Margin = new Padding(6, 3, 6, 3),
             FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(52, 52, 58),
-            ForeColor = Color.White,
-        };
-        b.FlatAppearance.BorderColor = Color.FromArgb(90, 74, 60);
+        }, back: () => Theme.Sunken, fore: () => Theme.Ink);
+        b.FlatAppearance.BorderColor = Theme.Line;
+        Theme.Observe(b, () => b.FlatAppearance.BorderColor = Theme.Line);
 
         b.Click += (_, _) =>
         {

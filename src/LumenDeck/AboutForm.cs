@@ -22,8 +22,7 @@ internal class AboutForm : ReferenceForm
     ])
     {
         var writeClipboard = copy ?? Clipboard.SetText;
-        var status = new Label { Name = "copy-version-status", AutoSize = true, UseMnemonic = false,
-            ForeColor = Theme.InkMuted, Visible = false, AccessibleRole = AccessibleRole.StatusBar };
+        var status = Theme.Colors(new Label { Name = "copy-version-status", AutoSize = true, UseMnemonic = false, Visible = false, AccessibleRole = AccessibleRole.StatusBar }, fore: () => Theme.InkMuted);
         var copyButton = new Button { Name = "copy-version", Text = "Copy version", AutoSize = true,
             MinimumSize = new Size(110, 32),
             AccessibleDescription = "Copy only LumenDeck version and build details to the clipboard." };

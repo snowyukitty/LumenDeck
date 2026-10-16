@@ -26,8 +26,7 @@ internal class ExactValueForm : Form
     {
         _selectedValue = context.Current;
         Text = "LumenDeck — Exact value";
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         Font = Theme.Body;
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterParent;
@@ -40,8 +39,8 @@ internal class ExactValueForm : Form
         _content = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 1, AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink };
         _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _target = Label(context.Target, Theme.H2, Theme.Ink);
-        _range = Label($"Range: {context.Minimum}–{context.Maximum} {context.Unit}", Theme.Body, Theme.InkMuted);
+        _target = Label(context.Target, Theme.H2, () => Theme.Ink);
+        _range = Label($"Range: {context.Minimum}–{context.Maximum} {context.Unit}", Theme.Body, () => Theme.InkMuted);
         _input = new WholeNumberInput
         {
             Minimum = context.Minimum, Maximum = context.Maximum, Value = context.Current,
@@ -50,17 +49,18 @@ internal class ExactValueForm : Form
             AccessibleDescription = _range.Text,
         };
         _content.Controls.Add(_input);
-        _note = Label("Apply sends an adjustment request. Check the screen and any card warnings afterward. Cancel leaves this entry unapplied.", Theme.Small, Theme.InkMuted);
+        _note = Label("Apply sends an adjustment request. Check the screen and any card warnings afterward. Cancel leaves this entry unapplied.", Theme.Small, () => Theme.InkMuted);
         _body.Controls.Add(_content);
-        var footer = new TableLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, ColumnCount = 1,
-            Padding = new Padding(12), BackColor = Theme.Bar };
+        var footer = Theme.Colors(new TableLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, ColumnCount = 1,
+            Padding = new Padding(12),}, back: () => Theme.Bar);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _feedback = new Label { AutoSize = true, ForeColor = Theme.Warn, Margin = new Padding(0, 0, 0, 8),
-            AccessibleRole = AccessibleRole.Alert, UseMnemonic = false };
+        _feedback = Theme.Colors(new Label { AutoSize = true, Margin = new Padding(0, 0, 0, 8),
+            AccessibleRole = AccessibleRole.Alert, UseMnemonic = false }, fore: () => Theme.Warn);
         var actions = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true,
             FlowDirection = FlowDirection.RightToLeft, Margin = Padding.Empty };
         var cancel = new Button { Text = "Cancel", CausesValidation = false, DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(90, 32) };
         _apply = new Button { Text = "Apply", AutoSize = true, MinimumSize = new Size(90, 32) };
+        foreach (var button in new[] { cancel, _apply }) Theme.StyleButton(button);
         _apply.Click += (_, _) =>
         {
             if (!_input.TryGetDraft(out int value)) { UpdateValidation(context); return; }
@@ -88,10 +88,10 @@ internal class ExactValueForm : Form
         _apply.AccessibleDescription = valid ? "Apply this exact value to the selected control." : _feedback.Text;
     }
 
-    private Label Label(string text, Font font, Color colour)
+    private Label Label(string text, Font font, Func<Color> colour)
     {
-        var label = new Label { Text = text, Font = font, ForeColor = colour, AutoSize = true,
-            Margin = new Padding(0, 0, 0, 14), UseMnemonic = false };
+        var label = Theme.Colors(new Label { Text = text, Font = font, AutoSize = true,
+            Margin = new Padding(0, 0, 0, 14), UseMnemonic = false }, fore: () => colour());
         _content.Controls.Add(label);
         return label;
     }

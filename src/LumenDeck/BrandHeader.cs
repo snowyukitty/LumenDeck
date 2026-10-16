@@ -20,7 +20,7 @@ internal sealed class BrandHeader : Control
         _icon = icon;
         _version = version;
         Dock = DockStyle.Top;
-        BackColor = Theme.Bar;
+        Theme.Colors(this, back: () => Theme.Bar);
         Font = Theme.Brand;
         Height = 48;
         TabStop = false;

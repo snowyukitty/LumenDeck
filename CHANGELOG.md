@@ -14,7 +14,19 @@ Versioned desktop checkpoint following owner review of the compact interface.
 The GUI, CLI, window title, About information and package use one shared version.
 This entry records the source milestone; publication status and remaining hardware
 acceptance are tracked in [release readiness](docs/release-readiness.md).
-The 2026-10-16 follow-up repairs Night saver within the same development version.
+The 2026-10-16 follow-up repairs Night saver and adds complete app themes within
+the same development version.
+
+### Added
+
+- **Settings > Theme**: Amber, Paper, Ocean and Violet, saved per Windows account.
+  A successful save updates existing windows, editors, menus, native frames and
+  cached surfaces without restarting, rescanning displays or losing draft input.
+- Windows high contrast takes priority over the saved palette; system-colour
+  changes refresh the live interface. Leaving high contrast restores the chosen
+  theme. Blackout overlays remain black.
+- Native theme previews and regression checks for contrast, persistence, failed
+  saves, pending writes, input selection and Night saver state preservation.
 
 ### Changed
 

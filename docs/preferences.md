@@ -17,6 +17,11 @@ before reopening; back up damaged settings privately before repair. Windows
 startup registration remains a separate operation.
 Choices save as you select them; no Apply button is required.
 
+**Theme** switches the app palette without restarting or rebuilding the display
+controls. Open editors retain their draft input and selection. Failed storage
+keeps the previous palette and check; Windows high contrast has priority.
+See [theme choices and implementation](themes.md).
+
 **Preset targets…** opens a modal editor for the Day, Evening and Night
 targets. It saves through the same background writer when you choose Save
 targets; until that save is confirmed, presets keep the previous targets.
@@ -41,6 +46,7 @@ packaged file locations; it does not open files or submit a report.
 
 | Option | Effect | Stored in |
 | --- | --- | --- |
+| Theme | Amber, Paper, Ocean or Violet; applies after a successful save, persists for the next launch, and respects Windows high contrast. Does not adjust displays. | settings.json (`ThemeId`) |
 | Start with Windows | Register the current executable for this Windows account's sign-in. The check represents observed registration, not proof of a future launch. | HKCU Run registration |
 | Start minimised | Minimise the next launch. With keep-running enabled it goes to the notification area; otherwise it stays on the taskbar. The current window stays as it is. | settings.json |
 | Keep running when closed or minimised | Hide to the notification area instead of exiting on ordinary close. Use tray Exit to quit. Turning it off makes ordinary close exit and minimising stay on the taskbar. | settings.json |

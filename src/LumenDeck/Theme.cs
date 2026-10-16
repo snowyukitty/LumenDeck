@@ -1,48 +1,132 @@
 namespace LumenDeck;
 
-/// <summary>
-/// Design tokens. One place, so nothing drifts.
-///
-/// The palette is the icon's palette: a warm amber ramp on a near-black
-/// surface. That is not decoration - the product is about the light a screen
-/// emits, and an amber accent on dark says so before a single label is read.
-/// Blue identifies display context; neutral contrast controls stay separate
-/// from the warm luminance and temperature controls.
-/// </summary>
+/// <summary>Semantic palettes and live, disposal-bound colour subscriptions.</summary>
 internal static class Theme
 {
     internal static Func<bool> ContrastMode { get; set; } = () => SystemInformation.HighContrast;
     internal static bool HighContrast => ContrastMode();
-    // Surfaces, darkest to lightest.
-    public static Color Base => HighContrast ? SystemColors.Window : Color.FromArgb(19, 21, 26);
-    public static Color Bar => HighContrast ? SystemColors.Window : Color.FromArgb(25, 28, 34);
-    public static Color Card => HighContrast ? SystemColors.Window : Color.FromArgb(30, 34, 41);
-    public static Color CardTop => HighContrast ? SystemColors.Window : Color.FromArgb(40, 45, 54);
-    public static Color CardHover => HighContrast ? SystemColors.Window : Color.FromArgb(48, 54, 64);
-    public static Color Sunken => HighContrast ? SystemColors.Window : Color.FromArgb(20, 23, 29);
-    public static Color Line => HighContrast ? SystemColors.WindowText : Color.FromArgb(62, 70, 83);
-    public static Color SurfaceLight => HighContrast ? SystemColors.Window : Color.FromArgb(16, 255, 255, 255);
-    public static Color Shadow => HighContrast ? SystemColors.Window : Color.FromArgb(100, 0, 0, 0);
+    internal sealed record Palette(string Id, string Name, bool Dark,
+        int Base, int Bar, int Card, int CardTop, int CardHover, int Sunken, int Line,
+        int Ink, int InkMuted, int InkFaint, int AmberLight, int Amber, int AmberDim,
+        int AmberPressed, int OnAmber, int Info, int Warn, int Danger);
+    internal static readonly IReadOnlyList<Palette> Palettes = Array.AsReadOnly(new[]
+    {
+        new Palette("amber", "Amber · warm dark", true,
+            0x13151A, 0x191C22, 0x1E2229, 0x282D36, 0x303640, 0x14171D, 0x3E4653,
+            0xEEF0F5, 0xA9B2C1, 0x919CAC, 0xFFD68F, 0xE7A95D, 0x825B2D, 0xCC914A,
+            0x1C1408, 0x7EA8E8, 0xECC458, 0xE26C5C),
+        new Palette("paper", "Paper · soft light", false,
+            0xF3F5F8, 0xE9EDF2, 0xFFFFFF, 0xF8FAFC, 0xE0E6EE, 0xEEF1F5, 0x778496,
+            0x192331, 0x404E61, 0x526176, 0x784300, 0x8A5000, 0xBE955E, 0x6F3E00,
+            0xFFFFFF, 0x265CA0, 0x815400, 0xAD3429),
+        new Palette("ocean", "Ocean · cool dark", true,
+            0x0C1823, 0x101F2B, 0x142532, 0x1B2E3C, 0x213847, 0x0B1A25, 0x405968,
+            0xEDF5F8, 0xADC1CE, 0x9BAEBB, 0x86DEEC, 0x48BCD3, 0x356B7A, 0x36A5BD,
+            0x041922, 0x8CB9F9, 0xEFCC77, 0xFA9587),
+        new Palette("violet", "Violet · quiet dark", true,
+            0x181520, 0x201C2A, 0x252031, 0x2E283C, 0x373046, 0x191420, 0x594C6A,
+            0xF4EFFA, 0xBCB0CC, 0xAA9DBD, 0xDBC1FF, 0xB997EB, 0x77608F, 0xA37CDA,
+            0x180E26, 0x97B9F3, 0xEBC77E, 0xF796A0),
+    });
+    private static Palette _palette = Palettes[0];
+    internal static string Id => _palette.Id;
+    internal static bool IsDark => _palette.Dark && !HighContrast;
+    internal static int Revision { get; private set; }
+    private static event Action Changed;
+    internal static string Normalize(string id) => Palettes.FirstOrDefault(p => p.Id == id)?.Id ?? "amber";
+    internal static void Select(string id)
+    {
+        var palette = Palettes.First(p => p.Id == Normalize(id));
+        if (_palette == palette) return;
+        _palette = palette;
+        Refresh();
+    }
+    internal static void Refresh()
+    {
+        Revision++;
+        Changed?.Invoke();
+    }
+    // All subscriptions are UI-thread-only and end with the owning component.
+    internal static void Observe(System.ComponentModel.Component owner, Action refresh)
+    {
+        Changed += refresh;
+        owner.Disposed += (_, _) => Changed -= refresh;
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<System.ComponentModel.Component, ColorBinding> Bindings = new();
+    internal static T Colors<T>(T owner, Func<Color> back = null, Func<Color> fore = null,
+        Func<Color> link = null, Func<Color> activeLink = null, Func<Color> visitedLink = null)
+        where T : System.ComponentModel.Component
+    {
+        var binding = Bindings.GetValue(owner, component =>
+        {
+            var created = new ColorBinding(component);
+            Observe(component, created.Apply);
+            return created;
+        });
+        if (back != null) binding.Back = back;
+        if (fore != null) binding.Fore = fore;
+        if (link != null) binding.Link = link;
+        if (activeLink != null) binding.ActiveLink = activeLink;
+        if (visitedLink != null) binding.VisitedLink = visitedLink;
+        binding.Apply();
+        return owner;
+    }
+    internal static void StyleButton(Button button)
+    {
+        button.FlatStyle = FlatStyle.Flat;
+        Colors(button, back: () => Card, fore: () => Ink);
 
-    // Text.
-    public static Color Ink => HighContrast ? SystemColors.WindowText : Color.FromArgb(238, 240, 245);
-    public static Color InkMuted => HighContrast ? SystemColors.WindowText : Color.FromArgb(169, 178, 193);
-    // Lightened from 104,110,124 after measuring: that value gave 3.15:1 on
-    // Card and 3.41:1 on Bar, below the 4.5:1 small-text floor - and it was
-    // carrying real content, not decoration (the nits readout, "All monitors",
-    // "No monitors detected"). This clears 4.5:1 on both surfaces.
-    public static Color InkFaint => HighContrast ? SystemColors.WindowText : Color.FromArgb(145, 156, 172);
-
-    // The brand ramp, straight off the icon.
-    public static Color AmberLight => HighContrast ? SystemColors.WindowText : Color.FromArgb(255, 214, 143);
-    public static Color Amber => HighContrast ? SystemColors.WindowText : Color.FromArgb(231, 169, 93);
-    public static Color AmberDim => HighContrast ? SystemColors.WindowText : Color.FromArgb(130, 91, 45);
-    public static Color AmberPressed => HighContrast ? SystemColors.WindowText : Color.FromArgb(204, 145, 74);
-    public static Color OnAmber => HighContrast ? SystemColors.Window : Color.FromArgb(28, 20, 8);
-
-    public static Color Info => HighContrast ? SystemColors.WindowText : Color.FromArgb(126, 168, 232);
-    public static Color Warn => HighContrast ? SystemColors.WindowText : Color.FromArgb(236, 196, 88);
-    public static Color Danger => HighContrast ? SystemColors.WindowText : Color.FromArgb(226, 108, 92);
+    }
+    private sealed class ColorBinding(System.ComponentModel.Component owner)
+    {
+        internal Func<Color> Back, Fore, Link, ActiveLink, VisitedLink;
+        internal void Apply()
+        {
+            if (owner is Control control && !control.IsDisposed)
+            {
+                if (Back != null) control.BackColor = Back();
+                if (Fore != null) control.ForeColor = Fore();
+                if (control is Button { FlatStyle: FlatStyle.Flat } button) button.FlatAppearance.BorderColor = Line;
+                if (control is LinkLabel label)
+                {
+                    if (Link != null) label.LinkColor = Link();
+                    if (ActiveLink != null) label.ActiveLinkColor = ActiveLink();
+                    if (VisitedLink != null) label.VisitedLinkColor = VisitedLink();
+                }
+                control.Invalidate();
+            }
+            else if (owner is ToolStripItem item && !item.IsDisposed)
+            {
+                if (Back != null) item.BackColor = Back();
+                if (Fore != null) item.ForeColor = Fore();
+                item.Invalidate();
+            }
+        }
+    }
+    private static Color Token(int rgb, bool surface = false) => HighContrast
+        ? (surface ? SystemColors.Window : SystemColors.WindowText)
+        : Color.FromArgb(unchecked((int)0xFF000000) | rgb);
+    public static Color Base => Token(_palette.Base, true);
+    public static Color Bar => Token(_palette.Bar, true);
+    public static Color Card => Token(_palette.Card, true);
+    public static Color CardTop => Token(_palette.CardTop, true);
+    public static Color CardHover => Token(_palette.CardHover, true);
+    public static Color Sunken => Token(_palette.Sunken, true);
+    public static Color Line => Token(_palette.Line);
+    public static Color SurfaceLight => HighContrast ? SystemColors.Window : Color.FromArgb(IsDark ? 16 : 70, 255, 255, 255);
+    public static Color Shadow => HighContrast ? SystemColors.Window : Color.FromArgb(IsDark ? 100 : 22, 0, 0, 0);
+    public static Color Ink => Token(_palette.Ink);
+    public static Color InkMuted => Token(_palette.InkMuted);
+    public static Color InkFaint => Token(_palette.InkFaint);
+    public static Color AmberLight => Token(_palette.AmberLight);
+    public static Color Amber => Token(_palette.Amber);
+    public static Color AmberDim => Token(_palette.AmberDim);
+    public static Color AmberPressed => Token(_palette.AmberPressed);
+    public static Color OnAmber => Token(_palette.OnAmber, true);
+    public static Color Info => Token(_palette.Info);
+    public static Color Warn => Token(_palette.Warn);
+    public static Color Danger => Token(_palette.Danger);
+    public static Color ChipFill(Color ink) => HighContrast ? SystemColors.Window : Color.FromArgb(24, ink);
 
     // Type. Created once and shared: a Font handed to a Control is not owned by
     // it, so per-control fonts leak until their finalizers run.

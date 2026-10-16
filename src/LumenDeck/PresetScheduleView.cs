@@ -46,47 +46,45 @@ internal sealed class PresetScheduleView : UserControl
         _outlook = outlook ?? throw new ArgumentNullException(nameof(outlook));
         _save = save ?? throw new ArgumentNullException(nameof(save));
         Font = Theme.Body;
-        BackColor = Theme.Base;
-        ForeColor = Theme.Ink;
+        Theme.Colors(this, back: () => Theme.Base, fore: () => Theme.Ink);
         _scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, TabStop = false };
-        _content = new TableLayoutPanel
+        _content = Theme.Colors(new TableLayoutPanel
         {
             Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1,
-            Padding = new Padding(18), BackColor = Theme.Base,
-        };
+            Padding = new Padding(18),
+        }, back: () => Theme.Base);
         _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _scroll.Controls.Add(_content);
         Controls.Add(_scroll);
         Add(Copy("Preset schedule", Theme.H1));
         Add(Copy("Request a preset on every visible display when its time of day begins. " +
                  "Custom requests each display's remembered manual levels."));
-        _enabled = new CheckBox
+        _enabled = Theme.Colors(new CheckBox
         {
-            Text = "Change presets automatically at these times", AutoSize = true, Checked = context.Enabled,
-            ForeColor = Theme.Ink, BackColor = Theme.Base, Margin = new Padding(0, 4, 0, 12),
+            Text = "Change presets automatically at these times", AutoSize = true, Checked = context.Enabled, Margin = new Padding(0, 4, 0, 12),
             AccessibleName = "Change presets automatically",
-        };
+        }, fore: () => Theme.Ink, back: () => Theme.Base);
         Add(_enabled);
         foreach (string preset in PresetSchedule.Names)
         {
             var row = context.Rows.FirstOrDefault(r => string.Equals(r.Preset, preset, StringComparison.OrdinalIgnoreCase))
                 ?? new ScheduleRowDraft(preset, false, PresetSchedule.DefaultStarts[preset]);
-            var line = new FlowLayoutPanel
+            var line = Theme.Colors(new FlowLayoutPanel
             {
                 AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = true,
-                Margin = new Padding(0, 0, 0, 6), BackColor = Theme.Base,
-            };
-            var used = new CheckBox
+                Margin = new Padding(0, 0, 0, 6),
+            }, back: () => Theme.Base);
+            var used = Theme.Colors(new CheckBox
             {
-                Text = preset, Checked = row.Used, Width = 96, ForeColor = Theme.Ink, BackColor = Theme.Base,
+                Text = preset, Checked = row.Used, Width = 96,
                 AccessibleName = $"Use {preset} in the schedule", Margin = new Padding(0, 4, 6, 0), UseMnemonic = false,
-            };
-            var start = new TextBox
+            }, fore: () => Theme.Ink, back: () => Theme.Base);
+            var start = Theme.Colors(new TextBox
             {
-                Text = PresetSchedule.Format(row.Start), Width = 64, BackColor = Theme.Sunken, ForeColor = Theme.Ink,
+                Text = PresetSchedule.Format(row.Start), Width = 64,
                 AccessibleName = $"{preset} start time", AccessibleDescription = "24-hour time, such as 21:30.",
                 Margin = new Padding(0, 2, 10, 0), MaxLength = 5,
-            };
+            }, back: () => Theme.Sunken, fore: () => Theme.Ink);
             var level = context.Levels.FirstOrDefault(l => l.Name == preset);
             line.Controls.AddRange([used, Muted("starts at"), start,
                 Muted(level == null ? "your remembered levels" : $"{level.Nits} nits, {level.Kelvin} K")]);
@@ -102,11 +100,11 @@ internal sealed class PresetScheduleView : UserControl
         Add(Copy(Note));
         _status = Copy("");
         _status.AccessibleRole = AccessibleRole.Alert;
-        var footer = new TableLayoutPanel
+        var footer = Theme.Colors(new TableLayoutPanel
         {
             Dock = DockStyle.Bottom, AutoSize = true, ColumnCount = 1,
-            Padding = new Padding(18, 10, 18, 18), BackColor = Theme.Bar,
-        };
+            Padding = new Padding(18, 10, 18, 18),
+        }, back: () => Theme.Bar);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.Controls.Add(_status, 0, 0);
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top, WrapContents = true, Margin = new Padding(0) };
@@ -122,16 +120,16 @@ internal sealed class PresetScheduleView : UserControl
         UpdateDraft();
     }
 
-    private static Label Muted(string text) => new()
+    private static Label Muted(string text) => Theme.Colors(new Label()
     {
-        Text = text, AutoSize = true, ForeColor = Theme.InkMuted, UseMnemonic = false, Margin = new Padding(0, 6, 8, 0),
-    };
+        Text = text, AutoSize = true, UseMnemonic = false, Margin = new Padding(0, 6, 8, 0),
+    }, fore: () => Theme.InkMuted);
 
-    private static Label Copy(string text, Font font = null) => new()
+    private static Label Copy(string text, Font font = null) => Theme.Colors(new Label()
     {
-        Text = text, AutoSize = true, Font = font ?? Theme.Body, ForeColor = font == null ? Theme.InkMuted : Theme.Ink,
+        Text = text, AutoSize = true, Font = font ?? Theme.Body,
         Margin = new Padding(0, 0, 0, 10), UseMnemonic = false,
-    };
+    }, fore: () => font == null ? Theme.InkMuted : Theme.Ink);
 
     private void Add(Control control) => _content.Controls.Add(control, 0, _content.RowCount++);
 
@@ -152,7 +150,7 @@ internal sealed class PresetScheduleView : UserControl
         foreach (var (preset, used, start) in _rows)
         {
             bool valid = PresetSchedule.TryParse(start.Text, out var time);
-            start.ForeColor = valid ? Theme.Ink : Theme.Warn;
+            Theme.Colors(start, fore: () => valid ? Theme.Ink : Theme.Warn);
             if (!valid) unreadable.Add(preset);
             rows.Add(new ScheduleRowDraft(preset, used.Checked, time));
         }
@@ -176,17 +174,17 @@ internal sealed class PresetScheduleView : UserControl
         if (draft == null)
         {
             _preview.Text = _preview.AccessibleDescription = "Preview unavailable until the schedule is valid.";
-            _preview.ForeColor = Theme.Warn;
+            Theme.Colors(_preview, fore: () => Theme.Warn);
             _status.Text = _saveButton.AccessibleDescription = problem + " Nothing has been saved.";
-            _status.ForeColor = Theme.Warn;
+            Theme.Colors(_status, fore: () => Theme.Warn);
             return;
         }
         _preview.Text = _preview.AccessibleDescription = Preview(draft);
-        _preview.ForeColor = Theme.Info;
+        Theme.Colors(_preview, fore: () => Theme.Info);
         _status.Text = _saveFeedback ?? (draft.Enabled
             ? "Saving takes effect once the settings file confirms it."
             : "Saving keeps these times for later.");
-        _status.ForeColor = _saveFeedback == null ? Theme.InkMuted : Theme.Warn;
+        Theme.Colors(_status, fore: () => _saveFeedback == null ? Theme.InkMuted : Theme.Warn);
         _saveButton.AccessibleDescription = "Save this schedule. " + _preview.Text;
     }
 
@@ -216,7 +214,7 @@ internal sealed class PresetScheduleView : UserControl
         if (draft == null) { UpdateDraft(); return; }
         IsSaving = true;
         SetEditable(false);
-        _status.ForeColor = Theme.InkMuted;
+        Theme.Colors(_status, fore: () => Theme.InkMuted);
         _status.Text = "Saving schedule… The previous schedule stays in effect until the save is confirmed.";
         PendingSave = CommitAsync(draft);
     }

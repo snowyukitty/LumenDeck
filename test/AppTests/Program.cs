@@ -47,6 +47,13 @@ internal static partial class Program
             {
                 try
                 {
+                    if (args.Length is 1 or 2 && args[0] == "--themes-only")
+                    {
+                        CheckThemes(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
+                        Console.WriteLine($"PASS: {_checks} live theme checks; synthetic displays and temporary settings only.");
+                        result = 0;
+                        return;
+                    }
                     if (args.Length is 1 or 2 && args[0] == "--showcase-only")
                     {
                         CheckShowcase(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);
@@ -220,6 +227,7 @@ internal static partial class Program
                         return;
                     }
                     CheckPreferences(directory);
+                    CheckThemes(directory, null);
                     CheckBackgroundSettings(directory);
                     CheckPresetTargetLifecycle(directory);
                     CheckWarmthFailure(directory);

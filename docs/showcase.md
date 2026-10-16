@@ -15,6 +15,7 @@ savings or a published release. The original charcoal/amber brand assets remain.
 | `assets/portfolio-320x200.png` | Exact-size compact card derivative |
 | `assets/screenshot-compact.png` | DPI-scaled 620x480 logical minimum window, with scrollable detail |
 | `assets/screenshot-stacked.png` | Two stacked fixtures with the selector reflowing to the side |
+| `assets/theme-paper.png`, `theme-ocean.png`, `theme-violet.png` | Same native documentation window in the alternate palettes |
 | `assets/screenshot.json` | Source commit, loaded assembly hashes, native DPI/dimensions and image hashes |
 
 Capture dimensions follow the host's real monitor DPI. At 150%, the documentation
