@@ -1,5 +1,5 @@
 ﻿{
-    "sourceCommit":  "4e7888382c6a97cdb3a84dc368f673aa467f66d0",
+    "sourceCommit":  "cdf6fb2e187fdea6f2ed7d6b1888cbb939e42fb3",
     "generator":  "scripts/capture-material.ps1",
     "evidence":  "WPF client reference renders with synthetic displays; opaque fallback forced; DWM compositor and native frame are not captured.",
     "regularWindowDip":  [
@@ -14,27 +14,31 @@
     "images":  [
                    {
                        "file":  "material-smoke.png",
-                       "sha256":  "9a6d8bea1b8da1f49b28fbecda5408cfc8629f4d27544c1b38deef0dd1cfd256"
+                       "sha256":  "1db39b50c180eabe6dd73020cb4d48cdd7a41b31a5f78869d16ab7954a1355c5"
                    },
                    {
                        "file":  "material-smoke-compact.png",
-                       "sha256":  "b81c61745fe21c4e380c0cc42e96b516f87d69c31dfcdfa7767bfc36ce0b1053"
+                       "sha256":  "dddbd7d9b4bacc2eb1f01de65cf4cb8687df177d33e3086784ae9b7ba3c1342e"
                    },
                    {
                        "file":  "material-frost.png",
-                       "sha256":  "68487f1bd85634ed2ac17d948a9d67a15a0c6418f04cb3d6c7abd3489860ab62"
+                       "sha256":  "89ee960cb1a5367eff52937a073bb09fab1d7d0a4630ad53649bd41b55335155"
                    },
                    {
                        "file":  "material-frost-compact.png",
-                       "sha256":  "136e6c871c147f3ed32e193b1d321ed9fd0ccea7b08643fd3c1fa832072ca5d1"
+                       "sha256":  "70c98fc19a820a1cf26258081d8e7d8d9efb7902db5a1ab2ca02b1e96c2c55e9"
                    },
                    {
                        "file":  "material-ceramic.png",
-                       "sha256":  "fca11c06ac5a381935d33926dd62e34cf029e68033833ac4b673a851d47e056e"
+                       "sha256":  "2595872b80ce682f6f21568103703644c4f7479e0b6a430a27ced913c545de32"
                    },
                    {
                        "file":  "material-ceramic-compact.png",
-                       "sha256":  "7381fdc0b8a558a2866bd2a6593b3e31e5fd4ffe9dd63a9a0ed5ebf4e25203ea"
+                       "sha256":  "2fa4e6e82778082d75c2c8f6d29a3e83adf1dda2720e4addd44a4204711600fc"
+                   },
+                   {
+                       "file":  "material-theme-menu.png",
+                       "sha256":  "a6173f4574af3ea4efa39cf051105fc451d148c05b3479a2d1fdc5e31d9920f4"
                    }
                ]
 }
