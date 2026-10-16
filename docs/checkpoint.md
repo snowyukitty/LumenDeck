@@ -25,8 +25,8 @@ See [material interface](material-interface.md#material-layering-in-143),
 | Check | Result |
 | --- | --- |
 | Release solution and bench, warnings as errors | Zero warnings/errors |
-| Full AppTests | 2,840 passed |
-| Committed-source material integration/capture | 253 passed |
+| Full AppTests | 2,846 passed |
+| Focused material integration | 232 passed; the earlier committed-source reference export passed 253 checks |
 | Release source-path checks and privacy canaries | Passed; all four product assemblies |
 | Extracted portable package | Allowlist, hashes, versions, bundled paths, standalone CLI and synthetic WPF startup passed |
 | Installer state regressions | 24 passed |
@@ -38,6 +38,15 @@ Contrast preflight tests extreme compositor colors for selected Glass text and
 slider-track tokens using encoded-alpha composition. They are not rendered-pixel
 accessibility certification. Existing material tests retain exact-entry drafts,
 confirmed saves, no device writes on appearance changes and active Night saver.
+
+The first [hosted run](https://github.com/snowyukitty/LumenDeck/actions/runs/38851921926)
+failed the material-choice assertion after passing ControlTests. A held ordinary
+checkpoint reproduced the failure: synthetic Click was raised on an unavailable
+material item while saving, and the controller correctly retained Mica. The test
+now drains the queued worker/debounced checkpoint before observing appearance and
+asserts each menu item's admission. Device-write, draft and persisted-choice checks
+remain; no product behavior or workflow assertion was relaxed. Failure/reproduction
+logs are retained privately. The final hosted result is reported at handoff.
 
 Six opaque window references and the Theme menu were regenerated from
 `5ab486820713fe4cf9e3f34462bda4bd45216b7d`; their [receipt](assets/material-reference.json)

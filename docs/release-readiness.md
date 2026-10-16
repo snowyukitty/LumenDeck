@@ -14,7 +14,7 @@ behavior. This is a source/installed-desktop checkpoint, not a published release
 | SHA-256 | `2d0eb2977dd2b155d807641d04ce04fda0effd0824d4b2eef531799ced4b4bc6` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.4.3.0` for both executables |
-| Verification | Warnings-as-errors build; 2,840 AppTests; 253 material/capture checks; source-path canaries; extracted package startup; 24 installer/22 bundle checks; installed hashes/settings/shortcuts/startup verified |
+| Verification | Warnings-as-errors build; 2,846 AppTests; 232 focused material checks and 253 original reference/capture checks; source-path canaries; extracted package startup; 24 installer/22 bundle checks; installed hashes/settings/shortcuts/startup verified |
 
 Both executable product versions match the recorded build. The exact allowlist,
 hashes, versions, bundled source paths, standalone CLI and synthetic GUI startup

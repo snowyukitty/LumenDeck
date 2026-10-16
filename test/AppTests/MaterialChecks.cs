@@ -79,6 +79,16 @@ internal static partial class Program
             SliderKey(System.Windows.Input.Key.Enter);
             Assert(((System.Windows.FrameworkElement)window.FindName("ExactRow")).Visibility == System.Windows.Visibility.Visible,
                 "material slider Enter opens exact entry");
+            // The last keyboard adjustment can still have worker completion and a debounced
+            // ordinary checkpoint queued. Settle both before observing appearance side effects;
+            // otherwise a slower host opens a correctly disabled menu and our synthetic Click
+            // bypasses its IsEnabled state while the controller correctly refuses the save.
+            PumpUntil(() => fixture.Worker.Idle, "material manual adjustments before appearance observation");
+            var checkpoint = Private<System.Windows.Forms.Timer>(fixture.Form, "_saveTimer");
+            typeof(System.Windows.Forms.Timer).GetMethod("OnTick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(checkpoint, [EventArgs.Empty]);
+            SettleSettings(fixture);
+            Assert(!checkpoint.Enabled, "ordinary checkpoint is drained before material choice observation");
             ClickMaterial(window, "BrightnessValue"); input.Text = "draft";
             foreach (var action in new[] { MaterialAction.FinishFrost, MaterialAction.FinishCeramic, MaterialAction.FinishSmoke })
             {
@@ -117,13 +127,15 @@ internal static partial class Program
                 var beforeMaterial = host.Capture();
                 ClickMaterial(window, "ThemeButton");
                 var menu = themeButton.ContextMenu;
-                menu.Items.OfType<System.Windows.Controls.MenuItem>().Single(i => i.Header.ToString() == "Material · " + material)
-                    .RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                var choice = menu.Items.OfType<System.Windows.Controls.MenuItem>().Single(i => i.Header.ToString() == "Material · " + material);
+                Assert(choice.IsEnabled && !host.Capture().SavePending, "direct material " + material + " choice is admitted after checkpoint completion");
+                choice.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
                 menu.IsOpen = false; SettleSettings(fixture); window.RefreshState();
+                string storedBackdrop = AppSettings.Load(fixture.SettingsPath).MaterialBackdrop;
                 Assert(fixture.Transport.Writes == writes && fixture.GammaWrites == gamma && fixture.Scans == scans &&
                     host.Capture().Generation == beforeMaterial.Generation && input.Text == "draft" &&
-                    AppSettings.Load(fixture.SettingsPath).MaterialBackdrop == material.ToLowerInvariant(),
-                    "direct material choices persist without display work or loss of input");
+                    storedBackdrop == material.ToLowerInvariant(),
+                    $"direct material {material} persists without display work or draft loss (stored={storedBackdrop}, writes={fixture.Transport.Writes}/{writes}, gamma={fixture.GammaWrites}/{gamma}, scans={fixture.Scans}/{scans})");
             }
             Send(MaterialAction.SelectDisplay, key: "desk-fixture-1");
             Assert(!((WpfSlider)window.FindName("Contrast")).IsEnabled &&
