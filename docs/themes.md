@@ -1,5 +1,9 @@
 # App appearance
 
+[![Smoke, Frost and Ceramic shown as three complete opaque interface references](assets/promotion/finishes-1600x920.png)](assets/promotion/finishes-1600x920.png)
+
+Development UI with sample displays. Full-size references are linked below.
+
 The default material interface has a visible **Theme** button beside Settings
 for Smoke, Frost and Ceramic. Settings > Appearance opens the same choices. Smoke and Frost offer Mica, Glass and Solid; Ceramic is opaque.
 See the [functional interface guide](material-interface.md) for behavior, saved

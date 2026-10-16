@@ -1,0 +1,89 @@
+{
+  "kind": "Editorial compositions, not native screenshots",
+  "generator": "scripts/build-promotion.py",
+  "referenceSourceCommit": "8757846d742b13ba246801b5e332aea2f8bdb33e",
+  "referenceReceiptSha256": "02b659965f79b728a931a445e577aaab03793a035662a89a41577e0ed311f11c",
+  "composition": "Unchanged complete opaque WPF client images, uniformly downscaled, surrounded by authored typography. No crop, perspective, invented controls or compositor effects.",
+  "fonts": [
+    "Segoe UI",
+    "Georgia"
+  ],
+  "fontSha256": {
+    "georgia.ttf": "38dffcaf1fac89492f7c56c600a14daf36ae42f7c21985cd4134ae113124a58f",
+    "georgiai.ttf": "d3e4bad27651d120ac8f2cea42cf4b4f077264fb243f66b3caffcfd35465f49b",
+    "segoeui.ttf": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+  },
+  "browser": "Playwright Chromium 147.0.7727.15; local system fonts; no network",
+  "playwright": "1.59.0",
+  "pillow": "12.2.0",
+  "checks": [
+    "Reference SHA-256 verified",
+    "Rendered text fits canvas and never overlaps UI",
+    "Each master UI plate compared with an independent same-scale source render; at most one encoded-channel rounding unit allowed"
+  ],
+  "plateMaximumChannelDeltas": {
+    "readme-1600x1000": [
+      1
+    ],
+    "social-1280x640": [
+      1
+    ],
+    "portfolio-1200x750": [
+      1
+    ],
+    "finishes-1600x920": [
+      0,
+      0,
+      0
+    ]
+  },
+  "artifacts": {
+    "readme-1600x1000.svg": {
+      "sha256": "4827a80aa712782bcd4d06e5ef1986eca4f4e63e9217f57d0b51d54e0484c1db"
+    },
+    "social-1280x640.svg": {
+      "sha256": "b04eb0a4a8957877e6ad1ce4d4dcd9ef43d8e4ba3ffffd8229e390cb2f08cfd7"
+    },
+    "portfolio-1200x750.svg": {
+      "sha256": "4f91c611bc7ee557d61e42b2f457bc040d51e763bf83dc2fa687769222fdda76"
+    },
+    "finishes-1600x920.svg": {
+      "sha256": "fdb926767a76b06342d4a7f18538159348cd7a5e74dc6b3c339f5c28cce9eeb8"
+    },
+    "finishes-1600x920.png": {
+      "width": 1600,
+      "height": 920,
+      "sha256": "050f53ff303bde9aba41dcc1a025843e86800e5e88e496c9d42151cb3d31ba78"
+    },
+    "portfolio-1200x750.png": {
+      "width": 1200,
+      "height": 750,
+      "sha256": "a56ad9090690d1a3c082ab2e00d20eceda454ec47ac74ea7de83498f6df7a9fc"
+    },
+    "portfolio-1200x750.webp": {
+      "width": 1200,
+      "height": 750,
+      "sha256": "6deea47bfe5692d52f1048eaf111341f578e61d71ece2ebb783663b62af04279"
+    },
+    "portfolio-320x200.png": {
+      "width": 320,
+      "height": 200,
+      "sha256": "1a0416027ac2119677ca66ccf3b704048c9598363e86af193541f2edabc1e2bf"
+    },
+    "portfolio-480x300.png": {
+      "width": 480,
+      "height": 300,
+      "sha256": "135b3758761b95283a8fe1680d7e6f11de4eecc6c304dd4b98a8f03190ffc0fe"
+    },
+    "readme-1600x1000.png": {
+      "width": 1600,
+      "height": 1000,
+      "sha256": "1e6dac9af58274b85c5e289765b0bd0090e5bede3510a37a15502664ed29f296"
+    },
+    "social-1280x640.png": {
+      "width": 1280,
+      "height": 640,
+      "sha256": "898c0c4fcd58c8a41e4ccb5b4feb2a2ffda598cb9c5db2f202f1780e0a2dc178"
+    }
+  }
+}

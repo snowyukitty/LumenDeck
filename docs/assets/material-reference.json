@@ -1,5 +1,5 @@
 ﻿{
-    "sourceCommit":  "159be58d543b78f7ce392884fa20e1d7799d24fc",
+    "sourceCommit":  "8757846d742b13ba246801b5e332aea2f8bdb33e",
     "generator":  "scripts/capture-material.ps1",
     "evidence":  "WPF client reference renders with synthetic displays; opaque fallback forced; DWM compositor and native frame are not captured.",
     "editorEvidence":  "The preset editor is a 600x760 WinForms control bitmap using synthetic display data; material window DPI and dimensions below apply to the WPF images only.",
@@ -15,35 +15,35 @@
     "images":  [
                    {
                        "file":  "material-smoke.png",
-                       "sha256":  "edee1728c720e1b84ad190f66bbe972c637d16063da461864090b7382fc4ea37"
+                       "sha256":  "2cac339ba52df870ab30e74e0557e2a13179a0803074354da64494792b60b6d7"
                    },
                    {
                        "file":  "material-smoke-compact.png",
-                       "sha256":  "83798d144fb6b4aafb64e4087f8d84a99aa864fc55778150c8ade426d44d9142"
+                       "sha256":  "c4e3d01dc94cf6c30f4981f01503cdd53754be0a0713937ec84a53a6ddcf2806"
                    },
                    {
                        "file":  "material-frost.png",
-                       "sha256":  "998b9768cb7848394520f21b67e6043d65b29c2a7301314702e37bdbd13fc927"
+                       "sha256":  "63837b1a59735a705b4323b8fd5baecf95a54c79dc4034f1b8c5cfae1a37840c"
                    },
                    {
                        "file":  "material-frost-compact.png",
-                       "sha256":  "ba2bcb35e7a97101ba5692b46296b8fd96214b24bd71cb72ef105800293ffa06"
+                       "sha256":  "1102b5da8b01d20bbd1b7c755c12d81989cc6fbcdddfa28db5f811e51b4cb316"
                    },
                    {
                        "file":  "material-ceramic.png",
-                       "sha256":  "89452786a68b1d90c95aa48fdbb8fda763cf65d3a95e73de05e1ed18340216ca"
+                       "sha256":  "52e932f082229268facab66f5ef9dd4c85138cb0a6a9e9616c06c60ecaaa6c7b"
                    },
                    {
                        "file":  "material-ceramic-compact.png",
-                       "sha256":  "9725ac66b9d82899fc3b690ad956c2bbe8c62c5750d6afee513f55f94aeb3cc7"
+                       "sha256":  "578346840c32d8cf38bff2230173286a22d627fc347cd1a3ff92127ff29cdc34"
                    },
                    {
                        "file":  "material-theme-menu.png",
-                       "sha256":  "b5ceef9181c23f849cf49be8fdf91128e7a536cced0afb23ad45229e39f9a7c3"
+                       "sha256":  "8dc7770afbfe7246039332850a047315c34a6e9a938f87f32d346618293b2f2c"
                    },
                    {
                        "file":  "preset-personalize.png",
-                       "sha256":  "cd69145afa0739f26a54de5b0bf7cbd24cd7d1874eb94964a2c15add94ff5ba5",
+                       "sha256":  "bc64267554ffd47a7b938f3e272fc8ccef902f40b2af5f5f3db0a329b2540357",
                        "pixels":  [
                                       600,
                                       760

@@ -1,22 +1,44 @@
-<img src="docs/assets/icon.png" alt="" width="88" align="left" hspace="12" vspace="4">
-
 # LumenDeck
 
-**Adjust supported monitors' brightness, contrast and warmth on Windows —
-from one window, or one command.**
+**Set the light. Keep your rhythm.**
+
+A native Windows remote for the monitors on your desk: brightness and contrast
+where supported, a per-display warmth tint, and presets you can make your own.
+From one window, or one command.
+
+<p align="center">
+  <a href="docs/assets/material-smoke.png"><img src="docs/assets/promotion/readme-1600x1000.png" alt="LumenDeck: Set the light. Keep your rhythm. Editorial poster beside the complete Smoke interface, with sample displays, brightness, contrast, warmth and Night saver." width="1000"></a>
+</p>
+
+Poster around a uniformly reduced **1.5.0 development interface**, with sample
+displays. The opaque reference omits desktop blur and the native window frame.
+[Full-size interface](docs/assets/material-smoke.png) ·
+[Source receipt](docs/assets/material-reference.json) ·
+[Artwork sources and receipt](docs/promotion.md).
 
 [![build](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml/badge.svg)](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](#install)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](#build-from-source)
 
-<br clear="left">
-
 **Start here:** [Download](#install) · [Set up your desk](#your-first-desk-setup) ·
 [Troubleshoot](#troubleshooting) · [Contribute](CONTRIBUTING.md)
 
-Current source checkpoint: **1.5.0** · [Changes](CHANGELOG.md) ·
-[Build and package status](docs/release-readiness.md).
+Current source checkpoint: **1.5.0, unreleased**. The published download is
+[v1.0.0](https://github.com/snowyukitty/LumenDeck/releases/tag/v1.0.0);
+its interface and features differ from the source shown here.
+[Changes](CHANGELOG.md) · [Build and package status](docs/release-readiness.md).
+
+**Find your level.** Select a display on the desk map and adjust the controls it
+supports. Requested settings and hardware observations remain distinct.
+
+**Make a mode your own.** Tune one screen, copy its estimated brightness and
+warmth into a mode, review the other displays, then save. Saving changes the
+preset; it does not adjust a screen.
+
+**Keep one screen, darken the rest.** Night saver requests at most 5% of the
+retained display's hardware brightness range and covers the others. End Night
+saver requests their saved brightness back. Check the result on your desk.
 
 An external monitor may not have a brightness slider in Windows. Microsoft's
 [brightness guide](https://support.microsoft.com/en-us/windows/hardware/display-graphics/change-display-brightness-and-color-in-windows)
@@ -36,14 +58,6 @@ lumendeck-cli --preset Night    # level the whole desk for the evening
 lumendeck-cli -m "left" -b 55 -w 5000
 ```
 
-<p align="center">
-  <img src="docs/assets/material-smoke.png" alt="Functional material interface with synthetic displays, compact brightness and visible Night saver" width="900">
-</p>
-
-Opaque WPF reference render with fictitious displays; desktop blur and native
-window frame are not captured. [Source receipt](docs/assets/material-reference.json)
-· [Material interface guide](docs/material-interface.md).
-
 ---
 
 ## What it does
@@ -51,7 +65,7 @@ window frame are not captured. [Source receipt](docs/assets/material-reference.j
 | | |
 |---|---|
 | **Brightness & contrast** | Per monitor, over DDC/CI (`VCP 0x10` / `0x12`) |
-| **Colour temperature** | Per monitor, 3000K–6500K, as a blue light filter |
+| **Warmth tint** | Per monitor, 3000K–6500K software gamma target; not measured colour temperature |
 | **Presets targeting estimated luminance** | Day / Evening / Night — choose brightness percentages using panel profiles; edit their targets |
 | **Preset schedule** | Optional: request Day, Evening, Night or Custom at times you choose |
 | **Custom** | Request your remembered manual levels per monitor; presets preserve those levels |
@@ -178,7 +192,7 @@ are estimates, not a promise of identical brightness or appearance.
 [See the personal preset editor](docs/assets/preset-personalize.png) ·
 [How capture and saving work](docs/preferences.md)
 
-### 2. Blue light reduction that works even when the monitor refuses
+### 2. Warmth when the monitor ignores colour writes
 
 The obvious way to reduce blue light is the monitor's own RGB gain registers.
 **A monitor can advertise those registers and ignore every write to them.** That
@@ -503,7 +517,7 @@ the linked sources for current features and requirements.
 
 | Tool | Documented workflow |
 |---|---|
-| LumenDeck | Desk map, per-display warmth, estimated-luminance presets, reversible blackout and a standalone JSON-capable CLI. Hardware controls depend on the display and connection. Built-in time scheduling is not provided. |
+| LumenDeck | Desk map, per-display warmth, estimated-luminance presets, reversible blackout and a standalone JSON-capable CLI. Optional preset scheduling while the app runs. Hardware controls depend on the display and connection. |
 | [Twinkle Tray](https://github.com/xanderfrangos/twinkle-tray#features) | Its own system-tray brightness flyout, hotkeys, scheduled or idle brightness changes and DDC/CI controls including contrast. Its [command-line options](https://github.com/xanderfrangos/twinkle-tray#command-line-arguments) also include VCP writes and require the app to be running. |
 | [Monitorian](https://github.com/emoacht/Monitorian#readme) | Brightness control for multiple monitors. Its [Store add-ons](https://github.com/emoacht/Monitorian#add-on-features) include hotkeys and command-line brightness/contrast controls on a subscription basis. |
 
