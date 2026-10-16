@@ -1,84 +1,83 @@
 # Current checkpoint
 
-Updated 2026-10-16. **LumenDeck 1.4.2** makes theme selection visible and explains
-material states. The desktop application was rebuilt, installed and started from
-its desktop shortcut. No release or release tag has been published.
+Updated 2026-10-16. **LumenDeck 1.4.3** refines material layering and contrast.
+The fresh portable package is installed, and the desktop shortcut starts one
+responsive 1.4.3 process. Existing appearance preferences are preserved.
+No release or release tag is published.
 
 ## Delivered behavior
 
-- A quiet **Theme · <finish>** button sits immediately left of Settings. One click
-  opens Smoke, Frost and Ceramic, followed by Mica, Glass and Solid material.
-- The menu explains pending saves, protected settings, Windows high contrast,
-  Ceramic's solid surface and system transparency fallback. Ceramic leaves
-  unavailable material choices unchecked; its previous preference is retained.
-- Theme and Settings > Appearance share the same builder and confirmed-save path.
-  The visible label and accessibility name follow the active finish.
-- The minimum-size header fits all three finish names and both Night saver
-  captions without overlap or clipped button text. Night saver remains rightmost.
-- All existing display controls, presets, scheduling, recovery and classic
-  advanced controls use the same controller. This update changes presentation
-  and shared version metadata, not the monitor-control implementation.
+- Glass and Mica use distinct authored surface recipes. Glass retains more native
+  contribution through the card while placing tint behind outer text.
+- A directional content rim and short contact edge establish depth. Secondary
+  text, accent and slider-track colors are stronger. Solid fallback and reference
+  renders are opaque; high contrast overrides authored decoration.
+- Theme remains visible beside Settings. Its menu explains wallpaper-informed
+  Mica and Windows-controlled Glass activation/fallback. Saved choices are retained.
+- Display geometry, compact values, Night saver, presets, exact entry and advanced
+  controls continue through the same controller and monitor implementation.
 
-See [material interface](material-interface.md), [appearance](themes.md),
-[UI design](ui-design.md) and [Night saver](night-saver.md).
+See [material interface](material-interface.md#material-layering-in-143),
+[appearance](themes.md) and the [controlled bench](../experiments/MaterialBench/README.md).
 
 ## Verification actually completed
 
 | Check | Result |
 | --- | --- |
-| Release solution build, warnings as errors | Passed; zero warnings/errors |
-| Full AppTests | 2,722 passed |
-| Committed-source material checks and capture | 135 passed |
-| Release assembly path checks and privacy canaries | Passed; all four product assemblies |
-| Extracted portable package | Allowlist, hashes, versions, bundled paths, standalone CLI and WPF/WinForms startup passed |
-| Installer regressions | 24 passed |
+| Release solution and bench, warnings as errors | Zero warnings/errors |
+| Full AppTests | 2,840 passed |
+| Committed-source material integration/capture | 253 passed |
+| Release source-path checks and privacy canaries | Passed; all four product assemblies |
+| Extracted portable package | Allowlist, hashes, versions, bundled paths, standalone CLI and synthetic WPF startup passed |
+| Installer state regressions | 24 passed |
 | Bundle regressions | 22 passed |
-| ControlTests | Not rerun locally for this presentation-only update; unchanged suite remains in hosted CI |
+| Installed payload | GUI/CLI hashes, shortcuts, three preserved state files and responsive startup verified |
+| ControlTests | Unchanged; not rerun locally, retained in hosted CI |
 
-The actual Theme menu selections cover every finish and material, persistence,
-no device writes/rescans, draft preservation, active Night saver preservation and
-pending/protected/failed-save feedback. Header measurements cover the minimum
-660 x 610 DIP window. They do not establish every Windows text size or DPI.
-The earlier 1.4.1 preference-test timing repair remains in place.
+Contrast preflight tests extreme compositor colors for selected Glass text and
+slider-track tokens using encoded-alpha composition. They are not rendered-pixel
+accessibility certification. Existing material tests retain exact-entry drafts,
+confirmed saves, no device writes on appearance changes and active Night saver.
 
-Six opaque window references and a theme-menu render were generated from
-`cdf6fb2e187fdea6f2ed7d6b1888cbb939e42fb3`; the [receipt](assets/material-reference.json)
-records their hashes. Representative regular/compact renders and menu states were
-visually inspected. The package source below adds only these reference assets.
+Six opaque window references and the Theme menu were regenerated from
+`5ab486820713fe4cf9e3f34462bda4bd45216b7d`; their [receipt](assets/material-reference.json)
+records source and hashes. Regular/compact references were visually inspected.
+The package source adds only those synthetic reference assets.
 
-## Candidate and installed desktop app
+## Installed desktop identity
 
-Package source: `64a6a8a6c93943952b399ad684c10f5c94fedbf8`.
-Archive: `dist/build-ef1719c4dd2c4dc0ba12ba411a09de26/verified/LumenDeck-1.4.2-win-x64.zip`.
-SHA-256: `c3aa3d9b122f43551d5aa47681fe2ca4dcc6a512845be7d2846386fbe4f3c1d9`.
-Both executables report `1.4.2+64a6a8a6c93943952b399ad684c10f5c94fedbf8`.
-The [release record](release-readiness.md) is checked against the actual archive.
+Package source: `4c6efe1ba0b6a1e5799ac5621eca4d0f99ac22ef`.
+Archive: `dist/build-63f795a90f5b49adbc4695d7fa25193a/verified/LumenDeck-1.4.3-win-x64.zip`.
+SHA-256: `2d0eb2977dd2b155d807641d04ce04fda0effd0824d4b2eef531799ced4b4bc6`.
+Both executables report `1.4.3+4c6efe1ba0b6a1e5799ac5621eca4d0f99ac22ef`.
+The [release record](release-readiness.md) is checked against the archive payload.
 
-The installed GUI/CLI hashes match that payload. Desktop/Start Menu shortcuts
-point to the installed app; all three top-level settings files were unchanged
-before startup. Exactly one running process reported the expected 1.4.2 build,
-a responsive visible main window and no startup error-log growth. Prior installed
-binaries, shortcuts and settings backups remain private. Normal close was
-attempted; the old keep-running instance was then stopped for replacement.
-Installation/startup verification does not establish physical monitor acceptance.
+Desktop/Start Menu shortcuts target the installed app. All three top-level state
+files were unchanged before startup; appearance preferences and zero active
+recovery records were confirmed after startup. Exactly one process reported the
+expected build, a visible responsive main window and zero startup error-log growth.
+Normal close was attempted; the keep-running instance was then force-terminated
+under the owner's standing authorization. Prior binaries, state and installation
+receipts remain in private backups. Installation is not physical monitor acceptance.
 
-## GitHub and remaining acceptance
+## Native material evidence and remaining acceptance
 
-The finished checkpoint is merged locally and pushed to main after local checks.
-The workflow runs on every branch, so intermediate branches are not pushed.
-The final handoff and ignored installation record report the actual result from
-[GitHub Actions](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml).
-The push creates no release, tag or GitHub Release asset.
+The baseline active-only Smoke/Glass pair showed background response much stronger
+in the foundation than in the card; focus loss prevented its Solid null control.
+Complete baseline/candidate visible-only runs produced zero A/B ROI differences
+with native foreground unverified. The candidate active-only attempt timed out.
+Those runs are retained as partial/blocked evidence, not rewritten as passes.
+Native active Glass quality remains unverified. Windows controls inactive Acrylic
+appearance; DWM readback does not establish compositor output.
 
-The design analysis was based on source and reference-layout descriptions; it did
-not inspect desktop blur. The previously unavailable native capture helper was
-not used. Reference images force opaque rendering. Foreground keyboard/pointer
-interaction, Narrator, actual Windows contrast themes, mixed-DPI movement,
-physical brightness/gamma/restoration and clean-profile installation remain
-manual acceptance. Fixture success does not establish these outcomes.
+Foreground input, actual contrast themes/Narrator, mixed-DPI motion, hardware
+brightness/gamma/restoration and clean-profile installation remain acceptance work.
+No physical monitor operations were performed by the bench or synthetic tests.
 
-Scope: material header/menu feedback, tests, shared version, documentation,
-synthetic references and local package/update. No sibling project files were
-modified. The project lease is released at handoff. Resume from Git state,
-this record and ignored `artifacts/themes-142-install-path.txt` and
-`artifacts/material-handoff.json`.
+The finished checkpoint is merged locally and pushed once to main after local
+checks. The workflow runs on every branch, so intermediate branches are not pushed.
+The final handoff reports the actual [hosted result](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml);
+no hosted success is inferred from local tests. No release/tag is created.
+Scope: material presentation/bench, tests, version, docs, reference assets and
+verified local package/update. The project lease is released at handoff. Resume
+from Git state and ignored `artifacts/material143-install-path.txt`.

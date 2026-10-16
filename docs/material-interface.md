@@ -43,7 +43,8 @@ The menu explains pending saves, protected settings, Windows high contrast,
 Ceramic's solid surface and unavailable transparency. Ceramic leaves the material
 choices unchecked and disabled; choosing Smoke or Frost restores the saved
 material preference. The button and its accessibility name report the active
-finish; the footer reports the effective material, including Solid fallback.
+finish; the footer reports the requested material or explicit Solid fallback.
+Actual compositor appearance remains controlled by Windows.
 
 `MaterialFinish`, `MaterialBackdrop` and `UseMaterialInterface` are saved only
 through the normal confirmed-settings transaction. A failed save retains the live

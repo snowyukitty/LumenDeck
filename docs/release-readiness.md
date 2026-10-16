@@ -1,36 +1,35 @@
 # Release readiness
 
-## Current 1.4.2 candidate
+## Current 1.4.3 candidate
 
-Updated 2026-10-16. Theme selection is directly visible in the material header,
-with a shared single-level menu and explanatory material/save states. Existing
-control and recovery implementations are retained. This is a source/desktop
-checkpoint, not a published release.
+Updated 2026-10-16. Glass/Mica surface recipes are distinct; content contours and
+text/slider contrast are stronger. The visible Theme menu explains material
+behavior. This is a source/installed-desktop checkpoint, not a published release.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `64a6a8a6c93943952b399ad684c10f5c94fedbf8` - 1.4.2 visible theme checkpoint |
-| GUI recorded build | `1.4.2+64a6a8a6c93943952b399ad684c10f5c94fedbf8` |
-| Package | `LumenDeck-1.4.2-win-x64.zip` |
-| SHA-256 | `c3aa3d9b122f43551d5aa47681fe2ca4dcc6a512845be7d2846386fbe4f3c1d9` |
+| Source commit | `4c6efe1ba0b6a1e5799ac5621eca4d0f99ac22ef` - 1.4.3 material fidelity checkpoint |
+| GUI recorded build | `1.4.3+4c6efe1ba0b6a1e5799ac5621eca4d0f99ac22ef` |
+| Package | `LumenDeck-1.4.3-win-x64.zip` |
+| SHA-256 | `2d0eb2977dd2b155d807641d04ce04fda0effd0824d4b2eef531799ced4b4bc6` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
-| File version | `1.4.2.0` for both executables |
-| Verification | Release warnings-as-errors build; 2,722 AppTests; 135 material/capture checks; release-path canaries; extracted package startup; 24 installer and 22 bundle checks; installed hashes/settings/shortcuts/startup verified |
+| File version | `1.4.3.0` for both executables |
+| Verification | Warnings-as-errors build; 2,840 AppTests; 253 material/capture checks; source-path canaries; extracted package startup; 24 installer/22 bundle checks; installed hashes/settings/shortcuts/startup verified |
 
-Both executable product versions match the recorded GUI build. The extracted
-package passes its exact file allowlist, hashes, versions, bundled source-path
-checks, standalone CLI and synthetic GUI startup with SDK/runtime lookup removed.
-Package regressions cover altered/extra/version inputs, environment restoration,
-running-app refusal and isolated installer-state preservation. ControlTests are
-unchanged and remain required in hosted CI; this presentation update did not rerun
-them locally. See the final handoff for the actual hosted result.
+Both executable product versions match the recorded build. The exact allowlist,
+hashes, versions, bundled source paths, standalone CLI and synthetic GUI startup
+pass with SDK/runtime lookup removed. Package regressions cover altered/extra/
+version inputs, caller environment, running-app refusal and isolated installer
+state. ControlTests remain unchanged and required in hosted CI; they were not
+rerun locally. The actual hosted result is reported at handoff.
 
-[scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) verifies the
-candidate record against the ZIP digest, checksum sidecar and both actual
-executable payloads. See [checkpoint](checkpoint.md) for the installed desktop
-outcome and [packaging](packaging.md) for the contract and limits. The
-[reference receipt](assets/material-reference.json) is bound to the implementation
-commit; the package source adds only those synthetic reference assets.
+[scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) checks this
+record against the ZIP digest, checksum sidecar and both executable payloads.
+See [checkpoint](checkpoint.md) for installation and native-evidence limits,
+[packaging](packaging.md) for the contract and [reference receipt](assets/material-reference.json)
+for the opaque synthetic images. The package source adds only those references
+to the implementation commit. Active native Glass quality remains unverified;
+partial and zero-response captures are preserved as such.
 
 ## Historical candidates
 
@@ -38,7 +37,8 @@ The `31af655` compact milestone was installed as 1.4.1 with matching binary hash
 preserved settings and a verified responsive startup. The `818fa7b` Night saver
 repair was prepared next. The `cc08d8a` multi-theme candidate was held after material-design feedback.
 The functional material candidate was then installed as 1.4.1.
-The current 1.4.2 package adds the visible Theme entry point and status guidance.
+The 1.4.2 package added the visible Theme entry point and status guidance. The
+1.4.3 package refines surface layering and contrast.
 `ThemeId` still controls the classic panel/editors.
 
 The `3da37c6` compact desktop build was installed as 1.4.0, with matching binary
