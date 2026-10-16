@@ -2,18 +2,19 @@
 
 ## Current 1.4.1 candidate
 
-Updated 2026-10-15. This versioned checkpoint retains the compact desktop interface
-accepted after the preceding local installation. It is not a published release.
+Updated 2026-10-16. This checkpoint restores the always-visible Night saver action
+and separates its low work-display brightness from reading presets. It retains the
+accepted compact interface. It is not a published release.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `31af6555d42bcfb152dd859a8af24a9c2a9a25c4` - 1.4.1 compact desktop milestone |
-| GUI recorded build | `1.4.1+31af6555d42bcfb152dd859a8af24a9c2a9a25c4` |
+| Source commit | `818fa7b8ad9ee911bbf0b63dbe42c4c807c98405` - 1.4.1 Night saver repair |
+| GUI recorded build | `1.4.1+818fa7b8ad9ee911bbf0b63dbe42c4c807c98405` |
 | Package | `LumenDeck-1.4.1-win-x64.zip` |
-| SHA-256 | `6e4aca393e9fd7e66995c163f9386906de513723e29b9266de41a56855c35220` |
+| SHA-256 | `825fc9cc31804c71fc4b00aaff27a49557aebd0db5c5cdc28dfeba3cf1388b0e` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.4.1.0` for both executables |
-| Verification | Release warnings-as-errors build; 4,586 ControlTests; 2,321 AppTests; 33 committed-source showcase checks; 6 capture-export regressions; extracted package and installer/bundle regressions |
+| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,377 AppTests; 33 committed-source showcase checks; 6 capture-export regressions; extracted package and installer/bundle regressions |
 
 Both executable product versions match the recorded GUI build. The extracted
 package passes its exact file allowlist, hashes, versions, bundled source-path
@@ -33,10 +34,14 @@ physical monitor control.
 
 ## Historical candidates
 
+The `31af655` compact milestone was installed as 1.4.1 with matching binary hashes,
+preserved settings and a verified responsive startup. This Night saver follow-up
+supersedes its portable candidate without changing the shared version or settings schema.
+
 The `3da37c6` compact desktop build was installed as 1.4.0, with matching binary
 hashes, preserved settings and verified desktop shortcuts/startup. The owner then
 accepted the UI improvement and requested the 1.4.1 milestone. This candidate
-supersedes that package while retaining its product behavior.
+superseded that package while retaining its product behavior.
 
 Earlier 1.4.0 builds used `6a0bd4e`, `4e27b37` and `114eed4`; their evidence remains
 in Git history and the [repair review](repair-review.md). Historical checks establish
