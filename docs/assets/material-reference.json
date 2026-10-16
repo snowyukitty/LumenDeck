@@ -1,0 +1,40 @@
+﻿{
+    "sourceCommit":  "4e7888382c6a97cdb3a84dc368f673aa467f66d0",
+    "generator":  "scripts/capture-material.ps1",
+    "evidence":  "WPF client reference renders with synthetic displays; opaque fallback forced; DWM compositor and native frame are not captured.",
+    "regularWindowDip":  [
+                             880,
+                             830
+                         ],
+    "compactWindowDip":  [
+                             660,
+                             610
+                         ],
+    "renderDpi":  144,
+    "images":  [
+                   {
+                       "file":  "material-smoke.png",
+                       "sha256":  "9a6d8bea1b8da1f49b28fbecda5408cfc8629f4d27544c1b38deef0dd1cfd256"
+                   },
+                   {
+                       "file":  "material-smoke-compact.png",
+                       "sha256":  "b81c61745fe21c4e380c0cc42e96b516f87d69c31dfcdfa7767bfc36ce0b1053"
+                   },
+                   {
+                       "file":  "material-frost.png",
+                       "sha256":  "68487f1bd85634ed2ac17d948a9d67a15a0c6418f04cb3d6c7abd3489860ab62"
+                   },
+                   {
+                       "file":  "material-frost-compact.png",
+                       "sha256":  "136e6c871c147f3ed32e193b1d321ed9fd0ccea7b08643fd3c1fa832072ca5d1"
+                   },
+                   {
+                       "file":  "material-ceramic.png",
+                       "sha256":  "fca11c06ac5a381935d33926dd62e34cf029e68033833ac4b673a851d47e056e"
+                   },
+                   {
+                       "file":  "material-ceramic-compact.png",
+                       "sha256":  "7381fdc0b8a558a2866bd2a6593b3e31e5fd4ffe9dd63a9a0ed5ebf4e25203ea"
+                   }
+               ]
+}

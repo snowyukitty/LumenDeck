@@ -15,51 +15,40 @@ If it cannot reveal the window, use the existing tray icon or retry once startup
 finishes. Normal user permissions are recommended; administrator access is not
 required.
 
-The desk map remains available in short windows. Select one screen for
-its detail, or enable All displays for the complete card list. The map follows
-the card you focus. Scroll to reach secondary controls. The diagram preserves
-Windows desktop coordinates, adjacency and pixel proportions, not physical size.
-Click a display to enter its brightness control, or warmth if brightness is
-unavailable. The selected screen has a strong outline. Compact tiles show numbers;
-larger tiles can also show names and a SELECTED marker. The caption identifies it.
-Night saver is always first in the toolbar; its active button reads End Night saver.
-Desk actions opens desk-wide presets, Warmth off and the work-display choice.
-Restore screen on an individual card remains separate from End Night saver.
-
-Refresh returns keyboard selection to the same display/control when available
-and scrolls that control into view. Choosing another control during reading takes
-priority. A removed display or unavailable control returns selection to Refresh.
+The material interface shows one selected display. The map preserves Windows
+positions and pixel proportions, not physical screen sizes. Night saver stays
+at the top; Desk actions contains global presets and the work-display choice.
+Display actions contains blackout/restore, shortcuts, brightness estimates and
+Advanced controls. Advanced controls opens the classic panel for advertised
+monitor features. Settings > Material interface returns to the material window.
+Settings > Classic interface saves the classic panel as your preferred view.
+The classic panel retains All displays, spatial map navigation and card reflow.
 
 Keyboard controls
-On the desk selector, arrows choose a screen in that direction, preferring the
-same row or column, and stop at the edge. Home/End select the first/last screen.
-Focus stays on the selector until Enter or Space opens its adjustment controls.
-In the main window, Ctrl + Page Down / Page Up selects the next / previous
-display card, wrapping in layout order. Selection keeps the same available
-control, otherwise brightness or warmth, and scrolls into view. This does not
-adjust a display and is unavailable while reading displays.
-Press F1 in the main window or choose Settings > Keyboard controls for the
-offline reference. While that guide is open, Page Up / Page Down scroll its
-text, Home / End go to the start / end, and Escape closes it.
-Slider keys and F2/Enter do not adjust or open exact entry while Ctrl or Alt
-is held. Ordinary keys and Shift adjustments retain their normal behavior.
+Tab/Shift+Tab moves between controls; Enter/Space activates a focused button.
+Ctrl+Page Down/Page Up switches displays. Slider arrows adjust one hardware unit,
+or 50 K for warmth; Shift makes ten-unit steps. Home/End selects the endpoints.
+F2 or Enter on a slider opens exact entry. Ctrl/Alt blocks slider adjustments.
+Press F1 or choose Settings > Keyboard controls for the offline guide, including
+classic-only map navigation. Escape closes the guide.
 
 Exact values
-Click a slider's number, or focus it and press F2/Enter. The dialog shows the
+Click a slider's number, or focus it and press F2/Enter. The exact editor shows the
 display/control, unit and range. Brightness/contrast use hardware units; warmth
 accepts Kelvin. Apply sends a request; check the screen and card warnings.
 Cancel/Escape discard the draft. Refresh replacing the card or disabling the
 control cancels the open entry.
 
 Settings
-Settings > Theme offers Amber, Paper, Ocean and Violet. It saves your choice and
-updates open windows after the write succeeds. Windows high contrast takes
-priority. Switching themes leaves display adjustments and Night saver unchanged.
+Settings > Appearance offers Smoke, Frost and Ceramic. Smoke/Frost can request
+Mica, Glass or Solid; Ceramic is opaque. Windows high contrast takes priority,
+and unsupported material or disabled transparency uses an opaque fallback.
+A confirmed save updates appearance without changing displays or Night saver.
+The classic panel and shared editors retain Amber, Paper, Ocean and Violet.
 
-Settings keeps the last save outcome visible even after other messages appear.
-Settings ! means a save was not confirmed. Retry saving active settings saves
-the values currently in effect; a failed preference or shortcut choice must be
-selected again. Newer changes can show waiting until their own save finishes.
+The footer reports the active settings save state. Retry settings save retries
+the active values; failed preference choices must be selected again. Pending
+writes finish before Exit is allowed.
 If the file changed outside the window or cannot be loaded, restore active
 blackouts and use tray Exit before reopening. Back up damaged settings privately
 before repair; retry never overwrites a changed or invalid source automatically.
@@ -96,7 +85,7 @@ Built-in panels use Windows brightness support.
 Some docks and KVMs block control commands; not all panels expose contrast.
 
 Brightness estimates
-Edit brightness estimate on a card lets you set peak/floor luminance and sources.
+Display actions > Brightness estimate lets you set peak/floor luminance and sources.
 Its preview calculates estimated nits and preset brightness percentages. Save
 changes estimates and future presets; it does not adjust the screen immediately.
 Identical model names share a profile. Endpoint measurement is your declaration,
@@ -105,7 +94,7 @@ profile-backups folder. If the file changed during editing, cancel and reopen.
 
 Night saver
 Use Night saver in the toolbar. It keeps the primary display on by default;
-choose another under Desk actions > Keep working on. The work display requests
+choose another under Desk actions > Keep dimmed during Night saver. The work display requests
 5% of its hardware brightness range, rounded down, only if initially brighter.
 This is independent of the Night reading preset; actual darkness depends on the
 panel's minimum brightness. Unsupported work displays stay unchanged. Other displays
