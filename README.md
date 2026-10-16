@@ -175,6 +175,9 @@ Restore or check the display and reopen the editor; numeric editing remains
 available. Cross-display matching and round-tripping through whole-number nits
 are estimates, not a promise of identical brightness or appearance.
 
+[See the personal preset editor](docs/assets/preset-personalize.png) ·
+[How capture and saving work](docs/preferences.md)
+
 ### 2. Blue light reduction that works even when the monitor refuses
 
 The obvious way to reduce blue light is the monitor's own RGB gain registers.

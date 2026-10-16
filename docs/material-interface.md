@@ -21,11 +21,19 @@ fixture; launch the installed LumenDeck application for actual control.
   on the retained work display and darkens the others; End Night saver uses the
   existing restoration records. These are requests, not measured darkness.
 - Display actions contains blackout/restore, the screen shortcut, the brightness
-  estimate editor and advanced controls. Advanced controls opens the classic panel
+  estimate editor, **Use this display in a mode…** and advanced controls. The
+  mode action opens the preset editor with a snapshot of the selected display;
+  it does not save or adjust it. Advanced controls opens the classic panel
   for advertised input source, volume, RGB and other optional monitor features.
 - Settings contains preset targets, schedule, startup preferences, help and Exit.
   The footer reports saving and scheduling state; adjustment feedback distinguishes
   requested values from observations. Estimates follow the current brightness.
+
+**Find your comfortable settings** opens the offline Comfort guide. Start by
+tuning one screen for readable text and your room light, then copy its estimated
+brightness and warmth into a mode with **Use this display**. Review the other
+screens' previews before saving. See the [preset editor reference](assets/preset-personalize.png)
+and [research rationale](comfort-research.md).
 
 ## Appearance and compatibility
 

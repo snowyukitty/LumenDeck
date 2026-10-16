@@ -27,6 +27,16 @@ targets. It saves through the same background writer when you choose Save
 targets; until that save is confirmed, presets keep the previous targets.
 Opening, editing and saving never adjust a display.
 
+**Use this display** in each mode copies an editor-opening snapshot of the
+selected display's estimated brightness and current warmth into that draft.
+Its source and values are shown above the modes. **Reset this mode** restores
+just that draft's defaults; **Use defaults** resets every draft. All require
+Save targets to persist. Capturing is unavailable during discovery, blackout or
+Night saver, without brightness support or a usable model, and when brightness
+is pending or unconfirmed. The reason remains visible and numeric editing is
+still available. Close and reopen to capture newer observations. All draft
+actions are disabled while the settings save is pending.
+
 **Preset schedule…** is checked while the schedule is on; its tooltip names the
 current period and the next change. The editor saves the same way. Saving an
 enabled schedule requests the current period's preset when this window has not
