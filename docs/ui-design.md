@@ -4,6 +4,11 @@ The primary sequence is screen identity, supported adjustment, observed result,
 and recovery. The native WinForms architecture, Core/GUI/CLI boundary and tray
 remain intact. Existing brand assets are unchanged.
 
+A separate [native material study](../experiments/MaterialStudy/README.md) explores
+Smoke, Frost and Ceramic finishes with a quieter composition and optional DWM
+backdrops. It is an interactive prototype, not the shipping interface or an
+approved framework migration. Its reference renders do not capture desktop blur.
+
 ## Hierarchy and reflow
 
 The default shows one selected MonitorCard. The selector applies one uniform scale

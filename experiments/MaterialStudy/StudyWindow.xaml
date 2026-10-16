@@ -1,0 +1,166 @@
+<Window x:Class="LumenDeck.MaterialStudy.StudyWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="LumenDeck · Material study" Width="880" Height="790" MinWidth="660" MinHeight="610"
+ Background="Transparent" Foreground="{DynamicResource Ink}" FontFamily="Segoe UI" FontSize="14"
+ WindowStartupLocation="CenterScreen" Icon="AppIcon.png" UseLayoutRounding="True" SnapsToDevicePixels="True">
+ <Window.Resources>
+  <Style TargetType="ScrollBar">
+   <Setter Property="Width" Value="10" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+    <Track x:Name="PART_Track" IsDirectionReversed="True" Orientation="Vertical">
+     <Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False">
+      <RepeatButton.Template><ControlTemplate><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template>
+     </RepeatButton></Track.DecreaseRepeatButton>
+     <Track.Thumb><Thumb MinHeight="24">
+      <Thumb.Template><ControlTemplate><Border Background="Transparent" Padding="3,0">
+       <Border Background="{DynamicResource Track}" CornerRadius="2" />
+      </Border></ControlTemplate></Thumb.Template>
+     </Thumb></Track.Thumb>
+     <Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False">
+      <RepeatButton.Template><ControlTemplate><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template>
+     </RepeatButton></Track.IncreaseRepeatButton>
+    </Track>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style>
+  <Style x:Key="Meta" TargetType="TextBlock">
+   <Setter Property="Foreground" Value="{DynamicResource Muted}" /><Setter Property="FontSize" Value="12" />
+   <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style TargetType="Button">
+   <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+   <Setter Property="Background" Value="Transparent" /><Setter Property="BorderBrush" Value="Transparent" />
+   <Setter Property="BorderThickness" Value="1" /><Setter Property="Padding" Value="14,8" />
+   <Setter Property="MinHeight" Value="36" /><Setter Property="Cursor" Value="Hand" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Face" CornerRadius="7" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}"
+      BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Face" Property="Background" Value="{DynamicResource Hover}" /></Trigger>
+     <Trigger Property="IsPressed" Value="True"><Setter TargetName="Face" Property="Background" Value="{DynamicResource Pressed}" /></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource Accent}" /></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.48" /></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Background" Value="{DynamicResource AccentWash}" />
+   <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+   <Setter Property="BorderBrush" Value="{DynamicResource AccentEdge}" />
+   <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style TargetType="Slider">
+   <Setter Property="Height" Value="32" /><Setter Property="IsMoveToPointEnabled" Value="True" />
+   <Setter Property="Minimum" Value="0" /><Setter Property="Maximum" Value="100" />
+   <Setter Property="SmallChange" Value="1" /><Setter Property="LargeChange" Value="10" />
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
+    <Grid Background="Transparent">
+     <Border x:Name="Focus" CornerRadius="7" BorderBrush="Transparent" BorderThickness="1" Margin="0,-2" />
+     <Track x:Name="PART_Track" VerticalAlignment="Center" Margin="4,0" Height="24">
+      <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+       <RepeatButton.Template><ControlTemplate><Border Background="{DynamicResource Accent}" Height="4" CornerRadius="2" /></ControlTemplate></RepeatButton.Template>
+      </RepeatButton></Track.DecreaseRepeatButton>
+      <Track.Thumb><Thumb Width="18" Height="24">
+       <Thumb.Template><ControlTemplate><Grid Background="Transparent">
+        <Ellipse Height="18" Width="18" Fill="{DynamicResource Thumb}" Stroke="{DynamicResource Edge}" StrokeThickness="1" />
+        <Ellipse Height="6" Width="6" Fill="{DynamicResource Accent}" />
+       </Grid></ControlTemplate></Thumb.Template>
+      </Thumb></Track.Thumb>
+      <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+       <RepeatButton.Template><ControlTemplate><Border Background="{DynamicResource Track}" Height="4" CornerRadius="2" /></ControlTemplate></RepeatButton.Template>
+      </RepeatButton></Track.IncreaseRepeatButton>
+     </Track>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource Accent}" /></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </Window.Resources>
+ <Grid x:Name="Root" Background="{DynamicResource Foundation}">
+  <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+  <Grid Margin="28,18,28,12">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+    <Image Source="AppIcon.png" Width="24" Height="24" Margin="0,0,10,0" />
+    <TextBlock Text="LumenDeck" FontWeight="SemiBold" FontSize="18" VerticalAlignment="Center" />
+   </StackPanel>
+   <Button Grid.Column="1" x:Name="NightButton" Style="{StaticResource Primary}" Click="NightClick" MinWidth="148" Content="Night saver" />
+  </Grid>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="28,8,28,20">
+   <StackPanel>
+    <Grid Margin="0,0,0,22">
+     <Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+     <StackPanel VerticalAlignment="Center">
+      <TextBlock Text="YOUR DISPLAYS" Style="{StaticResource Meta}" FontWeight="SemiBold" FontSize="10" Margin="0,0,0,8" />
+      <Viewbox Height="98" Width="230" HorizontalAlignment="Left" Stretch="Uniform">
+       <Canvas x:Name="Map" Width="7200" Height="2800" />
+      </Viewbox>
+      <TextBlock Text="Example Windows desktop arrangement" Style="{StaticResource Meta}" FontSize="11" Margin="0,8,0,0" />
+     </StackPanel>
+     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="18,0,0,0">
+      <TextBlock x:Name="DisplayRole" Style="{StaticResource Meta}" Text="DISPLAY 2 · PRIMARY" FontSize="11" Margin="0,0,0,5" />
+      <TextBlock x:Name="DisplayName" Text="Studio 32" FontSize="24" FontWeight="SemiBold" />
+      <TextBlock x:Name="DisplayInfo" Text="32-inch · 3840 × 2160 · DDC/CI" Style="{StaticResource Meta}" Margin="0,4,0,8" />
+      <StackPanel Orientation="Horizontal" Margin="-14,0,0,0">
+       <Button Content="Identify" Click="IdentifyClick" /><Button Content="Refresh" Click="RefreshClick" />
+      </StackPanel>
+     </StackPanel>
+    </Grid>
+    <Border x:Name="ControlSurface" CornerRadius="14" BorderThickness="1" BorderBrush="{DynamicResource Edge}" Background="{DynamicResource Surface}">
+     <StackPanel Margin="24,20,24,18">
+      <Grid><TextBlock Text="Brightness" FontWeight="SemiBold" VerticalAlignment="Center" />
+       <TextBlock x:Name="BrightnessValue" Text="62%" Foreground="{DynamicResource Accent}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+      </Grid>
+      <Slider x:Name="Brightness" Value="62" Margin="-4,9,-4,0" AutomationProperties.Name="Example brightness" ValueChanged="BrightnessChanged" />
+      <TextBlock x:Name="BrightnessNote" Text="Example readback 62% · reported by display" Style="{StaticResource Meta}" Margin="0,2,0,20" />
+      <Border Height="1" Background="{DynamicResource Divider}" Margin="0,0,0,16" />
+      <Grid Margin="0,0,0,10">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="66" /></Grid.ColumnDefinitions>
+       <TextBlock Text="Contrast" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" />
+       <Slider x:Name="Contrast" Grid.Column="1" Value="50" AutomationProperties.Name="Example contrast" ValueChanged="ContrastChanged" />
+       <TextBlock x:Name="ContrastValue" Grid.Column="2" Text="50" HorizontalAlignment="Right" VerticalAlignment="Center" />
+      </Grid>
+      <Grid>
+       <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="66" /></Grid.ColumnDefinitions>
+       <TextBlock Text="Warmth" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" />
+       <Slider x:Name="Warmth" Grid.Column="1" Minimum="2700" Maximum="6500" Value="4600" SmallChange="100" LargeChange="500" AutomationProperties.Name="Example warmth in kelvin" ValueChanged="WarmthChanged" />
+       <TextBlock x:Name="WarmthValue" Grid.Column="2" Text="4600 K" HorizontalAlignment="Right" VerticalAlignment="Center" />
+      </Grid>
+      <TextBlock Text="Warmth uses software gamma tint." Style="{StaticResource Meta}" Margin="100,3,0,20" />
+      <Grid>
+       <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+       <StackPanel Orientation="Horizontal" Margin="-10,0,0,0">
+        <Button x:Name="DayButton" Content="Day" Padding="10,6" Click="DayClick" />
+        <Button x:Name="EveningButton" Content="Evening" Padding="10,6" Click="EveningClick" />
+        <Button x:Name="ReadingButton" Content="Night reading" Padding="10,6" Click="ReadingClick" />
+       </StackPanel>
+       <Button Grid.Column="1" Content="Details" Padding="10,6" Click="DetailsClick" />
+      </Grid>
+      <TextBlock x:Name="Details" Visibility="Collapsed" Style="{StaticResource Meta}" Margin="0,12,0,0"
+        Text="This is an isolated design study. Values are fictitious. Display selection, sliders, presets and Night saver only change this preview; no device, settings file or startup task is accessed." />
+     </StackPanel>
+    </Border>
+    <TextBlock x:Name="Message" Text="Preview only · your displays are unchanged." Style="{StaticResource Meta}" Margin="2,14,0,0" />
+   </StackPanel>
+  </ScrollViewer>
+  <Border Grid.Row="2" Background="{DynamicResource StudyBar}" BorderBrush="{DynamicResource Divider}" BorderThickness="0,1,0,0" Padding="22,12">
+   <StackPanel>
+    <Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+     <StackPanel Orientation="Horizontal">
+      <Button x:Name="SmokeButton" Content="01  Smoke" Click="SmokeClick" Padding="10,7" />
+      <Button x:Name="FrostButton" Content="02  Frost" Click="FrostClick" Padding="10,7" />
+      <Button x:Name="CeramicButton" Content="03  Ceramic" Click="CeramicClick" Padding="10,7" />
+     </StackPanel>
+     <Button Grid.Column="1" x:Name="BackdropButton" Content="Backdrop: Mica" Click="BackdropClick" Padding="10,7" />
+    </Grid>
+    <TextBlock x:Name="MaterialNote" Style="{StaticResource Meta}" FontSize="11" Margin="10,5,10,0" />
+   </StackPanel>
+  </Border>
+ </Grid>
+</Window>

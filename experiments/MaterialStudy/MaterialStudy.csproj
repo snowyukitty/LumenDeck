@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>LumenDeck.MaterialStudy</AssemblyName>
+    <ApplicationIcon>../../assets/LumenDeck.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>LumenDeck.MaterialStudy.App</StartupObject>
+  </PropertyGroup>
+  <!-- Deliberately isolated: no production engine, settings or hardware dependency. -->
+  <ItemGroup>
+    <Resource Include="../../assets/icon-1024.png" Link="AppIcon.png" />
+  </ItemGroup>
+</Project>

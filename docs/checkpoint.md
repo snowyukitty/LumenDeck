@@ -1,5 +1,22 @@
 # Current checkpoint
 
+## Material design follow-up
+
+The owner requested a material and hierarchy redesign after reviewing the palette
+themes. An isolated [native material study](../experiments/MaterialStudy/README.md)
+now compares Smoke, Frost and Ceramic with Mica/Acrylic/opaque backdrops. It has
+synthetic displays and no hardware or product-settings dependency. Its Release
+build and 32 preview checks passed; six reference renders cover regular and
+compact layouts. DWM accepted Mica/Acrylic requests on the local host, but actual
+compositor visual acceptance remains unverified because the native capture helper
+was unavailable. The production client and package below are unchanged.
+
+The pending palette-only desktop replacement is **on hold for design review**;
+do not automatically install it after an Exit reply. A preview is not a production
+upgrade. Framework selection and integration remain open decisions.
+
+## Verified production baseline
+
 Updated 2026-10-16. **LumenDeck 1.4.1** adds persistent live themes while keeping
 the accepted compact controls and the Night saver repair. Work started from
 `25cb8e0` on `feat/multiple-themes`.
