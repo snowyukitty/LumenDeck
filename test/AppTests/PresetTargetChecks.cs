@@ -27,7 +27,7 @@ internal static partial class Program
         var card = Controls(fixture.Form).OfType<MonitorCard>().Single();
         var menuItem = Private<PreferencesMenu>(fixture.Form, "_preferencesMenu").Items
             .OfType<ToolStripMenuItem>().Single(i => i.Text == "Preset targets…");
-        Assert(bar.ModeButtons["Night"].AccessibleDescription.Contains("110 nits") &&
+        Assert(bar.ModeButtons["Night"].AccessibleDescription.Contains("60 nits") &&
             !bar.ModeButtons["Night"].AccessibleDescription.Contains("your target"),
             "desk preset help starts with the built-in target");
         void Open() => fixture.Form.BeginInvoke((Action)(() => menuItem.PerformClick()));
@@ -64,7 +64,7 @@ internal static partial class Program
                 {
                     Assert(editor.Visible && editor.DialogResult == DialogResult.None && Status().Contains("Previous targets remain active"),
                         "an unconfirmed save keeps the editor open with its explanation");
-                    Assert(fixture.Settings.PresetLevel("Night").Nits == 110 && fixture.Settings.PresetTargets.Count == 0,
+                    Assert(fixture.Settings.PresetLevel("Night").Nits == 60 && fixture.Settings.PresetTargets.Count == 0,
                         "an unconfirmed save leaves the previous targets active");
                     gateNext = true;
                     Action("Save targets").PerformClick();
@@ -72,7 +72,7 @@ internal static partial class Program
                 }
                 else if (stage == 2 && entered.IsSet)
                 {
-                    Assert(fixture.Settings.PresetLevel("Night").Nits == 110, "targets stay inactive while their save is pending");
+                    Assert(fixture.Settings.PresetLevel("Night").Nits == 60, "targets stay inactive while their save is pending");
                     Private<NotifyIcon>(fixture.Form, "_tray").ContextMenuStrip.Items.OfType<ToolStripMenuItem>()
                         .Single(i => i.Text == "Exit").PerformClick();
                     Assert(!fixture.Form.IsDisposed && editor.Visible && editor.IsSaving && !fixture.TrayDisposed &&
@@ -168,7 +168,7 @@ internal static partial class Program
         var card = Controls(fixture.Form).OfType<MonitorCard>().Single();
         Assert(bar.ModeButtons["Evening"].AccessibleDescription.Contains("140 nits and 5200K") &&
             Controls(card).OfType<FlatButton>().Single(b => b.Name == "preset-Evening").AccessibleDescription.Contains("140 nits and 5200K") &&
-            bar.ModeButtons["Day"].AccessibleDescription.Contains("200 nits"),
+            bar.ModeButtons["Day"].AccessibleDescription.Contains("160 nits"),
             "saved targets describe the desk and card presets from the first scan");
         Controls(card).OfType<FlatButton>().Single(b => b.Name == "preset-Evening").PerformClick();
         PumpUntil(() => fixture.Transport.Writes == 1, "per-monitor preset request");

@@ -30,6 +30,19 @@ internal static partial class Program
             Assert(themeButton.IsVisible && themeButton.Content.ToString().Contains("Smoke"),
                 "theme choice is directly visible and names the active finish");
             int scans = fixture.Scans, startup = fixture.StartupWrites, gamma = fixture.GammaWrites, writes = fixture.Transport.Writes;
+            var originalTargets = fixture.Settings.PresetTargets;
+            fixture.Settings.PresetTargets = fixture.Settings.WithPresetLevels([Presets.ByName("Night") with { Nits = 85, Kelvin = 4350 }]);
+            window.RefreshState();
+            Assert(System.Windows.Automation.AutomationProperties.GetHelpText((WpfButton)window.FindName("ReadingButton"))
+                    .Contains("85 nits and 4350K"), "material preset help follows saved overrides instead of fixed defaults");
+            fixture.Settings.PresetTargets = originalTargets;
+            Send(MaterialAction.ComfortGuide);
+            var comfort = Private<ComfortGuideForm>(fixture.Form, "_comfortGuide");
+            Assert(comfort is { Visible: true }, "material comfort action opens the offline guide");
+            Send(MaterialAction.ComfortGuide);
+            Assert(ReferenceEquals(comfort, Private<ComfortGuideForm>(fixture.Form, "_comfortGuide")),
+                "repeated comfort action reuses the open guide");
+            comfort.Close();
             window.RefreshState(); window.RefreshState();
             Assert(fixture.Scans == scans && fixture.Transport.Writes == writes && fixture.GammaWrites == gamma,
                 "material snapshots and redraws perform no device operations");

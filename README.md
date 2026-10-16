@@ -15,7 +15,7 @@ from one window, or one command.**
 **Start here:** [Download](#install) · [Set up your desk](#your-first-desk-setup) ·
 [Troubleshoot](#troubleshooting) · [Contribute](CONTRIBUTING.md)
 
-Current source checkpoint: **1.4.3** · [Changes](CHANGELOG.md) ·
+Current source checkpoint: **1.4.4** · [Changes](CHANGELOG.md) ·
 [Build and package status](docs/release-readiness.md).
 
 An external monitor may not have a brightness slider in Windows. Microsoft's
@@ -151,8 +151,12 @@ after the first scan when LumenDeck starts during it); moving a slider or
 choosing another preset holds until the next scheduled time. It runs only while
 LumenDeck is running, and the notification icon shows the current period.
 
-The built-in targets are Day 200 nits / 6500 K, Evening 150 nits / 5600 K and
-Night 110 nits / 4600 K. Choose **Settings > Preset targets…** to change them;
+The built-in starting points are Day 160 nits / 6500 K, Evening 100 nits / 5000 K and
+Night 60 nits / 4000 K. These are editable product choices for lit, softer and dim
+rooms, not medically established comfort targets. **Settings > Comfort guide**
+explains how to adjust for readable text, room light and colour work, with offline
+research references. See the [evidence and limits](docs/comfort-research.md).
+Choose **Settings > Preset targets…** to change them;
 the editor previews the brightness percentage each connected display would
 receive. Saving changes future preset requests only, in the window, tray and
 `lumendeck-cli --preset`; it does not adjust a display or your Custom levels.

@@ -149,6 +149,13 @@ public partial class MaterialWindow : Window
         if (previous == null || previous.SelectedKey != state.SelectedKey || previous.Generation != state.Generation)
             ExactRow.Visibility = Visibility.Collapsed;
         NightButton.Content = state.NightActive ? "End Night saver" : "Night saver";
+        NightButton.ToolTip = state.NightActive
+            ? "Restore this night desk's saved brightness. Manual brightness choices are kept."
+            : "Temporarily darken unused screens and cap the work screen at 5% hardware brightness. If reading feels difficult, raise brightness or end Night saver.";
+        AutomationProperties.SetHelpText(NightButton, (string)NightButton.ToolTip);
+        SetPresetHelp(DayButton, state.DayHelp);
+        SetPresetHelp(EveningButton, state.EveningHelp);
+        SetPresetHelp(ReadingButton, state.NightHelp);
         NightButton.IsEnabled = state.NightAvailable;
         RefreshButton.IsEnabled = !state.Reading;
         IdentifyButton.IsEnabled = !state.Reading && state.Displays.Count > 0;
@@ -195,6 +202,15 @@ public partial class MaterialWindow : Window
         slider.Maximum = Math.Max(minimum + 1, maximum);
         slider.Value = Math.Clamp(value, minimum, Math.Max(minimum + 1, maximum));
     }
+
+    private static void SetPresetHelp(Button button, string text)
+    {
+        if (AutomationProperties.GetHelpText(button) == text) return;
+        button.ToolTip = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 340 };
+        AutomationProperties.SetHelpText(button, text);
+    }
+
+    private void ComfortClick(object sender, RoutedEventArgs e) => Send(MaterialAction.ComfortGuide);
 
     private void RefreshMap()
     {
@@ -287,6 +303,7 @@ public partial class MaterialWindow : Window
         menu.Items.Add(Item("Reapply saved warmth after a display scan", MaterialAction.ReapplyWarmth, save, s.ReapplyWarmth));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Preset targets…", MaterialAction.PresetTargets, save));
+        menu.Items.Add(Item("Comfort guide", MaterialAction.ComfortGuide));
         menu.Items.Add(Item("Preset schedule…", MaterialAction.Schedule, save));
         menu.Items.Add(Item("Retry settings save", MaterialAction.RetrySave, save));
         menu.Items.Add(new Separator());

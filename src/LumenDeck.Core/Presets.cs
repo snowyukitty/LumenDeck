@@ -21,9 +21,10 @@ internal static class Presets
     /// </summary>
     public static readonly Level[] Levels =
     {
-        new("Day",     200, 6500, "Matches a normally lit room"),
-        new("Evening", 150, 5600, "Softer, slight warm shift"),
-        new("Night",   110, 4600, "Long reading after dark"),
+        // Product starting points, not clinical thresholds. See docs/comfort-research.md.
+        new("Day",     160, 6500, "Lit room · neutral colour"),
+        new("Evening", 100, 5000, "Softer room light · gentle warmth"),
+        new("Night",    60, 4000, "Dim room · lower light and warmer colour"),
     };
 
     /// <summary>
@@ -36,6 +37,14 @@ internal static class Presets
     /// to, so a stray click cost you a desk you had spent time tuning.
     /// </summary>
     public const string CustomName = "Custom";
+
+    public static string Guidance(string name) => name switch
+    {
+        "Day" => "For a lit room. Lower brightness if white pages glare; raise it if text takes effort to read.",
+        "Evening" => "For softer room light. Keep text clear; increase kelvin if the tint feels too yellow.",
+        "Night" => "Keep some background light and raise brightness if reading feels difficult. Warmer colour does not guarantee better sleep.",
+        _ => "Fine-tune brightness and warmth for your room and your eyes. Custom remembers your manual levels for each display.",
+    };
 
     public static bool IsCustom(string name) =>
         string.Equals(name, CustomName, StringComparison.OrdinalIgnoreCase);

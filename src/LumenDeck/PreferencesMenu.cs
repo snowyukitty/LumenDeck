@@ -20,6 +20,7 @@ internal sealed class PreferencesMenu : ContextMenuStrip
     public event Action KeyboardHelpRequested;
     public event Action AboutRequested;
     public event Action PresetTargetsRequested;
+    public event Action ComfortGuideRequested;
     public event Action ScheduleRequested;
     private readonly ToolStripMenuItem _schedule;
 
@@ -74,6 +75,9 @@ internal sealed class PreferencesMenu : ContextMenuStrip
         }, fore: () => Theme.Ink);
         presets.Click += (_, _) => PresetTargetsRequested?.Invoke();
         Items.Add(presets);
+        var comfort = new ToolStripMenuItem("Comfort guide…");
+        comfort.Click += (_, _) => ComfortGuideRequested?.Invoke();
+        Items.Add(comfort);
         _schedule = Theme.Colors(new ToolStripMenuItem("Preset schedule…") {}, fore: () => Theme.Ink);
         _schedule.Click += (_, _) => ScheduleRequested?.Invoke();
         Items.Add(_schedule);

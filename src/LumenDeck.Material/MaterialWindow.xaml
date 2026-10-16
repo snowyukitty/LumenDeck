@@ -193,6 +193,9 @@
        </StackPanel>
        <Button Grid.Column="1" Content="Display actions" Padding="10,6" Click="DisplayActionsClick" />
       </Grid>
+      <TextBlock Text="Choose for your room light: Day · lit, Evening · softer, Night · dim. Fine-tune for clear, comfortable reading."
+       Style="{StaticResource Meta}" TextWrapping="Wrap" Margin="0,10,0,0" />
+      <Button Content="Find your comfortable settings" Click="ComfortClick" HorizontalAlignment="Left" Padding="0,5" Margin="0,3,0,0" />
       <StackPanel x:Name="ExactRow" Visibility="Collapsed" Margin="0,12,0,0">
        <TextBlock x:Name="ExactLabel" Style="{StaticResource Meta}" Margin="0,0,0,6" />
        <StackPanel Orientation="Horizontal">

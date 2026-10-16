@@ -135,7 +135,8 @@ internal sealed class DeskCommandBar : Panel
 
     internal static string PresetHelp(Presets.Level level, string scope) =>
         (Presets.IsBuiltIn(level) ? level.Description : $"{level.Description} (your target)") +
-        $"\nTargets an estimated {level.Nits} nits and {level.Kelvin}K {scope}.\nChange targets in Settings > Preset targets.";
+        $"\nTargets an estimated {level.Nits} nits and {level.Kelvin}K {scope}.\n" +
+        Presets.Guidance(level.Name) + "\nChange targets in Settings > Preset targets. More advice in Comfort guide.";
 
     internal void SetNightSaverState(bool active)
     {

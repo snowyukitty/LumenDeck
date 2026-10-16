@@ -24,7 +24,7 @@ internal static partial class Program
         bar.ModeButtons["Night"].PerformClick();
         RequestSettings(fixture);
         SettleSettings(fixture);
-        Assert(monitor.Kelvin == 4600 && AppSettings.Load(fixture.SettingsPath).Find(monitor.StableKey) is
-            { Kelvin: 4600, CustomKelvin: 6500 }, "accepted warmth retry persists the target while preserving Custom");
+        Assert(monitor.Kelvin == 4000 && AppSettings.Load(fixture.SettingsPath).Find(monitor.StableKey) is
+            { Kelvin: 4000, CustomKelvin: 6500 }, "accepted warmth retry persists the target while preserving Custom");
     }
 }

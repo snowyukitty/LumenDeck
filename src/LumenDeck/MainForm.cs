@@ -37,6 +37,7 @@ internal partial class MainForm : Form
     private ConnectionHelpForm _connectionHelp;
     private KeyboardHelpForm _keyboardHelp;
     private AboutForm _about;
+    private ComfortGuideForm _comfortGuide;
     private readonly PreferencesMenu _preferencesMenu;
     private readonly ToolStripMenuItem _startupPreference;
     private readonly ToolStripMenuItem _minimisedPreference;
@@ -121,6 +122,7 @@ internal partial class MainForm : Form
         _preferencesMenu.KeyboardHelpRequested += ShowKeyboardHelp;
         _preferencesMenu.AboutRequested += ShowAbout;
         _preferencesMenu.PresetTargetsRequested += ShowPresetEditor;
+        _preferencesMenu.ComfortGuideRequested += ShowComfortGuide;
         _preferencesMenu.ScheduleRequested += ShowScheduleEditor;
         _bar.SetPresetHelp(_settings.PresetLevels);
         _preferencesMenu.Opening += (_, _) => SynchronizePreferences();
@@ -1289,6 +1291,7 @@ internal partial class MainForm : Form
         _connectionHelp?.Close();
         _keyboardHelp?.Close();
         _about?.Close();
+        _comfortGuide?.Close();
         _generation++;              // invalidate any rebuild still in flight
         _reallyClosing = true;
         UnregisterScreenBlankHotkeys();

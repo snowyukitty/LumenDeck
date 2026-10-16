@@ -49,16 +49,18 @@ internal sealed class PresetEditorView : UserControl
         _scroll.Controls.Add(_content);
         Controls.Add(_scroll);
         Add(Copy("Preset targets", Theme.H1));
-        Add(Copy("Day, Evening and Night request an estimated luminance and a warmth on every visible display. " +
-                 "Each display's brightness estimate converts the target into its own brightness percentage."));
+        Add(Copy("Choose for your room light, then fine-tune for clear, comfortable reading. " +
+                 "Nits are estimated brightness targets; kelvin controls colour warmth. These are adjustable starting points. " +
+                 "See Comfort guide for advice and research."));
         Add(Copy(_context.Displays.Count == 0
             ? "No connected display reports a brightness control, so no brightness requests are previewed. Warmth still applies."
-            : "Previews use the brightness estimate of each display connected when this window opened. They are model estimates, not measurements."));
+            : "Previews use the displays connected when this window opened. They are estimates, not measurements."));
         foreach (var builtIn in Presets.Levels)
         {
             var current = _context.Current.FirstOrDefault(l => string.Equals(l.Name, builtIn.Name, StringComparison.OrdinalIgnoreCase)) ?? builtIn;
             Add(Copy(builtIn.Name, Theme.H2));
             Add(Copy($"{builtIn.Description}. Default: {builtIn.Nits} nits, {builtIn.Kelvin} K."));
+            Add(Copy(Presets.Guidance(builtIn.Name)));
             var line = Theme.Colors(new FlowLayoutPanel
             {
                 AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = true,
@@ -97,6 +99,9 @@ internal sealed class PresetEditorView : UserControl
         _cancel.Click += (_, _) => { if (_cancel.Enabled && !IsSaving) CancelRequested?.Invoke(); };
         _defaults.AccessibleDescription = "Fill every field with the built-in targets. Nothing is saved until you choose Save targets.";
         actions.Controls.AddRange([_saveButton, _defaults, _cancel]);
+        var guide = new FlatButton("Comfort guide") { Width = 130 };
+        guide.Click += (_, _) => { using var help = new ComfortGuideForm(); help.ShowDialog(FindForm()); };
+        actions.Controls.Add(guide);
         footer.Controls.Add(actions, 0, 1);
         Controls.Add(footer);
         SizeChanged += (_, _) => ConstrainLabels();
@@ -183,7 +188,8 @@ internal sealed class PresetEditorView : UserControl
         {
             if (Presets.PercentFor(display.Profile, level.Nits) is not double percent)
                 return $"{display.Name}: brightness unchanged (estimate has no range)";
-            string limit = percent < 0 ? " (below floor)" : percent > 100 ? " (above peak)" : "";
+            string limit = percent < 0 ? $" (below floor) — estimated minimum {display.Profile.FloorNits:0} nits; target cannot be reached"
+                : percent > 100 ? $" (above peak) — estimated maximum {display.Profile.PeakNits:0} nits; target cannot be reached" : "";
             string generic = display.UserProfile ? "" : ", generic estimate";
             return $"{display.Name}: {Math.Clamp(percent, 0, 100):0}% brightness{limit}{generic}";
         });

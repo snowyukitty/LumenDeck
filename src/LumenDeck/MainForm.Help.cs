@@ -2,6 +2,18 @@ namespace LumenDeck;
 
 internal partial class MainForm
 {
+    private void ShowComfortGuide()
+    {
+        if (_reallyClosing || IsDisposed || Disposing || !Enabled || !UiVisible) return;
+        _scanFocus?.CancelRecovery();
+        if (_comfortGuide == null || _comfortGuide.IsDisposed)
+        {
+            _comfortGuide = new ComfortGuideForm();
+            _comfortGuide.Show(DialogOwner);
+        }
+        else _comfortGuide.Reveal();
+    }
+
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
         if (keyData == Keys.F1) { ShowKeyboardHelp(); return true; }

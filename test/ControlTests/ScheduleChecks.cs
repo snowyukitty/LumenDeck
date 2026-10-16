@@ -146,7 +146,7 @@ internal static partial class Program
         Assert(preview.Text.StartsWith("Now: Night (since 21:30). Next: Day at 07:00.") && preview.Text.Contains("Saving requests Night"),
             "refreshing follows the owner's clock while the editor stays open");
         clock = Today.AddHours(19);
-        Assert(Descendants(view).OfType<Label>().Any(l => l.Text == "90 nits, 4600 K") &&
+        Assert(Descendants(view).OfType<Label>().Any(l => l.Text == "90 nits, 4000 K") &&
             Descendants(view).OfType<Label>().Any(l => l.Text == "your remembered levels"),
             "each row shows the active target it would request");
         foreach (string text in new[] { "25:00", "9pm", "" })

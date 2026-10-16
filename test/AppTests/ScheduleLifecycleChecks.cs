@@ -50,7 +50,7 @@ internal static partial class Program
                 status.AccessibleName.StartsWith($"Schedule: {preset}:"), name + " requests the scheduled target and says the schedule did it");
         }
 
-        Requested(1, 150, "Evening", "the first ready scan of a launch");
+        Requested(1, 100, "Evening", "the first ready scan of a launch");
         Assert(tray.Text == $"LumenDeck {AboutForm.VersionText} - Evening until 21:30", "the notification icon names the version, the scheduled preset and its end");
         Check();
         Assert(fixture.Transport.Writes == 1, "a period is requested once, not on every check");
@@ -64,7 +64,7 @@ internal static partial class Program
 
         now = new DateTime(2026, 10, 9, 21, 31, 0);
         Check();
-        Requested(3, 110, "Night", "a new period");
+        Requested(3, 60, "Night", "a new period");
         now = new DateTime(2026, 10, 10, 3, 0, 0);
         Check();
         Assert(fixture.Transport.Writes == 3, "the period that began yesterday evening is not repeated after midnight");
@@ -76,7 +76,7 @@ internal static partial class Program
         Assert(fixture.Transport.Writes == 3, "a period that begins during a scan waits instead of writing to displays being replaced");
         scanGate.Set();
         PumpUntil(() => refresh.IsCompleted, "deferred scan");
-        Requested(4, 200, "Day", "the completed scan requests the deferred period once");
+        Requested(4, 160, "Day", "the completed scan requests the deferred period once");
 
         var menuItem = Private<PreferencesMenu>(fixture.Form, "_preferencesMenu").Items.OfType<ToolStripMenuItem>().Single(i => i.Text == "Preset schedule…");
         Assert(menuItem.Checked && menuItem.ToolTipText.Contains("On: Day since 07:00; Evening at 18:00"),
@@ -162,7 +162,7 @@ internal static partial class Program
         PumpUntil(() => stage == 6, "schedule editor scenario", 25000);
         if (failure != null) throw new InvalidOperationException("Schedule editor assertion failed", failure);
         PumpUntil(() => refresh.IsCompleted, "scan after enabling");
-        Requested(6, 110, "Night", "the scan completed after enabling");
+        Requested(6, 60, "Night", "the scan completed after enabling");
         Assert(AppSettings.Load(fixture.SettingsPath).Schedule.Enabled, "the confirmed schedule is the one on disk");
     }
 }

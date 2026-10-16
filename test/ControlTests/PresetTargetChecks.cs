@@ -7,6 +7,37 @@ internal static partial class Program
     {
         CheckPresetTargetStorage(directory);
         CheckPresetEditorView(renderDirectory);
+        CheckComfortGuide(renderDirectory);
+    }
+
+    private static void CheckComfortGuide(string renderDirectory)
+    {
+        using var form = new ComfortGuideForm();
+        form.StartPosition = FormStartPosition.Manual;
+        form.Location = new Point(-30000, -30000);
+        form.Show();
+        foreach (var size in new[] { new Size(640, 720), new Size(460, 440) })
+        {
+            form.ClientSize = size;
+            form.PerformLayout();
+            var guide = Descendants(form).OfType<ReferenceView>().Single();
+            guide.PerformLayout();
+            guide.ScrollReference(Keys.Home);
+            foreach (var label in Descendants(guide).OfType<Label>())
+            {
+                var bounds = new Rectangle(guide.PointToClient(label.PointToScreen(Point.Empty)), label.Size);
+                Assert(bounds.Left >= 0 && bounds.Right <= guide.ClientSize.Width, "comfort guide wraps within the window");
+            }
+            guide.ScrollReference(Keys.End);
+            var last = Descendants(guide).OfType<Label>().Last();
+            Assert(guide.PointToClient(last.PointToScreen(Point.Empty)).Y < guide.ClientSize.Height,
+                "comfort guide sources remain reachable in a short window");
+            var close = Descendants(form).OfType<Button>().Single(b => b.Text == "Close");
+            Assert(form.ClientRectangle.Contains(new Rectangle(form.PointToClient(close.PointToScreen(Point.Empty)), close.Size)),
+                "comfort guide Close stays visible");
+            guide.ScrollReference(Keys.Home);
+            if (renderDirectory != null) Render(guide, Path.Combine(renderDirectory, $"comfort-guide-{size.Width}.png"));
+        }
     }
 
     private static void CheckPresetTargetStorage(string directory)
@@ -31,6 +62,14 @@ internal static partial class Program
         Assert(stored.Count == 1 && stored[0]["Name"].GetValue<string>() == "Night",
             "only targets that differ from the defaults are written");
         Assert(AppSettings.Load(path).PresetLevel("Night") is { Nits: 90, Kelvin: 4200 }, "saved targets survive reload");
+        string previousPath = Path.Combine(directory, "previous-default-overrides.json");
+        var previousDefaults = new AppSettings(previousPath);
+        previousDefaults.PresetTargets = [new() { Name = "Night", Nits = 110, Kelvin = 4600 }];
+        previousDefaults.Monitors = [new() { Key = "desk", CustomBrightnessPercent = 42, CustomKelvin = 5100 }];
+        Assert(previousDefaults.Save() && AppSettings.Load(previousPath).PresetLevel("Night") is { Nits: 110, Kelvin: 4600 },
+            "an explicit target matching an older default is not migrated to the new defaults");
+        Assert(AppSettings.Load(previousPath).Find("desk") is { CustomBrightnessPercent: 42, CustomKelvin: 5100 },
+            "loading new preset defaults preserves remembered manual levels");
 
         Assert(settings.WithPresetLevels([Presets.ByName("Night") with { Nits = 0 },
                 Presets.ByName("Day") with { Kelvin = 9000 }, new Presets.Level("Reading", 80, 4000, "")])
@@ -117,8 +156,8 @@ internal static partial class Program
         var status = Descendants(view).OfType<Label>().Single(l => l.AccessibleRole == AccessibleRole.Alert);
 
         Assert(Input("Night target luminance (nits)").Value == 90 && Input("Night warmth (kelvin)").Value == 4200 &&
-            Input("Day target luminance (nits)").Value == 200, "editor opens with the active targets");
-        Assert(Descendants(view).OfType<Label>().Any(l => l.Text.Contains("Default: 110 nits, 4600 K")),
+            Input("Day target luminance (nits)").Value == 160, "editor opens with the active targets");
+        Assert(Descendants(view).OfType<Label>().Any(l => l.Text.Contains("Default: 60 nits, 4000 K")),
             "each preset shows its built-in default beside the editable value");
         string night = Preview("Night").Text;
         Assert(night.Contains("4200 K") && night.Contains("Desk A: 11% brightness") && !night.Contains("Desk A: 11% brightness,") &&
@@ -129,6 +168,8 @@ internal static partial class Program
             "displays without brightness control are counted as warmth-only");
         Input("Night target luminance (nits)").Value = 30;
         Assert(Preview("Night").Text.Contains("Desk A: 0% brightness (below floor)"), "preview identifies a target below a panel's floor");
+        Assert(Preview("Night").Text.Contains("minimum 50 nits; target cannot be reached"),
+            "a floor-limited preview states the achievable estimate rather than promising the target");
         Input("Day target luminance (nits)").Value = 900;
         Assert(Preview("Day").Text.Contains("Desk A: 100% brightness (above peak)"), "preview identifies a target above a panel's peak");
 
@@ -149,8 +190,8 @@ internal static partial class Program
             Render(view, Path.Combine(renderDirectory, "preset-editor-invalid.png"));
         }
         defaults.PerformClick();
-        Assert(save.Enabled && Edit("Day target luminance (nits)").Text == "200" && Input("Evening warmth (kelvin)").Value == 5600 &&
-            Input("Night target luminance (nits)").Value == 110 && status.Text.StartsWith("Saving does not adjust"),
+        Assert(save.Enabled && Edit("Day target luminance (nits)").Text == "160" && Input("Evening warmth (kelvin)").Value == 5000 &&
+            Input("Night target luminance (nits)").Value == 60 && status.Text.StartsWith("Saving does not adjust"),
             "Use defaults repairs every field with the built-in targets without saving");
         Assert(requests.Count == 0, "Use defaults does not save");
 
@@ -162,7 +203,7 @@ internal static partial class Program
         save.PerformClick();
         Assert(view.IsSaving && requests.Count == 1 && !save.Enabled && !cancel.Enabled && !defaults.Enabled &&
             !Input("Night target luminance (nits)").Enabled, "a pending save locks the draft and every action");
-        Assert(requests[0].Count == 3 && requests[0].Single(l => l.Name == "Night") is { Nits: 80, Kelvin: 4600 },
+        Assert(requests[0].Count == 3 && requests[0].Single(l => l.Name == "Night") is { Nits: 80, Kelvin: 4000 },
             "the save receives every preset's draft target");
         view.ShowSavePending();
         Assert(status.Text.Contains("Wait for its result"), "closing during a save explains the wait");

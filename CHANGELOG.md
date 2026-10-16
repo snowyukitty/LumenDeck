@@ -8,6 +8,20 @@ Notable changes, newest first. Format follows
 
 No further changes recorded.
 
+## [1.4.4] — 2026-10-16
+
+Desktop/source checkpoint with research-informed comfort guidance.
+
+### Changed
+
+- Day, Evening and Night start at 160/100/60 estimated nits and
+  6500/5000/4000 K tint. Saved overrides and manual Custom levels are preserved.
+- Both interfaces offer an offline Comfort guide covering room light,
+  readability, breaks, colour work, Night saver and evidence limitations.
+- Preset editing explains each mode and unreachable panel targets; schedule
+  guidance follows the person's bedtime. Material preset help shows active targets.
+
+
 ## [1.4.3] — 2026-10-16
 
 Desktop/source checkpoint improving material layering and readability.

@@ -12,6 +12,9 @@ public sealed record MaterialSnapshot(int Generation, string SelectedKey, IReadO
     bool? Startup, bool ReapplyWarmth, string SaveStatus, string ScheduleStatus)
 {
     public bool PreferencesLocked { get; init; }
+    public string DayHelp { get; init; } = "";
+    public string EveningHelp { get; init; } = "";
+    public string NightHelp { get; init; } = "";
 }
 
 public enum MaterialAction
@@ -21,7 +24,7 @@ public enum MaterialAction
     Refresh, Identify, NightSaver, WorkDisplay, Preferences, PresetTargets, Schedule,
     ConnectionHelp, KeyboardHelp, About, RetrySave, Startup, StartMinimised, KeepRunning,
     ReapplyWarmth, FinishSmoke, FinishFrost, FinishCeramic, BackdropMica, BackdropGlass,
-    BackdropSolid, Classic, Exit, DismissWarning,
+    BackdropSolid, Classic, Exit, DismissWarning, ComfortGuide,
 }
 
 /// <summary>Immutable observations and UI-thread commands; this assembly owns no device or persistence.</summary>

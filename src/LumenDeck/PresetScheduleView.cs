@@ -20,7 +20,8 @@ internal sealed record ScheduleOutlook(PresetSchedule.Period Period, bool Reques
 /// </summary>
 internal sealed class PresetScheduleView : UserControl
 {
-    private const string Note = "Manual changes stay until the next scheduled time. Blanked displays are skipped. " +
+    private const string Note = "Choose times for your own routine and room light; consider softer light about three hours before bedtime. " +
+        "Manual changes stay until the next scheduled time. Blanked displays are skipped. " +
         "The schedule works while LumenDeck runs, including from the notification area.";
     private readonly ScheduleEditorContext _context;
     private readonly Func<IReadOnlyCollection<PresetSchedule.Slot>, ScheduleOutlook> _outlook;

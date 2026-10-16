@@ -9,6 +9,12 @@ Get started
    Day / Evening / Night use estimated luminance; Custom requests the
    per-monitor levels saved when you adjust a slider.
 
+Choose modes for your room light and fine-tune for readable text. Built-in
+Day / Evening / Night targets are 160 / 100 / 60 estimated nits with
+6500 / 5000 / 4000 K tint; saved targets take priority. These are starting
+points, not measured or medically established comfort settings. Settings >
+Comfort guide offers offline advice on lighting, breaks and colour work.
+
 Open LumenDeck.exe again to reveal the existing window if it is hidden in the
 notification area. A second launch does not start another monitor controller.
 If it cannot reveal the window, use the existing tray icon or retry once startup

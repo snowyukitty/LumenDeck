@@ -234,7 +234,7 @@ internal static partial class Program
         Assert(!Descendants(view).Any(control => control.Text.Contains(context.ModelName)), "editor respects the captured display alias");
         peak.Value = 400;
         floor.Value = 50;
-        Assert(preview.Text.Contains("estimated 225 nits") && preview.Text.Contains("Day: 43%"),
+        Assert(preview.Text.Contains("estimated 225 nits") && preview.Text.Contains("Day: 31%"),
             "draft preview reflects the existing linear model without applying presets");
         string previewText = preview.Text;
         Descendants(view).OfType<CheckBox>().Single().Checked = true;

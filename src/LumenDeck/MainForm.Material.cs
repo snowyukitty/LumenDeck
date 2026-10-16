@@ -88,7 +88,13 @@ internal partial class MainForm : IMaterialHost
             _settings.MaterialFinish, _settings.MaterialBackdrop, _settingsWriteRunning,
             _settings.MinimiseToTray, _settings.StartMinimised, _startupPreference.Enabled ? _startupPreference.Checked : null,
             _settings.ReapplyColourOnStart, SettingsSaveFeedback.Caption(saveState),
-            _materialScheduleSummary) { PreferencesLocked = SettingsSaveFeedback.RequiresReopen(saveState) };
+            _materialScheduleSummary)
+        {
+            PreferencesLocked = SettingsSaveFeedback.RequiresReopen(saveState),
+            DayHelp = DeskCommandBar.PresetHelp(_settings.PresetLevel("Day"), "on this display"),
+            EveningHelp = DeskCommandBar.PresetHelp(_settings.PresetLevel("Evening"), "on this display"),
+            NightHelp = DeskCommandBar.PresetHelp(_settings.PresetLevel("Night"), "on this display"),
+        };
     }
 
     void IMaterialHost.Execute(MaterialAction action, string key, int generation, int value)
@@ -106,6 +112,7 @@ internal partial class MainForm : IMaterialHost
             case MaterialAction.ConnectionHelp: ShowConnectionHelp(); return;
             case MaterialAction.KeyboardHelp: ShowKeyboardHelp(); return;
             case MaterialAction.About: ShowAbout(); return;
+            case MaterialAction.ComfortGuide: ShowComfortGuide(); return;
             case MaterialAction.PresetTargets: ShowPresetEditor(); return;
             case MaterialAction.Schedule: ShowScheduleEditor(); return;
             case MaterialAction.RetrySave: RetrySettingsSave(); return;
