@@ -1,103 +1,78 @@
 # Current checkpoint
 
-## Material design follow-up
+Updated 2026-10-16. **LumenDeck 1.4.1** now connects the material interface to the
+production controller. The owner accepted the visual direction and asked for
+functional improvement. This supersedes the palette-only installation candidate
+and the isolated material prototype as the next desktop update.
 
-The owner requested a material and hierarchy redesign after reviewing the palette
-themes. An isolated [native material study](../experiments/MaterialStudy/README.md)
-now compares Smoke, Frost and Ceramic with Mica/Acrylic/opaque backdrops. It has
-synthetic displays and no hardware or product-settings dependency. Its Release
-build and 32 preview checks passed; six reference renders cover regular and
-compact layouts. DWM accepted Mica/Acrylic requests on the local host, but actual
-compositor visual acceptance remains unverified because the native capture helper
-was unavailable. The production client and package below are unchanged.
+## Delivered behavior
 
-The pending palette-only desktop replacement is **on hold for design review**;
-do not automatically install it after an Exit reply. A preview is not a production
-upgrade. Framework selection and integration remain open decisions.
+- Smoke, Frost and Ceramic are persistent material finishes. Smoke/Frost support
+  Mica, Glass and Solid requests, with system-policy and high-contrast fallbacks.
+- Brightness, contrast, warmth, exact entry, selected-display presets and Custom
+  use the existing adjustment worker and manual-state persistence.
+- Night saver remains visible and retains the existing work-display dimming and
+  restoration records. Desk actions contains global presets and work selection.
+- Settings, preset/schedule/profile editors, blackout shortcuts, help, tray/reveal
+  and normal Exit share the existing application lifecycle.
+- Advanced controls opens the complete classic panel. Settings switches between
+  presentations; there is one controller, not two competing display engines.
+- Windows geometry uses uniform projection; values remain compact. Feedback
+  distinguishes requested/observed state, and estimates track current brightness.
 
-## Verified production baseline
+See [material interface](material-interface.md), [appearance](themes.md) and
+[Night saver](night-saver.md). Version remains 1.4.1; no release/tag is published.
 
-Updated 2026-10-16. **LumenDeck 1.4.1** adds persistent live themes while keeping
-the accepted compact controls and the Night saver repair. Work started from
-`25cb8e0` on `feat/multiple-themes`.
+## Verification actually completed
 
-## Behavior
-
-- Settings > Theme offers Amber, Paper, Ocean and Violet. Confirmed saves update
-  existing windows, editors, menus, native frame intent and cached card surfaces.
-- Theme switching keeps display selection, geometry, scroll position and input
-  drafts/selection. It performs no display scan, gamma, brightness or startup write.
-- Windows high contrast takes priority, including controls first created in that
-  mode. Returning to ordinary colours restores the saved semantic palette.
-- Failed saves keep the previous live palette/check; pending or protected storage
-  blocks competing requests. Unknown IDs fall back without being rewritten until
-  an explicit selection. The account preference is stored as `ThemeId`.
-- Muted chip backgrounds improve text contrast. Fonts and sizes stay shared;
-  subscriptions and cached bitmaps are released with their owning controls.
-- Night saver remains first in the toolbar, requests at most 5% hardware brightness
-  on the kept display and retains recovery snapshots when the theme changes.
-
-Immutable product/package/capture source:
-`cc08d8aac9e751205c2e076fd721c789dc6df220`.
-The GUI, Core and CLI remain version 1.4.1. See [themes](themes.md),
-[Night saver design](night-saver.md), [UI design](ui-design.md) and the
-[source-bound preview receipt](assets/screenshot.json).
-
-## Verification
-
-| Check actually run | Result |
+| Check | Result |
 | --- | --- |
-| Release solution build, warnings as errors | Passed, zero warnings/errors |
+| Release solution build, warnings as errors | Passed; zero warnings/errors |
 | Full ControlTests | 4,610 passed |
-| Full AppTests | 2,612 passed |
-| Final focused live theme checks | 228 passed |
-| Final command appearance/activation checks | 97 passed |
-| Committed-source native showcase | 40 passed |
-| Capture exporter regressions | 6 tests passed |
-| Native DPI round trips in full AppTests | 125%/150% passed existing layout-work and no-drift limits |
-| Release source-path/privacy canaries | Passed |
-| Extracted package validation | Allowlist, hashes, versions, bundled paths, standalone CLI and synthetic GUI startup passed |
+| Full AppTests after integration and keyboard help | 2,676 passed |
+| Committed-source material checks and reference renders | 70 passed |
+| Release assembly path checks and privacy canaries | Passed; includes Material assembly |
+| Extracted portable package | Allowlist, hashes, versions, bundled paths, standalone CLI and WPF/WinForms startup passed |
+| Installer regressions | 24 passed |
+| Bundle regressions | 22 passed; includes missing/private-path Material canaries |
 
-The suites ran sequentially. Theme checks cover text/primary/focus/chip contrast,
-open editor drafts and selection, storage refusal/pending/conflict states, native
-frame intent, system-colour messages, subscription disposal, startup/fallback and
-active Night saver preservation. The final committed-source run includes explicit fallback selection. Package
-regressions passed, including 24 installer and 20 bundle checks.
+The material fixtures exercise actual WPF controls with synthetic transport and
+isolated files, including failed/pending saves, editor ownership, stale scans,
+Custom restoration, unsupported adjustments and Night saver recovery. Six opaque
+client renders and themed menus were inspected. Their [source receipt](assets/material-reference.json)
+is bound to implementation commit `4e7888382c6a97cdb3a84dc368f673aa467f66d0`.
+The package adds only the committed portable guide and those reference assets.
 
-All ten public previews use fictitious displays and committed source. Native
-Paper/Ocean/Violet menus and windows, compact Amber and portfolio derivatives were
-visually reviewed. Real settings, display identities, backups and installation
-receipts remain local and ignored. Logs use ignored `artifacts/themes-*.log`.
+## Candidate and desktop replacement
 
-## Package and desktop update
+Package source: `87a044196ecf0d6683001ecee9d1e52a03eaf034`.
+Archive: `dist/build-cc1b1ad208c741e1b7b96a45b115694e/verified/LumenDeck-1.4.1-win-x64.zip`.
+SHA-256: `e8d57839034f5a0da063cdbc410d79493708de4e4eea7a9401286f41a041dadc`.
+Both executables report `1.4.1+87a044196ecf0d6683001ecee9d1e52a03eaf034`.
+The [release record](release-readiness.md) is checked against the actual archive.
 
-Verified archive:
-`dist/build-0bef1bd6963945098e6228399594205a/verified/LumenDeck-1.4.1-win-x64.zip`.
-SHA-256: `acf611ffed5ae6b61f2aa75c69d170643e44f0da0c88077b74cc2aec98098bf5`.
-Both executables report `1.4.1+cc08d8aac9e751205c2e076fd721c789dc6df220`.
-[Release readiness](release-readiness.md) is the machine-checked identity record.
-
-The previous installed 1.4.1 build (`31af655`) and shortcuts are backed up, and
-this replacement payload is verified. Normal tray Exit is required so restoration
-and pending saves finish; the installer refuses a running app. Installation checks
-compare payload hashes, shortcut targets and saved-state hashes before startup,
-then verify the running path/version, responsive window and error-log growth.
-The final handoff and ignored installation receipt record the actual outcome.
+The previously installed binaries and shortcuts are backed up privately. The new
+payload has been extracted and identity-checked. Normal tray Exit is required
+before replacement; forced termination would bypass recovery. The installer
+compares saved-state hashes before startup, verifies installed binary hashes and
+shortcut targets, then checks the running version, responsive window and error-log
+growth. The final handoff and ignored installation receipt record the actual
+outcome; preparation alone does not establish installation.
 
 ## GitHub and remaining acceptance
 
-The finished checkpoint is fast-forwarded to main and pushed after local verification.
-The unchanged workflow runs on every branch, so only the completed main checkpoint
-is pushed. The final handoff reports the actual hosted result from
+The completed checkpoint is merged locally and pushed to main once, after local
+verification. The final handoff reports the actual hosted result from
 [GitHub Actions](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml).
-No release, release tag or downloadable release asset is published by this push.
+This push does not create a release, tag or public download asset.
 
-Real Windows contrast-theme switching, foreground interaction, DWM material,
-Narrator speech, physical darkness/restoration, hot-plug/interrupted recovery and
-clean-profile install/uninstall remain separate acceptance. Fixture checks do not
-establish those outcomes.
+The native desktop capture helper was unavailable. Reference images force an
+opaque surface and do not establish DWM blur quality. Foreground keyboard/pointer
+interaction, mixed-DPI movement, Narrator, real Windows contrast themes, physical
+brightness/gamma/restoration, interrupted recovery and clean-profile installation
+remain separate manual acceptance. No real display writes were made by fixtures.
 
-Scope: this repository's multi-theme presentation, regression checks, documentation,
-synthetic previews and local package/update. No sibling files or artwork were copied.
-The project lease is released at handoff; resume by checking Git state, this checkpoint
-and the ignored installation receipt.
+Scope: this repository's material presentation, shared controller adapter, tests,
+documentation, synthetic references and local desktop package. No sibling project
+files were modified. Release the project lease at handoff. Resume from Git state,
+this record and the ignored `artifacts/material-install-path.txt` installation pointer.

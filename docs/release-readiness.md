@@ -2,19 +2,19 @@
 
 ## Current 1.4.1 candidate
 
-Updated 2026-10-16. This checkpoint adds four persistent live app themes across
-the native interface while preserving the compact layout, visible Night saver
-and its low work-display brightness. It is not a published release.
+Updated 2026-10-16. The functional material interface shares the production
+controller, settings, tray and recovery paths. Classic advanced controls remain
+available. This is a source/portable checkpoint, not a published release.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `cc08d8aac9e751205c2e076fd721c789dc6df220` - 1.4.1 multi-theme checkpoint |
-| GUI recorded build | `1.4.1+cc08d8aac9e751205c2e076fd721c789dc6df220` |
+| Source commit | `87a044196ecf0d6683001ecee9d1e52a03eaf034` - 1.4.1 functional material checkpoint |
+| GUI recorded build | `1.4.1+87a044196ecf0d6683001ecee9d1e52a03eaf034` |
 | Package | `LumenDeck-1.4.1-win-x64.zip` |
-| SHA-256 | `acf611ffed5ae6b61f2aa75c69d170643e44f0da0c88077b74cc2aec98098bf5` |
+| SHA-256 | `e8d57839034f5a0da063cdbc410d79493708de4e4eea7a9401286f41a041dadc` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.4.1.0` for both executables |
-| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,612 AppTests; 228 final focused theme checks; 40 committed-source showcase checks; 6 capture-export regressions; extracted package and installer/bundle regressions |
+| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,676 AppTests; 70 material capture checks; release-path canaries; extracted package startup; 24 installer and 22 bundle checks |
 
 Both executable product versions match the recorded GUI build. The extracted
 package passes its exact file allowlist, hashes, versions, bundled source-path
@@ -28,7 +28,7 @@ executable payloads. Historical candidates below do not duplicate the identity r
 
 See the [checkpoint](checkpoint.md) for the local artifact and installation process;
 [packaging](packaging.md) defines the verification contract and limits. The
-[public preview receipt](assets/screenshot.json) is bound to this source and uses
+[material reference receipt](assets/material-reference.json) is bound to the implementation source (the package commit adds only documentation/assets) and uses
 fictitious displays. Package probes do not change the real installation or exercise
 physical monitor control.
 
@@ -36,8 +36,9 @@ physical monitor control.
 
 The `31af655` compact milestone was installed as 1.4.1 with matching binary hashes,
 preserved settings and a verified responsive startup. The `818fa7b` Night saver
-repair was prepared next. This multi-theme candidate supersedes both portable
-packages, retaining version 1.4.1 and adding the `ThemeId` preference.
+repair was prepared next. The `cc08d8a` multi-theme candidate was held after material-design feedback.
+The current functional material candidate supersedes those packages while
+retaining version 1.4.1. `ThemeId` still controls the classic panel/editors.
 
 The `3da37c6` compact desktop build was installed as 1.4.0, with matching binary
 hashes, preserved settings and verified desktop shortcuts/startup. The owner then
