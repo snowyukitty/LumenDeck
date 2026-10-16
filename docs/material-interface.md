@@ -122,8 +122,10 @@ The extracted-package startup probe loads WPF XAML/resources and material fallba
 without opening a real device controller or touching user settings.
 
 Run `powershell -File scripts/capture-material.ps1` from committed source to
-generate six window references, the theme menu and their [receipt](assets/material-reference.json).
-These are opaque WPF client renders, not screenshots of desktop blur. Actual
+generate six window references, the theme menu, the preset editor and their
+[receipt](assets/material-reference.json). The material images are opaque WPF
+client renders; the editor is a WinForms control bitmap. Desktop blur is not
+captured. Actual
 foreground keyboard/pointer behavior, mixed-DPI movement, Narrator, real Windows
 contrast themes, compositor appearance and physical device restoration still need
 manual acceptance; automated fixture success does not establish those outcomes.

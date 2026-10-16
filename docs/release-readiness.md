@@ -1,20 +1,20 @@
 # Release readiness
 
-## Current 1.4.4 candidate
+## Current 1.5.0 candidate
 
-Updated 2026-10-16. Research-informed comfort starting points and an offline
-adjustment guide are installed locally. This is a desktop/source checkpoint;
+Updated 2026-10-16. Personal comfort modes, research-informed starting points
+and an offline adjustment guide are installed locally. This is a desktop/source checkpoint;
 no release or release tag was published.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `84525462dbb0ef2b3f88c05b5191bde5a422cea7` - comfort presets and guidance |
-| GUI recorded build | `1.4.4+84525462dbb0ef2b3f88c05b5191bde5a422cea7` |
-| Package | `LumenDeck-1.4.4-win-x64.zip` |
-| SHA-256 | `343da77e1cf3bab20cadd5f2ac71f0caefd489d25e2a88485937a57c24017d13` |
+| Source commit | `cf0add799f8ecd78b3b6e1845bb83549ef12d630` - personal comfort milestone and references |
+| GUI recorded build | `1.5.0+cf0add799f8ecd78b3b6e1845bb83549ef12d630` |
+| Package | `LumenDeck-1.5.0-win-x64.zip` |
+| SHA-256 | `a91143ef2d2be0973bfb184675132f202f432527b20371b5f9b3c2dc27c200fc` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
-| File version | `1.4.4.0` for both executables |
-| Verification | Warnings-as-errors build; 2,849 AppTests; 4,680 ControlTests before final wording trim; 235 final preset/guide checks; 262 material capture checks; package/startup and installed identities verified |
+| File version | `1.5.0.0` for both executables |
+| Verification | Warnings-as-errors build; 2,865 AppTests; 4,706 ControlTests; 267 preset/guide capture checks; 262 material capture checks; package regressions, startup and installed identities verified |
 
 The archive passes the five-file allowlist, SHA-256, version, mapped source-path,
 standalone CLI and synthetic GUI startup checks. Installed payload hashes match
@@ -23,26 +23,37 @@ replacement; preferences and remembered manual levels remained intact after
 startup. One responsive installed process has a main window, no startup error-log
 growth and no outstanding blackout or dim recovery records.
 
-The first full AppTests attempt hit its three-minute deadline while ControlTests
-were running concurrently. A sequential rerun passed all 2,849 checks without
-changing the deadline. ControlTests first caught an old Day preview expectation;
-it was updated from 43% to 31% for the new 160-nit target on the 400/50 profile.
-The full suite then passed. Final shorter editor wording was covered again by
-235 focused checks, including narrow and scaled layouts.
+The source-path guard and its injected-path rejection fixtures passed. Package
+regressions rejected extra files, tampered content and wrong versions; launch
+failures restored the caller environment. Installer source validation, 24
+PATH/locked-file/state-preservation checks and 22 bundle/decompression checks
+passed without changing real registry entries or shortcuts.
+
+During development, the earlier 1.4.4 AppTests run hit its three-minute deadline
+while ControlTests ran concurrently; sequential execution resolved it without
+changing the deadline. For 1.5.0, an old layout check assumed every editor button
+belonged to the pinned footer. It now checks footer visibility separately and
+verifies that each new per-mode button is reachable by scrolling at simulated
+200% scale. The final full suites and narrow/scaled focused captures passed.
 
 Computer Use could not connect to its native pipe. Normal process close was
 attempted; keep-running retained the old instance, which was force-terminated
 under standing owner authorization. Existing recovery state was preserved.
 Startup health is process/window identity, responsiveness and error-log evidence,
 not a native screenshot or optical measurement. Synthetic guide and material
-renders were visually inspected. Unchanged installer/bundle regression suites
-and hosted CI were not rerun; package content checks did run.
+renders were visually inspected. The new preset reference and all material
+references have source/hash receipts. Hosted CI results are recorded by the
+[build workflow](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml)
+for the pushed revision; local checks above do not substitute for a hosted result.
 
 [scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) checks this
 record against the archive and both executable payloads. See
 [checkpoint](checkpoint.md) and [comfort research](comfort-research.md).
 
 ## Historical candidates
+
+The 1.4.4 comfort-default checkpoint was installed and verified before this
+personalization milestone; its package identity remains in Git history.
 
 The `31af655` compact milestone was installed as 1.4.1 with matching binary hashes,
 preserved settings and a verified responsive startup. The `818fa7b` Night saver
