@@ -1,44 +1,45 @@
 # Release readiness
 
-## Current 1.4.1 candidate
+## Current 1.4.2 candidate
 
-Updated 2026-10-16. The functional material interface shares the production
-controller, settings, tray and recovery paths. Classic advanced controls remain
-available. This is a source/portable checkpoint, not a published release.
+Updated 2026-10-16. Theme selection is directly visible in the material header,
+with a shared single-level menu and explanatory material/save states. Existing
+control and recovery implementations are retained. This is a source/desktop
+checkpoint, not a published release.
 
 | Item | Recorded value |
 | --- | --- |
-| Source commit | `87a044196ecf0d6683001ecee9d1e52a03eaf034` - 1.4.1 functional material checkpoint |
-| GUI recorded build | `1.4.1+87a044196ecf0d6683001ecee9d1e52a03eaf034` |
-| Package | `LumenDeck-1.4.1-win-x64.zip` |
-| SHA-256 | `e8d57839034f5a0da063cdbc410d79493708de4e4eea7a9401286f41a041dadc` |
+| Source commit | `64a6a8a6c93943952b399ad684c10f5c94fedbf8` - 1.4.2 visible theme checkpoint |
+| GUI recorded build | `1.4.2+64a6a8a6c93943952b399ad684c10f5c94fedbf8` |
+| Package | `LumenDeck-1.4.2-win-x64.zip` |
+| SHA-256 | `c3aa3d9b122f43551d5aa47681fe2ca4dcc6a512845be7d2846386fbe4f3c1d9` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
-| File version | `1.4.1.0` for both executables |
-| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,678 AppTests; 70 material capture checks; release-path canaries; extracted package startup; 24 installer and 22 bundle checks |
+| File version | `1.4.2.0` for both executables |
+| Verification | Release warnings-as-errors build; 2,722 AppTests; 135 material/capture checks; release-path canaries; extracted package startup; 24 installer and 22 bundle checks; installed hashes/settings/shortcuts/startup verified |
 
 Both executable product versions match the recorded GUI build. The extracted
 package passes its exact file allowlist, hashes, versions, bundled source-path
 checks, standalone CLI and synthetic GUI startup with SDK/runtime lookup removed.
-Package regressions cover altered/extra/version inputs, launch-failure environment
-restoration, running-app refusal and isolated installer-state preservation.
+Package regressions cover altered/extra/version inputs, environment restoration,
+running-app refusal and isolated installer-state preservation. ControlTests are
+unchanged and remain required in hosted CI; this presentation update did not rerun
+them locally. See the final handoff for the actual hosted result.
 
-[scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) verifies this
-single candidate record against the ZIP digest, checksum sidecar and both actual
-executable payloads. Historical candidates below do not duplicate the identity rows.
-
-See the [checkpoint](checkpoint.md) for the local artifact and installation process;
-[packaging](packaging.md) defines the verification contract and limits. The
-[material reference receipt](assets/material-reference.json) is bound to the implementation source (the package commit adds only documentation/assets) and uses
-fictitious displays. Package probes do not change the real installation or exercise
-physical monitor control.
+[scripts/Check-ReleaseRecord.ps1](../scripts/Check-ReleaseRecord.ps1) verifies the
+candidate record against the ZIP digest, checksum sidecar and both actual
+executable payloads. See [checkpoint](checkpoint.md) for the installed desktop
+outcome and [packaging](packaging.md) for the contract and limits. The
+[reference receipt](assets/material-reference.json) is bound to the implementation
+commit; the package source adds only those synthetic reference assets.
 
 ## Historical candidates
 
 The `31af655` compact milestone was installed as 1.4.1 with matching binary hashes,
 preserved settings and a verified responsive startup. The `818fa7b` Night saver
 repair was prepared next. The `cc08d8a` multi-theme candidate was held after material-design feedback.
-The current functional material candidate supersedes those packages while
-retaining version 1.4.1. `ThemeId` still controls the classic panel/editors.
+The functional material candidate was then installed as 1.4.1.
+The current 1.4.2 package adds the visible Theme entry point and status guidance.
+`ThemeId` still controls the classic panel/editors.
 
 The `3da37c6` compact desktop build was installed as 1.4.0, with matching binary
 hashes, preserved settings and verified desktop shortcuts/startup. The owner then
