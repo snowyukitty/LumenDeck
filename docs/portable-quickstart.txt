@@ -40,9 +40,13 @@ Cancel/Escape discard the draft. Refresh replacing the card or disabling the
 control cancels the open entry.
 
 Settings
-Settings > Appearance offers Smoke, Frost and Ceramic. Smoke/Frost can request
+The Theme button beside Settings offers Smoke, Frost and Ceramic in one click.
+It shows the current finish. Settings > Appearance opens the same choices.
+Smoke/Frost can request
 Mica, Glass or Solid; Ceramic is opaque. Windows high contrast takes priority,
 and unsupported material or disabled transparency uses an opaque fallback.
+The menu explains unavailable material, high contrast, pending saves and protected
+settings. Ceramic always stays solid and leaves material choices unchecked.
 A confirmed save updates appearance without changing displays or Night saver.
 The classic panel and shared editors retain Amber, Paper, Ocean and Violet.
 

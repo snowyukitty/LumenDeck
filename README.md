@@ -15,7 +15,7 @@ from one window, or one command.**
 **Start here:** [Download](#install) · [Set up your desk](#your-first-desk-setup) ·
 [Troubleshoot](#troubleshooting) · [Contribute](CONTRIBUTING.md)
 
-Current source checkpoint: **1.4.1** · [Changes](CHANGELOG.md) ·
+Current source checkpoint: **1.4.2** · [Changes](CHANGELOG.md) ·
 [Build and package status](docs/release-readiness.md).
 
 An external monitor may not have a brightness slider in Windows. Microsoft's
@@ -76,7 +76,7 @@ shortcuts and brightness estimates. **Desk actions** applies desk-wide presets
 and chooses the retained Night saver display. **Settings** opens preset targets,
 schedules, startup preferences and appearance choices.
 
-**Settings > Appearance** offers Smoke, Frost and Ceramic. Smoke and Frost can use
+The visible **Theme** button at the top offers Smoke, Frost and Ceramic. Smoke and Frost can use
 Mica, Glass or Solid; Ceramic stays opaque. Choices apply after a confirmed save
 without rescanning or changing displays. [Compare finishes and classic themes](docs/themes.md).
 

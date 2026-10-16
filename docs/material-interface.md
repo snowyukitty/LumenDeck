@@ -29,11 +29,21 @@ fixture; launch the installed LumenDeck application for actual control.
 
 ## Appearance and compatibility
 
-Settings > Appearance offers Smoke (dark), Frost (light) and Ceramic (warm opaque).
+The **Theme · <current finish>** button sits immediately left of Settings and
+opens a single menu with Smoke (dark), Frost (light), Ceramic (warm solid), then
+Mica, Glass and Solid material choices. It remains visible in the minimum-size
+window alongside Settings and Night saver. Settings > Appearance remains an
+alternate entrance to the same choices and save guards.
 Smoke and Frost can request Mica, Glass (DWM Acrylic) or Solid. Ceramic always uses
 an opaque surface. Windows high contrast takes priority; unavailable backdrops or
 disabled Windows transparency fall back to an opaque foundation. A successful DWM
 call does not prove the compositor produced a particular visual appearance.
+
+The menu explains pending saves, protected settings, Windows high contrast,
+Ceramic's solid surface and unavailable transparency. Ceramic leaves the material
+choices unchecked and disabled; choosing Smoke or Frost restores the saved
+material preference. The button and its accessibility name report the active
+finish; the footer reports the effective material, including Solid fallback.
 
 `MaterialFinish`, `MaterialBackdrop` and `UseMaterialInterface` are saved only
 through the normal confirmed-settings transaction. A failed save retains the live
@@ -69,7 +79,7 @@ The extracted-package startup probe loads WPF XAML/resources and material fallba
 without opening a real device controller or touching user settings.
 
 Run `powershell -File scripts/capture-material.ps1` from committed source to
-generate six reference images and their [receipt](assets/material-reference.json).
+generate six window references, the theme menu and their [receipt](assets/material-reference.json).
 These are opaque WPF client renders, not screenshots of desktop blur. Actual
 foreground keyboard/pointer behavior, mixed-DPI movement, Narrator, real Windows
 contrast themes, compositor appearance and physical device restoration still need

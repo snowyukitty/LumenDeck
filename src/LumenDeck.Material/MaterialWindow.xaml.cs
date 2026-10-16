@@ -124,6 +124,9 @@ public partial class MaterialWindow : Window
         MaterialNote.Text = _exporting
             ? "LumenDeck · opaque reference render; native backdrop is not captured"
             : $"{char.ToUpperInvariant(_finish[0])}{_finish[1..]} · {(_native.Requested ? (_backdrop == 3 ? "Glass" : "Mica") : "Solid")}";
+        ThemeButton.Content = $"Theme · {char.ToUpperInvariant(_finish[0])}{_finish[1..]} ▾";
+        AutomationProperties.SetName(ThemeButton,
+            $"Theme, {_finish}, {(_native.Requested ? (_backdrop == 3 ? "Glass" : "Mica") : "Solid")} surface");
     }
 
 
@@ -274,13 +277,7 @@ public partial class MaterialWindow : Window
     {
         var menu = Menu(sender); var s = _snapshot!; bool save = !s.SavePending && !s.PreferencesLocked;
         var finish = new MenuItem { Header = "Appearance" };
-        finish.Items.Add(Item("Smoke", MaterialAction.FinishSmoke, save, _finish == "smoke"));
-        finish.Items.Add(Item("Frost", MaterialAction.FinishFrost, save, _finish == "frost"));
-        finish.Items.Add(Item("Ceramic", MaterialAction.FinishCeramic, save, _finish == "ceramic"));
-        finish.Items.Add(new Separator());
-        finish.Items.Add(Item("Mica", MaterialAction.BackdropMica, save && _finish != "ceramic", _backdropName == "mica"));
-        finish.Items.Add(Item("Glass", MaterialAction.BackdropGlass, save && _finish != "ceramic", _backdropName == "glass"));
-        finish.Items.Add(Item("Solid", MaterialAction.BackdropSolid, save && _finish != "ceramic", _backdropName == "solid"));
+        foreach (var choice in AppearanceChoices()) finish.Items.Add(choice);
         menu.Items.Add(finish); menu.Items.Add(new Separator());
         menu.Items.Add(Item(s.Startup.HasValue ? "Start with Windows" : "Start with Windows (unavailable)", MaterialAction.Startup, save && s.Startup.HasValue, s.Startup == true));
         menu.Items.Add(Item("Start minimised", MaterialAction.StartMinimised, save, s.StartMinimised));
@@ -296,6 +293,32 @@ public partial class MaterialWindow : Window
         menu.Items.Add(Item("About LumenDeck", MaterialAction.About));
         menu.Items.Add(Item("Classic interface", MaterialAction.Classic, save));
         menu.Items.Add(Item("Exit", MaterialAction.Exit, !s.SavePending));
+        menu.IsOpen = true;
+    }
+    private IEnumerable<Control> AppearanceChoices()
+    {
+        var s = _snapshot!; bool save = !s.SavePending && !s.PreferencesLocked;
+        string note = s.SavePending ? "Saving settings… theme choices will be available when it finishes."
+            : s.PreferencesLocked ? "Settings changed or could not be read. Exit and reopen before changing themes."
+            : SystemParameters.HighContrast ? "Windows high contrast is active. Your theme is saved for later."
+            : _finish == "ceramic" ? "Ceramic always uses a solid surface."
+            : _backdropName != "solid" && !_native.Requested ? "Windows is showing a solid surface. Transparency is off or unavailable."
+            : "";
+        if (note.Length > 0)
+            yield return new MenuItem { Header = new TextBlock { Text = note, MaxWidth = 260, TextWrapping = TextWrapping.Wrap },
+                IsEnabled = false, Focusable = false, FontSize = 12, Opacity = 1 };
+        yield return Item("Smoke · Dark", MaterialAction.FinishSmoke, save, _finish == "smoke");
+        yield return Item("Frost · Light", MaterialAction.FinishFrost, save, _finish == "frost");
+        yield return Item("Ceramic · Warm solid", MaterialAction.FinishCeramic, save, _finish == "ceramic");
+        yield return new Separator();
+        yield return Item("Material · Mica", MaterialAction.BackdropMica, save && _finish != "ceramic", _finish != "ceramic" && _backdropName == "mica");
+        yield return Item("Material · Glass", MaterialAction.BackdropGlass, save && _finish != "ceramic", _finish != "ceramic" && _backdropName == "glass");
+        yield return Item("Material · Solid", MaterialAction.BackdropSolid, save && _finish != "ceramic", _finish != "ceramic" && _backdropName == "solid");
+    }
+    private void ThemeClick(object sender, RoutedEventArgs e)
+    {
+        var menu = Menu(sender);
+        foreach (var choice in AppearanceChoices()) menu.Items.Add(choice);
         menu.IsOpen = true;
     }
     private void DeskActionsClick(object sender, RoutedEventArgs e)

@@ -17,6 +17,10 @@ foreach ($finish in 'smoke', 'frost', 'ceramic') {
         $images += [ordered]@{ file=$name; sha256=(Get-FileHash -LiteralPath $destination).Hash.ToLowerInvariant() }
     }
 }
+$menuName = 'material-theme-menu.png'
+$menuDestination = Join-Path $OutputDirectory $menuName
+Copy-Item -LiteralPath (Join-Path $captures 'ceramic-theme-menu.png') -Destination $menuDestination -Force
+$images += [ordered]@{ file=$menuName; sha256=(Get-FileHash -LiteralPath $menuDestination).Hash.ToLowerInvariant() }
 [ordered]@{
     sourceCommit=$source
     generator='scripts/capture-material.ps1'

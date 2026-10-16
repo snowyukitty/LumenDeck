@@ -25,6 +25,9 @@ internal static partial class Program
             { var s = host.Capture(); host.Execute(action, key ?? s.SelectedKey, s.Generation, value); window.RefreshState(); Application.DoEvents(); }
             Assert(window.IsVisible && !fixture.Form.Visible && state.Displays.Count == 3,
                 "material shell shares the existing controller and real synthetic inventory");
+            var themeButton = (WpfButton)window.FindName("ThemeButton");
+            Assert(themeButton.IsVisible && themeButton.Content.ToString().Contains("Smoke"),
+                "theme choice is directly visible and names the active finish");
             int scans = fixture.Scans, startup = fixture.StartupWrites, gamma = fixture.GammaWrites, writes = fixture.Transport.Writes;
             window.RefreshState(); window.RefreshState();
             Assert(fixture.Scans == scans && fixture.Transport.Writes == writes && fixture.GammaWrites == gamma,
@@ -79,9 +82,16 @@ internal static partial class Program
             foreach (var action in new[] { MaterialAction.FinishFrost, MaterialAction.FinishCeramic, MaterialAction.FinishSmoke })
             {
                 writes = fixture.Transport.Writes; gamma = fixture.GammaWrites;
-                Send(action); SettleSettings(fixture); window.RefreshState();
+                ClickMaterial(window, "ThemeButton");
+                var directMenu = themeButton.ContextMenu;
+                var target = action switch { MaterialAction.FinishFrost => "Frost", MaterialAction.FinishCeramic => "Ceramic", _ => "Smoke" };
+                directMenu.Items.OfType<System.Windows.Controls.MenuItem>().Single(i => i.Header.ToString().StartsWith(target))
+                    .RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                directMenu.IsOpen = false;
+                SettleSettings(fixture); window.RefreshState();
                 Assert(fixture.Transport.Writes == writes && fixture.GammaWrites == gamma && fixture.Scans == scans && input.Text == "draft",
                     "saved material changes preserve draft and cause no hardware work");
+                Assert(themeButton.Content.ToString().Contains(target), "direct theme choice updates its visible active label");
                 Assert(AppSettings.Load(fixture.SettingsPath).MaterialFinish == fixture.Settings.MaterialFinish,
                     "material finish persists only after confirmed save");
                 ClickMaterial(window, "SettingsButton");
@@ -89,8 +99,8 @@ internal static partial class Program
                 Application.DoEvents();
                 var appearance = (System.Windows.Controls.MenuItem)menu.Items[0];
                 appearance.IsSubmenuOpen = true; Application.DoEvents();
-                Assert(menu.ActualWidth > 180 && appearance.Items.Count == 7 &&
-                    appearance.Items.OfType<System.Windows.Controls.MenuItem>().Count(i => i.IsChecked) == 2,
+                Assert(menu.ActualWidth > 180 && appearance.Items.OfType<System.Windows.Controls.MenuItem>().Count(i => i.IsCheckable) == 6 &&
+                    appearance.Items.OfType<System.Windows.Controls.MenuItem>().Count(i => i.IsChecked) == (target == "Ceramic" ? 1 : 2),
                     "material settings and appearance submenu expose saved choices");
                 if (renderDirectory != null)
                 {
@@ -99,6 +109,20 @@ internal static partial class Program
                     RenderMaterialElement((System.Windows.FrameworkElement)popup.Child, Path.Combine(renderDirectory, fixture.Settings.MaterialFinish + "-appearance.png"));
                 }
                 appearance.IsSubmenuOpen = false; menu.IsOpen = false;
+            }
+            foreach (string material in new[] { "Glass", "Solid", "Mica" })
+            {
+                writes = fixture.Transport.Writes; gamma = fixture.GammaWrites;
+                var beforeMaterial = host.Capture();
+                ClickMaterial(window, "ThemeButton");
+                var menu = themeButton.ContextMenu;
+                menu.Items.OfType<System.Windows.Controls.MenuItem>().Single(i => i.Header.ToString() == "Material · " + material)
+                    .RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                menu.IsOpen = false; SettleSettings(fixture); window.RefreshState();
+                Assert(fixture.Transport.Writes == writes && fixture.GammaWrites == gamma && fixture.Scans == scans &&
+                    host.Capture().Generation == beforeMaterial.Generation && input.Text == "draft" &&
+                    AppSettings.Load(fixture.SettingsPath).MaterialBackdrop == material.ToLowerInvariant(),
+                    "direct material choices persist without display work or loss of input");
             }
             Send(MaterialAction.SelectDisplay, key: "desk-fixture-1");
             Assert(!((WpfSlider)window.FindName("Contrast")).IsEnabled &&
@@ -113,6 +137,27 @@ internal static partial class Program
             Assert(host.Capture().NightActive && fixture.Settings.NightDimActiveFor(primary) &&
                 host.Capture().Displays.Single(d => d.Key == primary).Brightness <= 5,
                 "material Night saver uses actual recovery records and dims the primary");
+            foreach (var action in new[] { MaterialAction.FinishSmoke, MaterialAction.FinishFrost, MaterialAction.FinishCeramic })
+            {
+                writes = fixture.Transport.Writes; gamma = fixture.GammaWrites;
+                Send(action); SettleSettings(fixture); window.RefreshState();
+                window.Width = 660; window.Height = 610; window.UpdateLayout();
+                AssertMaterialHeaderFits(window);
+                Assert(host.Capture().NightActive && host.Capture().Displays.Single(d => d.Key == primary).Brightness <= 5 &&
+                    fixture.Transport.Writes == writes && fixture.GammaWrites == gamma,
+                    "theme changes preserve active Night saver and its dim work display");
+                if (action == MaterialAction.FinishCeramic)
+                {
+                    ClickMaterial(window, "ThemeButton"); var menu = themeButton.ContextMenu;
+                    Assert(menu.Items.OfType<System.Windows.Controls.MenuItem>().Any(i => i.Header is System.Windows.Controls.TextBlock t && t.Text.Contains("Ceramic")) &&
+                        menu.Items.OfType<System.Windows.Controls.MenuItem>().Where(i => i.Header.ToString().StartsWith("Material"))
+                            .All(i => !i.IsEnabled && !i.IsChecked),
+                        "Ceramic explains its solid surface without checking an unavailable material");
+                    if (renderDirectory != null) RenderMaterialElement(menu, Path.Combine(renderDirectory, "ceramic-theme-menu.png"));
+                    menu.IsOpen = false;
+                }
+            }
+            window.Width = 880; window.Height = 830; window.UpdateLayout();
             Send(MaterialAction.NightSaver);
             Assert(!host.Capture().NightActive && !fixture.Settings.NightDimActiveFor(primary),
                 "material Night saver ends through the shared restoration path");
@@ -155,6 +200,7 @@ internal static partial class Program
                     Send(action); SettleSettings(fixture); window.RefreshState();
                     window.RenderReference(Path.Combine(renderDirectory, fixture.Settings.MaterialFinish + ".png"));
                     window.Width = 660; window.Height = 610; window.UpdateLayout();
+                    AssertMaterialHeaderFits(window);
                     Assert(((WpfSlider)window.FindName("Brightness")).ActualWidth > 400,
                         "material minimum-size brightness stays usable");
                     window.RenderReference(Path.Combine(renderDirectory, fixture.Settings.MaterialFinish + "-compact.png"));
@@ -181,6 +227,8 @@ internal static partial class Program
             SettleSettings(fixture); window.RefreshState();
             Assert(fixture.Settings.MaterialFinish == "smoke" && host.Capture().Warning,
                 "failed material preference save preserves the active appearance with a warning");
+            Assert(((WpfButton)window.FindName("ThemeButton")).Content.ToString().Contains("Smoke"),
+                "failed preference save cannot mislabel the active theme");
         }
         using (var entered = new ManualResetEventSlim())
         using (var release = new ManualResetEventSlim())
@@ -197,10 +245,50 @@ internal static partial class Program
                 window.Close(); Application.DoEvents(); Application.DoEvents();
                 Assert(!fixture.Form.IsDisposed && window.IsVisible && fixture.Settings.MaterialFinish == "smoke",
                     "material close waits for a pending save without activating the draft");
+                ClickMaterial(window, "ThemeButton");
+                var pendingMenu = ((WpfButton)window.FindName("ThemeButton")).ContextMenu;
+                Assert(pendingMenu.Items.OfType<System.Windows.Controls.MenuItem>().All(i => !i.IsEnabled),
+                    "pending save disables competing choices in the direct theme menu");
+                pendingMenu.IsOpen = false;
                 release.Set(); SettleSettings(fixture);
                 Assert(fixture.Settings.MaterialFinish == "frost", "pending material save activates only after confirmation");
             }
             finally { release.Set(); }
+        }
+        using (var fixture = new Fixture(directory, enumerate: _ => DeskDisplays(1), allDisplays: false,
+            settingsFactory: path => { File.WriteAllText(path, "[]"); return AppSettings.Load(path); }))
+        {
+            RequestSettings(fixture); SettleSettings(fixture);
+            var window = fixture.Form.OpenMaterialWindow(false);
+            window.Left = -30000; window.Top = -30000; window.ShowInTaskbar = false; window.ShowActivated = false; window.Show();
+            ClickMaterial(window, "ThemeButton");
+            var menu = ((WpfButton)window.FindName("ThemeButton")).ContextMenu;
+            Assert(menu.Items.OfType<System.Windows.Controls.MenuItem>().All(i => !i.IsEnabled) &&
+                menu.Items.OfType<System.Windows.Controls.MenuItem>().Any(i => i.Header is System.Windows.Controls.TextBlock t && t.Text.Contains("Exit and reopen")),
+                "protected settings explain why direct theme choices are unavailable");
+            menu.IsOpen = false;
+        }
+    }
+
+    private static void AssertMaterialHeaderFits(MaterialWindow window)
+    {
+        var names = new[] { "BrandName", "ThemeButton", "SettingsButton", "NightButton" };
+        double right = 0;
+        foreach (string name in names)
+        {
+            var element = (System.Windows.FrameworkElement)window.FindName(name);
+            var bounds = element.TransformToAncestor(window).TransformBounds(new System.Windows.Rect(element.RenderSize));
+            Assert(element.IsVisible && bounds.Left >= right && bounds.Right <= window.ActualWidth && bounds.Top >= 0,
+                "minimum-size header keeps " + name + " visible without overlap");
+            if (element is WpfButton button)
+            {
+                var text = new System.Windows.Controls.TextBlock { Text = button.Content.ToString(), FontFamily = button.FontFamily,
+                    FontSize = button.FontSize, FontWeight = button.FontWeight };
+                text.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+                Assert(button.ActualWidth + 1 >= text.DesiredSize.Width + button.Padding.Left + button.Padding.Right + button.BorderThickness.Left + button.BorderThickness.Right,
+                    "minimum-size header fits full " + button.Content + " label");
+            }
+            right = bounds.Right;
         }
     }
 

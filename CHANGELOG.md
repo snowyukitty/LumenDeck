@@ -8,6 +8,22 @@ Notable changes, newest first. Format follows
 
 No further changes recorded.
 
+## [1.4.2] — 2026-10-16
+
+Desktop/source checkpoint improving theme discoverability.
+
+### Changed
+
+- A visible **Theme · <finish>** button beside Settings opens a single menu for
+  Smoke, Frost, Ceramic and window material. The minimum-size header fits every
+  finish name with Night saver active or inactive.
+- Appearance choices explain pending saves, protected settings, Windows high
+  contrast, Ceramic's solid surface and system transparency fallback. Ceramic no
+  longer checks a disabled material that cannot apply to its surface.
+- Direct Theme and Settings > Appearance share one choice builder, checked state
+  and confirmed-save path. Tests verify every menu selection leaves display
+  state unchanged and preserves draft input and active Night saver.
+
 ## [1.4.1] — 2026-10-15
 
 Versioned desktop checkpoint following owner review of the compact interface.
