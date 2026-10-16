@@ -4,6 +4,50 @@ using LumenDeck;
 
 internal static partial class Program
 {
+    private static void CheckComfortCapture(string directory)
+    {
+        using var fixture = new Fixture(directory, allDisplays: false);
+        var monitor = Controls(fixture.Form).OfType<MonitorCard>().Single().Monitor;
+        monitor.BrightnessMin = 10; monitor.BrightnessMax = 210; monitor.Brightness = 110;
+        monitor.Kelvin = 5100;
+        var capture = fixture.Form.CapturePresetSource();
+        Assert(capture.Available && capture.DisplayName == monitor.DisplayName &&
+            capture.Nits == Presets.NitsFor(monitor, 110) && capture.Kelvin == 5100,
+            "capture uses the selected display's actual hardware range and warmth");
+        monitor.Brightness = 120; monitor.Kelvin = 6000;
+        Assert(capture.Kelvin == 5100 && capture.Nits == Presets.NitsFor(monitor, 110),
+            "an open editor snapshot is immutable when the live display changes");
+        Assert(fixture.Transport.Writes == 0 && fixture.GammaWrites == 0, "capture does not request display adjustments");
+        monitor.Kelvin = 9000;
+        Assert(!fixture.Form.CapturePresetSource().Available, "out-of-range captures are refused instead of silently clamped");
+        monitor.Kelvin = 6000;
+        monitor.SupportsBrightness = false;
+        Assert(!fixture.Form.CapturePresetSource().Available, "warmth-only displays cannot invent a brightness capture");
+        monitor.SupportsBrightness = true;
+        fixture.Settings.SetNightDim(monitor.StableKey, monitor.DisplayName, true, 50, 110);
+        Assert(!fixture.Form.CapturePresetSource().Available, "temporary Night saver levels cannot become comfort presets");
+        fixture.Settings.SetNightDim(monitor.StableKey, monitor.DisplayName, false, null, null);
+        fixture.Settings.SetScreenBlank(monitor.StableKey, monitor.DisplayName, true, 50, 110);
+        Assert(!fixture.Form.CapturePresetSource().Available, "blanked display levels cannot become comfort presets");
+        fixture.Settings.SetScreenBlank(monitor.StableKey, monitor.DisplayName, false, null, null);
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        fixture.Transport.OnWrite = (_, _, _) => { entered.Set(); release.Wait(); return true; };
+        try
+        {
+            fixture.Worker.Set(monitor, DdcWorker.Feature.Brightness, 80);
+            PumpUntil(() => entered.IsSet, "capture pending write");
+            Assert(!fixture.Form.CapturePresetSource().Available, "pending brightness cannot masquerade as a confirmed capture");
+        }
+        finally { release.Set(); }
+        PumpUntil(() => fixture.Worker.Idle, "capture confirmed readback");
+        Assert(fixture.Form.CapturePresetSource().Available, "confirmed readback makes capture available again");
+        fixture.Transport.OnWrite = (_, _, _) => false;
+        fixture.Worker.Set(monitor, DdcWorker.Feature.Brightness, 90);
+        PumpUntil(() => fixture.Worker.Idle, "capture refused write");
+        Assert(!fixture.Form.CapturePresetSource().Available, "refused brightness is not stored as a comfortable observed level");
+    }
+
     /// <summary>
     /// Actual MainForm ownership of preset targets: the modal editor, the
     /// background settings writer, activation only after a confirmed save, and
@@ -11,6 +55,7 @@ internal static partial class Program
     /// </summary>
     private static void CheckPresetTargetLifecycle(string directory)
     {
+        CheckComfortCapture(directory);
         CheckSavedPresetTargetsAtStartup(directory);
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
@@ -54,6 +99,10 @@ internal static partial class Program
                     Assert(editor.Modal && !IsWindowEnabled(fixture.Form.Handle), "preset targets open as a modal editor owned by the window");
                     Assert(Controls(View()).OfType<Label>().Single(l => l.AccessibleName == "Night brightness requests").Text
                         .Contains(card.Monitor.DisplayName), "preview lists the connected display by its card name");
+                    Controls(View()).OfType<FlatButton>().Single(b => b.AccessibleName == "Use this display for Night").PerformClick();
+                    Assert(Input("Night target luminance (nits)").Value == Presets.NitsFor(card.Monitor, card.Monitor.Brightness) &&
+                        fixture.Transport.Writes == 0 && fixture.Settings.PresetTargets.Count == 0,
+                        "the real editor receives the selected display snapshot and copies it without hardware or settings writes");
                     Input("Night target luminance (nits)").Value = 90;
                     Input("Night warmth (kelvin)").Value = 4300;
                     failNext = true;

@@ -362,6 +362,8 @@ public partial class MaterialWindow : Window
         menu.Items.Add(Item(d?.Blanked == true ? "Restore screen" : "Blank screen", MaterialAction.Blank, ready));
         menu.Items.Add(Item("Screen shortcut…", MaterialAction.Shortcut, ready));
         menu.Items.Add(Item("Brightness estimate…", MaterialAction.Profile, ready));
+        menu.Items.Add(Item("Use this display in a mode…", MaterialAction.PresetTargets,
+            ready && !_snapshot!.SavePending && !_snapshot.PreferencesLocked));
         menu.Items.Add(Item("Advanced controls (classic)…", MaterialAction.Advanced, ready));
         menu.Items.Add(Item("Dismiss adjustment notice", MaterialAction.DismissWarning, ready));
         menu.IsOpen = true;

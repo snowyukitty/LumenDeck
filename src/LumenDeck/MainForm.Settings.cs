@@ -158,7 +158,7 @@ internal partial class MainForm
             .Select(c => new PresetPreviewDisplay(c.Monitor.DisplayName, PanelDatabase.For(c.Monitor),
                 PanelDatabase.HasUserProfile(c.Monitor)))
             .ToArray();
-        var context = new PresetEditorContext(_settings.PresetLevels, displays, cards.Count - displays.Length);
+        var context = new PresetEditorContext(_settings.PresetLevels, displays, cards.Count - displays.Length, CapturePresetSource());
         try
         {
             using var editor = _host.CreatePresetEditor(context, SavePresetLevelsAsync);
@@ -167,6 +167,27 @@ internal partial class MainForm
                 SetStatus("Preset targets closed. Targets and displays were not changed.");
         }
         finally { _presetEditor = null; }
+    }
+
+    internal PresetCapture CapturePresetSource()
+    {
+        PresetCapture Unavailable(string reason) => new("", 0, 0, reason);
+        if (!CanAdjustDisplays) return Unavailable("Wait for display discovery to finish, then reopen this editor.");
+        var monitor = _cards.FirstOrDefault(c => !c.IsDisposed && c.Monitor.StableKey == _selectedMonitorKey)?.Monitor;
+        if (monitor == null) return Unavailable("Select a display, then reopen this editor.");
+        if (!monitor.SupportsBrightness) return Unavailable("The selected display has no brightness control. You can still edit targets manually.");
+        if (_blanker.IsBlanked(monitor.StableKey) || _settings.ScreenBlankActiveFor(monitor.StableKey) || KeepNightWorkDisplay(monitor.StableKey))
+            return Unavailable("Restore the selected display or end Night saver before capturing a reading level.");
+        var observation = _worker.Observe(monitor, DdcWorker.Feature.Brightness);
+        if (observation.Kind is not (DdcWorker.ObservationKind.Observed or DdcWorker.ObservationKind.Confirmed) ||
+            observation.LastObserved is not int raw)
+            return Unavailable("Brightness is pending or unconfirmed. Check the display, wait for readback or Refresh, then reopen this editor.");
+        if (Presets.PercentFor(PanelDatabase.For(monitor), 100) == null)
+            return Unavailable("The selected display's brightness estimate has no usable range. Edit its brightness estimate first.");
+        int nits = Presets.NitsFor(monitor, raw);
+        if (!Presets.IsValidTarget(nits, monitor.Kelvin))
+            return Unavailable("The selected display's estimate is outside the preset editor's range. Edit the target manually.");
+        return new(monitor.DisplayName, nits, monitor.Kelvin);
     }
 
     /// <summary>

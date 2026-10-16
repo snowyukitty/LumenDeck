@@ -15,7 +15,7 @@ from one window, or one command.**
 **Start here:** [Download](#install) · [Set up your desk](#your-first-desk-setup) ·
 [Troubleshoot](#troubleshooting) · [Contribute](CONTRIBUTING.md)
 
-Current source checkpoint: **1.4.4** · [Changes](CHANGELOG.md) ·
+Current source checkpoint: **1.5.0** · [Changes](CHANGELOG.md) ·
 [Build and package status](docs/release-readiness.md).
 
 An external monitor may not have a brightness slider in Windows. Microsoft's
@@ -160,6 +160,20 @@ Choose **Settings > Preset targets…** to change them;
 the editor previews the brightness percentage each connected display would
 receive. Saving changes future preset requests only, in the window, tray and
 `lumendeck-cli --preset`; it does not adjust a display or your Custom levels.
+
+**Make a mode from a comfortable screen:** adjust one display with the sliders,
+then open **Settings > Preset targets** (or **Display actions > Use this display
+in a mode** in the material interface). Choose **Use this display** under Day,
+Evening or Night. It copies the selected display's estimated nits and current
+warmth into that mode's draft. Review the per-display previews, then save.
+**Reset this mode** restores only that mode's built-in draft; other edits stay.
+
+The source is captured when the editor opens. Copying, resetting and saving do
+not adjust hardware. Capture is unavailable for blanked/Night saver displays,
+unsupported brightness, pending or failed readback, or an unusable estimate.
+Restore or check the display and reopen the editor; numeric editing remains
+available. Cross-display matching and round-tripping through whole-number nits
+are estimates, not a promise of identical brightness or appearance.
 
 ### 2. Blue light reduction that works even when the monitor refuses
 

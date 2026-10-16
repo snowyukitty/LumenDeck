@@ -140,7 +140,8 @@ internal static partial class Program
             new PresetPreviewDisplay("Desk B", PanelDatabase.FallbackFor(false), UserProfile: false),
         };
         var current = Presets.Levels.Select(l => l.Name == "Night" ? l with { Nits = 90, Kelvin = 4200 } : l).ToArray();
-        var context = new PresetEditorContext(current, displays, WithoutBrightness: 1);
+        var context = new PresetEditorContext(current, displays, WithoutBrightness: 1,
+            Capture: new PresetCapture("Desk A", 225, 5100));
         var requests = new List<IReadOnlyList<Presets.Level>>();
         var pending = new Queue<Func<Task<SettingsSaveResult>>>();
         using var form = new PreviewForm { ClientSize = new Size(600, 760), Font = Theme.Body, AutoScaleMode = AutoScaleMode.None };
@@ -154,6 +155,8 @@ internal static partial class Program
         var defaults = Descendants(view).OfType<FlatButton>().Single(b => b.Text == "Use defaults");
         var cancel = Descendants(view).OfType<FlatButton>().Single(b => b.Text == "Cancel");
         var status = Descendants(view).OfType<Label>().Single(l => l.AccessibleRole == AccessibleRole.Alert);
+        FlatButton Capture(string name) => Descendants(view).OfType<FlatButton>().Single(b => b.AccessibleName == $"Use this display for {name}");
+        FlatButton Reset(string name) => Descendants(view).OfType<FlatButton>().Single(b => b.AccessibleName == $"Reset {name} to defaults");
 
         Assert(Input("Night target luminance (nits)").Value == 90 && Input("Night warmth (kelvin)").Value == 4200 &&
             Input("Day target luminance (nits)").Value == 160, "editor opens with the active targets");
@@ -166,6 +169,21 @@ internal static partial class Program
         Assert(Preview("Night").AccessibleDescription == night, "the changing preview is exposed to accessibility clients");
         Assert(Descendants(view).OfType<Label>().Any(l => l.Text.Contains("1 display has no brightness control")),
             "displays without brightness control are counted as warmth-only");
+        Capture("Night").PerformClick();
+        Assert(Input("Night target luminance (nits)").Value == 225 && Input("Night warmth (kelvin)").Value == 5100 &&
+            Input("Day target luminance (nits)").Value == 160 && requests.Count == 0,
+            "capture changes only the chosen mode's local draft without saving");
+        Assert(Preview("Night").Text.Contains("Desk A: 50% brightness"), "captured luminance is previewed through the display model");
+        if (renderDirectory != null)
+        {
+            Directory.CreateDirectory(renderDirectory);
+            Render(view, Path.Combine(renderDirectory, "preset-personalize.png"));
+        }
+        Input("Day target luminance (nits)").Value = 190;
+        Reset("Night").PerformClick();
+        Assert(Input("Night target luminance (nits)").Value == 60 && Input("Night warmth (kelvin)").Value == 4000 &&
+            Input("Day target luminance (nits)").Value == 190 && requests.Count == 0,
+            "per-mode reset restores only that draft while preserving other edits, without saving");
         Input("Night target luminance (nits)").Value = 30;
         Assert(Preview("Night").Text.Contains("Desk A: 0% brightness (below floor)"), "preview identifies a target below a panel's floor");
         Assert(Preview("Night").Text.Contains("minimum 50 nits; target cannot be reached"),
@@ -203,6 +221,9 @@ internal static partial class Program
         save.PerformClick();
         Assert(view.IsSaving && requests.Count == 1 && !save.Enabled && !cancel.Enabled && !defaults.Enabled &&
             !Input("Night target luminance (nits)").Enabled, "a pending save locks the draft and every action");
+        Assert(!Capture("Night").Enabled && !Reset("Night").Enabled, "capture and per-mode reset are locked during a save");
+        Capture("Night").PerformClick();
+        Reset("Night").PerformClick();
         Assert(requests[0].Count == 3 && requests[0].Single(l => l.Name == "Night") is { Nits: 80, Kelvin: 4000 },
             "the save receives every preset's draft target");
         view.ShowSavePending();
@@ -256,6 +277,8 @@ internal static partial class Program
         Assert(cancelled == 1 && requests.Count == 6, "Cancel asks the owner to close without saving");
 
         using var empty = new PresetEditorView(new PresetEditorContext(Presets.Levels, []), _ => Task.FromResult(SettingsSaveResult.Saved));
+        Assert(Descendants(empty).OfType<FlatButton>().Where(b => b.Text == "Use this display").All(b => !b.Enabled),
+            "missing capture data cannot enable draft capture");
         Assert(Descendants(empty).OfType<Label>().Single(l => l.AccessibleName == "Day brightness requests").Text == "Requests 6500 K warmth." &&
             Descendants(empty).OfType<Label>().Any(l => l.Text.Contains("No connected display reports a brightness control")),
             "without brightness-capable displays the preview promises warmth only");
@@ -277,8 +300,17 @@ internal static partial class Program
                 var bounds = new Rectangle(scaled.PointToClient(control.PointToScreen(Point.Empty)), control.Size);
                 Assert(bounds.Left >= 0 && bounds.Right <= scaled.ClientSize.Width,
                     "preset editor content fits with simulated 200% geometry and font scaling");
-                if (control is FlatButton) Assert(scaled.ClientRectangle.Contains(bounds), "scaled preset editor actions remain visible");
+                if (control is FlatButton && control.Text is "Save targets" or "Use defaults" or "Cancel" or "Comfort guide")
+                    Assert(scaled.ClientRectangle.Contains(bounds), "scaled preset editor footer actions remain visible");
             }
+            var scroller = Descendants(scaled).OfType<Panel>().Single(p => p.AutoScroll);
+            foreach (var button in Descendants(scaled).OfType<FlatButton>().Where(b => b.Text is "Use this display" or "Reset this mode"))
+            {
+                scroller.ScrollControlIntoView(button);
+                var bounds = new Rectangle(scroller.PointToClient(button.PointToScreen(Point.Empty)), button.Size);
+                Assert(scroller.ClientRectangle.Contains(bounds), "each scaled per-mode action is reachable by scrolling");
+            }
+            scroller.AutoScrollPosition = Point.Empty;
             if (renderDirectory != null) Render(scaled, Path.Combine(renderDirectory, "preset-editor-200.png"));
         }
         finally { foreach (var font in fonts.Values) font.Dispose(); }

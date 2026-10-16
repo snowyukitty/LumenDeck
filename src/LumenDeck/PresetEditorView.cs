@@ -6,7 +6,13 @@ namespace LumenDeck;
 internal sealed record PresetPreviewDisplay(string Name, PanelDatabase.Profile Profile, bool UserProfile);
 
 internal sealed record PresetEditorContext(IReadOnlyList<Presets.Level> Current,
-    IReadOnlyList<PresetPreviewDisplay> Displays, int WithoutBrightness = 0);
+    IReadOnlyList<PresetPreviewDisplay> Displays, int WithoutBrightness = 0, PresetCapture Capture = null);
+
+/// <summary>Immutable editor-opening snapshot, with no live device reference.</summary>
+internal sealed record PresetCapture(string DisplayName, int Nits, int Kelvin, string UnavailableReason = null)
+{
+    public bool Available => UnavailableReason == null && Presets.IsValidTarget(Nits, Kelvin);
+}
 
 /// <summary>
 /// Local draft/preview UI for Day, Evening and Night targets. It has no Monitor,
@@ -31,7 +37,8 @@ internal sealed class PresetEditorView : UserControl
     public bool IsSaving { get; private set; }
     internal Task PendingSave { get; private set; } = Task.CompletedTask;
 
-    private sealed record Row(Presets.Level BuiltIn, WholeNumberInput Nits, WholeNumberInput Kelvin, Label Preview);
+    private sealed record Row(Presets.Level BuiltIn, WholeNumberInput Nits, WholeNumberInput Kelvin,
+        Label Preview, FlatButton Capture, FlatButton Reset);
 
     public PresetEditorView(PresetEditorContext context, Func<IReadOnlyList<Presets.Level>, Task<SettingsSaveResult>> save)
     {
@@ -55,6 +62,12 @@ internal sealed class PresetEditorView : UserControl
         Add(Copy(_context.Displays.Count == 0
             ? "No connected display reports a brightness control, so no brightness requests are previewed. Warmth still applies."
             : "Previews use the displays connected when this window opened. They are estimates, not measurements."));
+        var capture = _context.Capture;
+        Add(Copy(capture?.Available == true
+            ? $"Use this display: {capture.DisplayName} · estimated {capture.Nits} nits / {capture.Kelvin} K. " +
+              "Snapshot at opening; copies a draft only. Review other displays' estimates before saving."
+            : "Use this display is unavailable. " + (capture?.UnavailableReason ??
+              "Select a display with a readable brightness value, then reopen this editor.")));
         foreach (var builtIn in Presets.Levels)
         {
             var current = _context.Current.FirstOrDefault(l => string.Equals(l.Name, builtIn.Name, StringComparison.OrdinalIgnoreCase)) ?? builtIn;
@@ -69,12 +82,32 @@ internal sealed class PresetEditorView : UserControl
             var nits = Number($"{builtIn.Name} target luminance (nits)", current.Nits, Presets.MinTargetNits, Presets.MaxTargetNits, 10);
             var kelvin = Number($"{builtIn.Name} warmth (kelvin)", current.Kelvin, GammaControl.MinKelvin, GammaControl.MaxKelvin, 100);
             line.Controls.AddRange([Unit("Target"), nits, Unit("nits"), Unit("Warmth", 18), kelvin, Unit("K")]);
-            Add(line);
             var preview = Copy("");
             preview.AccessibleName = $"{builtIn.Name} brightness requests";
             preview.Margin = new Padding(0, 0, 0, 14);
+            var shortcuts = Theme.Colors(new FlowLayoutPanel
+            {
+                AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = true,
+                Margin = new Padding(0, 0, 0, 14),
+            }, back: () => Theme.Base);
+            var copy = new FlatButton("Use this display") { Width = 148, Enabled = capture?.Available == true,
+                AccessibleName = $"Use this display for {builtIn.Name}" };
+            copy.AccessibleDescription = capture?.Available == true
+                ? $"Copy {capture.DisplayName}'s captured estimated {capture.Nits} nits and {capture.Kelvin} K into {builtIn.Name}. Nothing is saved or applied."
+                : capture?.UnavailableReason ?? "No usable selected-display snapshot. Select a display and reopen this editor.";
+            var reset = new FlatButton("Reset this mode") { Width = 146, AccessibleName = $"Reset {builtIn.Name} to defaults",
+                AccessibleDescription = $"Fill only {builtIn.Name} with {builtIn.Nits} nits and {builtIn.Kelvin} K. Save targets to keep the change." };
+            shortcuts.Controls.AddRange([copy, reset]);
+            Add(shortcuts);
+            Add(line);
             Add(preview);
-            var row = new Row(builtIn, nits, kelvin, preview);
+            var row = new Row(builtIn, nits, kelvin, preview, copy, reset);
+            copy.Click += (_, _) =>
+            {
+                if (!IsSaving && copy.Enabled && capture?.Available == true)
+                    FillRow(row, capture.Nits, capture.Kelvin);
+            };
+            reset.Click += (_, _) => { if (!IsSaving && reset.Enabled) FillRow(row, builtIn.Nits, builtIn.Kelvin); };
             nits.TextChanged += (_, _) => UpdateDraft();
             kelvin.TextChanged += (_, _) => UpdateDraft();
             _rows.Add(row);
@@ -207,6 +240,24 @@ internal sealed class PresetEditorView : UserControl
         UpdateDraft();
     }
 
+    private void FillRow(Row row, int nits, int kelvin)
+    {
+        // A local draft only; persistence and hardware stay with the existing owner.
+        // Retain any failed-save explanation until a new save has a result.
+        Set(row.Nits, nits);
+        Set(row.Kelvin, kelvin);
+        UpdateDraft();
+    }
+
+    private void SetDraftEnabled(bool enabled)
+    {
+        foreach (var row in _rows)
+        {
+            row.Nits.Enabled = row.Kelvin.Enabled = row.Reset.Enabled = enabled;
+            row.Capture.Enabled = enabled && _context.Capture?.Available == true;
+        }
+    }
+
     private static void Set(WholeNumberInput input, int value)
     {
         // Replace typed text as well: a malformed draft keeps its text until
@@ -225,7 +276,7 @@ internal sealed class PresetEditorView : UserControl
     {
         if (!TryDraft(out var levels, out _)) { UpdateDraft(); return; }
         IsSaving = true;
-        foreach (var row in _rows) row.Nits.Enabled = row.Kelvin.Enabled = false;
+        SetDraftEnabled(false);
         _saveButton.Enabled = _defaults.Enabled = _cancel.Enabled = false;
         Theme.Colors(_status, fore: () => Theme.InkMuted);
         _status.Text = "Saving preset targets… Previous targets stay active until the save is confirmed.";
@@ -240,7 +291,7 @@ internal sealed class PresetEditorView : UserControl
         catch (Exception) { result = SettingsSaveResult.Failed; }
         if (IsDisposed || Disposing) return;
         IsSaving = false;
-        foreach (var row in _rows) row.Nits.Enabled = row.Kelvin.Enabled = true;
+        SetDraftEnabled(true);
         _defaults.Enabled = _cancel.Enabled = true;
         _saveFeedback = result switch
         {

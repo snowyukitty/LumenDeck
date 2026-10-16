@@ -8,6 +8,25 @@ Notable changes, newest first. Format follows
 
 No further changes recorded.
 
+## [1.5.0] — 2026-10-16
+
+Personal comfort milestone: build a mode from a screen you have already tuned.
+
+### Added
+
+- Use this display copies the selected screen's estimated brightness and warmth
+  into one preset draft. Review and save before using it; no hardware changes
+  happen when copying, resetting or saving targets.
+- Reset this mode restores one built-in draft without discarding other edits.
+- Material Display actions offers a direct entry to the preset editor.
+
+### Changed
+
+- Capture uses an immutable snapshot and excludes temporary blackout/Night saver
+  levels, unsupported controls and pending or failed brightness observations.
+- Comfort guidance explains the complete tune, capture, review and save workflow.
+- The 1.4.4 research-informed defaults and their evidence limitations remain.
+
 ## [1.4.4] — 2026-10-16
 
 Desktop/source checkpoint with research-informed comfort guidance.

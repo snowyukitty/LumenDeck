@@ -74,6 +74,24 @@ The offline guide is reachable from both interfaces and the preset editor.
 Material mode buttons expose the **active saved targets**, rather than fixed
 default tooltips. Guidance is available without a network request or hardware write.
 
+## Personalization in 1.5.0
+
+OSHA's [workstation checklist](https://www.osha.gov/etools/computer-workstations/checklists/evaluation)
+emphasizes adjustment for comfort. Nielsen Norman Group's
+[recognition rather than recall guidance](https://www.nngroup.com/articles/recognition-and-recall/)
+supports showing usable choices instead of requiring remembered values. Our
+design inference is to let a person tune a real screen, then copy that starting
+point into a mode without memorizing hardware percentages, nits or kelvin.
+
+Use this display captures the selected panel's observed brightness through the
+existing estimate and its current accepted tint target. It is frozen at editor
+opening, visibly attributed to that display, and copies only into one local draft.
+Save targets still uses the existing confirmed-save boundary. Reset this mode
+changes only one draft. All other connected panels retain their own previews.
+Temporary dim/blackout levels, pending/refused brightness, unsupported controls
+and unusable estimates cannot be captured. None of these checks establishes
+medical comfort, optical brightness or identical appearance between displays.
+
 ## Verification boundary
 
 Automated checks cover target persistence, preset/CLI/schedule routing, preview
