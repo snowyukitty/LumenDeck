@@ -1,7 +1,8 @@
 ﻿{
-    "sourceCommit":  "5ab486820713fe4cf9e3f34462bda4bd45216b7d",
+    "sourceCommit":  "159be58d543b78f7ce392884fa20e1d7799d24fc",
     "generator":  "scripts/capture-material.ps1",
     "evidence":  "WPF client reference renders with synthetic displays; opaque fallback forced; DWM compositor and native frame are not captured.",
+    "editorEvidence":  "The preset editor is a 600x760 WinForms control bitmap using synthetic display data; material window DPI and dimensions below apply to the WPF images only.",
     "regularWindowDip":  [
                              880,
                              830
@@ -14,31 +15,40 @@
     "images":  [
                    {
                        "file":  "material-smoke.png",
-                       "sha256":  "127869b90e075e57dfb9192055e4db9bb20c1f4a72f5e6c842fdd625277addef"
+                       "sha256":  "edee1728c720e1b84ad190f66bbe972c637d16063da461864090b7382fc4ea37"
                    },
                    {
                        "file":  "material-smoke-compact.png",
-                       "sha256":  "51db37e3f31f2dc95bf2c32e5aead1d76143170ef5e0f7acb27fe573e24cdbe8"
+                       "sha256":  "83798d144fb6b4aafb64e4087f8d84a99aa864fc55778150c8ade426d44d9142"
                    },
                    {
                        "file":  "material-frost.png",
-                       "sha256":  "87e0f4a5290889fbe620bdd2280fe65b13346f46857d0f8bfc8644747ceae82b"
+                       "sha256":  "998b9768cb7848394520f21b67e6043d65b29c2a7301314702e37bdbd13fc927"
                    },
                    {
                        "file":  "material-frost-compact.png",
-                       "sha256":  "8f8c14a017df09e157277b17c9e32325a89c1634ca08361144473a1f0bace20d"
+                       "sha256":  "ba2bcb35e7a97101ba5692b46296b8fd96214b24bd71cb72ef105800293ffa06"
                    },
                    {
                        "file":  "material-ceramic.png",
-                       "sha256":  "7cc371d1ebe488658d57484bf2d192178f2c7972f1ce6d0e55b7ffc34f7446a0"
+                       "sha256":  "89452786a68b1d90c95aa48fdbb8fda763cf65d3a95e73de05e1ed18340216ca"
                    },
                    {
                        "file":  "material-ceramic-compact.png",
-                       "sha256":  "a0203981d42ab38382a6c5c0669bcd7de26143af526f3f9d009ba7ade16407da"
+                       "sha256":  "9725ac66b9d82899fc3b690ad956c2bbe8c62c5750d6afee513f55f94aeb3cc7"
                    },
                    {
                        "file":  "material-theme-menu.png",
                        "sha256":  "b5ceef9181c23f849cf49be8fdf91128e7a536cced0afb23ad45229e39f9a7c3"
+                   },
+                   {
+                       "file":  "preset-personalize.png",
+                       "sha256":  "cd69145afa0739f26a54de5b0bf7cbd24cd7d1874eb94964a2c15add94ff5ba5",
+                       "pixels":  [
+                                      600,
+                                      760
+                                  ],
+                       "surface":  "WinForms preset editor control"
                    }
                ]
 }
