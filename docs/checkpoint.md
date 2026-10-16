@@ -29,7 +29,7 @@ See [material interface](material-interface.md), [appearance](themes.md) and
 | --- | --- |
 | Release solution build, warnings as errors | Passed; zero warnings/errors |
 | Full ControlTests | 4,610 passed |
-| Full AppTests after integration and keyboard help | 2,676 passed |
+| Full AppTests after integration and keyboard help | 2,678 passed |
 | Committed-source material checks and reference renders | 70 passed |
 | Release assembly path checks and privacy canaries | Passed; includes Material assembly |
 | Extracted portable package | Allowlist, hashes, versions, bundled paths, standalone CLI and WPF/WinForms startup passed |
@@ -51,13 +51,13 @@ SHA-256: `e8d57839034f5a0da063cdbc410d79493708de4e4eea7a9401286f41a041dadc`.
 Both executables report `1.4.1+87a044196ecf0d6683001ecee9d1e52a03eaf034`.
 The [release record](release-readiness.md) is checked against the actual archive.
 
-The previously installed binaries and shortcuts are backed up privately. The new
-payload has been extracted and identity-checked. Normal tray Exit is required
-before replacement; forced termination would bypass recovery. The installer
-compares saved-state hashes before startup, verifies installed binary hashes and
-shortcut targets, then checks the running version, responsive window and error-log
-growth. The final handoff and ignored installation receipt record the actual
-outcome; preparation alone does not establish installation.
+The desktop app was installed from this verified payload and launched through
+its desktop shortcut. Installed GUI/CLI hashes and shortcut targets matched;
+all three top-level settings files were unchanged before startup. The single
+running process reported the expected build, a responsive visible main window
+and no error-log growth during startup verification. Old binaries, shortcuts and
+post-Exit settings backups remain private. This verifies installation/startup,
+not physical monitor acceptance.
 
 ## GitHub and remaining acceptance
 
@@ -65,6 +65,15 @@ The completed checkpoint is merged locally and pushed to main once, after local
 verification. The final handoff reports the actual hosted result from
 [GitHub Actions](https://github.com/snowyukitty/LumenDeck/actions/workflows/build.yml).
 This push does not create a release, tag or public download asset.
+
+The first hosted run exposed a timing-dependent preference test: the independent
+1.2-second startup checkpoint saved gamma metadata after the test captured its
+baseline. A controlled local reproduction reported gamma saves 1/0 with the
+preference enabled and zero hardware writes. The test now drains that startup
+checkpoint before measuring preference side effects, retaining the original
+no-write assertion. The focused preference suite passes 70 checks. This fix
+changes tests only; the installed product and package identities above remain
+unchanged. The corrected hosted run is reported at handoff.
 
 The native desktop capture helper was unavailable. Reference images force an
 opaque surface and do not establish DWM blur quality. Foreground keyboard/pointer

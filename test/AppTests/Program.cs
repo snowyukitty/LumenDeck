@@ -54,6 +54,13 @@ internal static partial class Program
                         result = 0;
                         return;
                     }
+                    if (args is ["--preferences-only"])
+                    {
+                        CheckPreferences(directory);
+                        Console.WriteLine($"PASS: {_checks} preference checks; synthetic displays and isolated files only.");
+                        result = 0;
+                        return;
+                    }
                     if (args.Length is 1 or 2 && args[0] == "--themes-only")
                     {
                         CheckThemes(directory, args.Length == 2 ? Path.GetFullPath(args[1]) : null);

@@ -14,7 +14,7 @@ available. This is a source/portable checkpoint, not a published release.
 | SHA-256 | `e8d57839034f5a0da063cdbc410d79493708de4e4eea7a9401286f41a041dadc` |
 | Distribution | Self-contained Windows x64 GUI and CLI |
 | File version | `1.4.1.0` for both executables |
-| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,676 AppTests; 70 material capture checks; release-path canaries; extracted package startup; 24 installer and 22 bundle checks |
+| Verification | Release warnings-as-errors build; 4,610 ControlTests; 2,678 AppTests; 70 material capture checks; release-path canaries; extracted package startup; 24 installer and 22 bundle checks |
 
 Both executable product versions match the recorded GUI build. The extracted
 package passes its exact file allowlist, hashes, versions, bundled source-path

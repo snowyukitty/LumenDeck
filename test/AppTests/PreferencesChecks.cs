@@ -28,6 +28,14 @@ internal static partial class Program
             "unknown action is guarded and minimised explanation reflects taskbar behavior");
 
         using var fixture = new Fixture(directory);
+        // Startup seeds Custom and schedules a checkpoint independently of
+        // preference actions. Drain it before taking the side-effect baseline;
+        // otherwise slower hosts attribute its gamma save to a later menu click.
+        var startupCheckpoint = Private<System.Windows.Forms.Timer>(fixture.Form, "_saveTimer");
+        typeof(System.Windows.Forms.Timer).GetMethod("OnTick", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(startupCheckpoint, [EventArgs.Empty]);
+        SettleSettings(fixture);
+        Assert(!startupCheckpoint.Enabled, "startup checkpoint is settled before preference side-effect observation");
         var menu = Private<PreferencesMenu>(fixture.Form, "_preferencesMenu");
         var tray = Private<NotifyIcon>(fixture.Form, "_tray").ContextMenuStrip;
         Assert(Controls(fixture.Form).OfType<FlatButton>().Any(b => b.Text == "Settings" && b.Enabled),
@@ -87,7 +95,7 @@ internal static partial class Program
         MenuChoice(menu, "Reapply saved warmth").PerformClick();
         SettleSettings(fixture);
         Assert(fixture.Settings.ReapplyColourOnStart && fixture.GammaSaves == gamma && fixture.Transport.Writes == 0,
-            "warmth reapplication preference does not adjust gamma or hardware now");
+            $"warmth reapplication preference does not adjust gamma or hardware now (enabled={fixture.Settings.ReapplyColourOnStart}, gamma saves={fixture.GammaSaves}/{gamma}, hardware writes={fixture.Transport.Writes})");
         using (var saved = JsonDocument.Parse(File.ReadAllText(fixture.SettingsPath)))
         {
             Assert(saved.RootElement.GetProperty("MinimiseToTray").GetBoolean() &&
