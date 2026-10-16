@@ -40,8 +40,8 @@ internal partial class MainForm
         if (outlook is { RequestsNow: true })
         {
             _scheduledPeriod = outlook.Period;
-            if (Presets.IsCustom(outlook.Period.Preset)) ApplyCustom("Schedule: ");
-            else ApplyLevel(outlook.Period.Preset, "Schedule: ");
+            if (Presets.IsCustom(outlook.Period.Preset)) ApplyCustom("Schedule: ", scheduled: true);
+            else ApplyLevel(outlook.Period.Preset, "Schedule: ", scheduled: true);
         }
         // An open editor previews against the same state; keep it truthful.
         _scheduleEditor?.RefreshPreview();

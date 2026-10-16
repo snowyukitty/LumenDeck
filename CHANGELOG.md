@@ -27,6 +27,10 @@ acceptance are tracked in [release readiness](docs/release-readiness.md).
 
 ### Fixed
 
+- Night saver stays directly accessible in the toolbar; its active action is
+  End Night saver, without expanding a settings row. The retained work display
+  uses a separate 5% hardware brightness cap instead of the Night reading target.
+  Automatic presets and scheduled Custom no longer brighten that dimmed display.
 - Slightly staggered displays no longer become separate, equally spaced rows.
 - Adjustment feedback no longer leaves a stale native horizontal scrollbar. Actual
   overflow and the vertical scroll position remain available.

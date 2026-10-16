@@ -898,15 +898,17 @@ Run this checklist on the built GUI before declaring a hardware-verified release
 Record initial brightness values and restore the desk when finished.
 
 1. Select the intended centre monitor in **Keep working on**. Start **Night
-   saver** and confirm that the work display stays usable and dims toward the
-   configured Night target when initially brighter. If already at or below that
+   saver** and confirm that the work display stays usable and requests at most
+   5% of its hardware brightness range when initially brighter. Check physical
+   darkness separately: the percentage is not measured light. If already below that
    target, its brightness stays unchanged. Every other available display becomes
    black at its supported minimum brightness. A display without brightness support
    must report that it could not be dimmed.
-2. Use **Restore night desk** from the window and the tray in separate trials.
+2. Use **End Night saver** from the window and the tray in separate trials.
    Confirm each saved hardware brightness value is restored, including the work
    display and panels whose range is not 0–100. A manual brightness or preset
    choice on the work display during the night takes precedence over its saved value.
+   Automatic presets and scheduled Custom must leave the dimmed work display alone.
 3. Blank one screen individually before entering Night saver. Group restore
    must leave that independent blackout in place.
 4. Click one night overlay or use its existing shortcut. That screen should

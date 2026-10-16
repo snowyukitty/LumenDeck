@@ -319,6 +319,9 @@ internal static partial class Program
                 "text-triggered parent layout raises no additional text or font changes");
             bar.HelpButton.TextChanged -= countText;
             bar.HelpButton.FontChanged -= countFont;
+            Assert(bar.HelpButton.AccessibilityObject.Name == "Connection help",
+                "the compact Help label retains its explicit connection-help name");
+            bar.HelpButton.AccessibleName = null;
             bar.HelpButton.Text = "Connection & support";
             Assert(bar.HelpButton.AccessibilityObject.Name == bar.HelpButton.Text,
                 "literal command punctuation remains in its accessible name");
@@ -333,7 +336,7 @@ internal static partial class Program
             bar.HelpButton.AccessibleName = "Explicit help command";
             Assert(bar.HelpButton.AccessibilityObject.Name == "Explicit help command",
                 "explicit command accessible names retain precedence");
-            bar.HelpButton.AccessibleName = null;
+            bar.HelpButton.AccessibleName = "Connection help";
             bar.HelpButton.Text = originalHelp;
             using (var manual = new FlatButton("Manual command") { Size = new Size(140, 30) })
             {
@@ -376,9 +379,12 @@ internal static partial class Program
                     $"explicit left padding moves the native label within fixed button bounds: {plainCenter:F1} to {paddedCenter:F1}, scale {scale}");
                 Assert(manual.Size == fixedSize, "manual padding changes leave outer button dimensions unchanged");
             }
-            var nightSection = (CommandSection)bar.NightButton.Parent.Parent;
+            var commandSection = (CommandSection)bar.NightButton.Parent.Parent;
             int previousHeight = bar.Height;
-            nightSection.Commands.Controls.Add(new FlatButton("Future command") { Width = (int)(300 * scale) });
+            commandSection.Commands.Controls.Add(new FlatButton("Future command")
+            {
+                Width = commandSection.Commands.ClientSize.Width - 6,
+            });
             Assert(bar.Height > previousHeight, $"new commands grow their section at scale {scale}");
             int picked = 0;
             bar.LevelPicked += _ => picked++;

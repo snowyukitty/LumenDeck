@@ -40,11 +40,20 @@ The header repeats name, position and capability summary. Estimated nits remain
 secondary and explicitly estimated. Warmth is a gamma tint target, never a measured
 colour preview.
 
-Identify, Refresh, Connection help and Settings remain visible. Desk actions expands
-desk-wide presets, warmth restoration and Night saver. Active Night saver reveals
-its recovery section even when other desk actions are collapsed. At short heights
+Night saver is first in the always-visible toolbar. The same position becomes
+End Night saver while active, with space reserved for the longer label. Identify,
+Refresh, Help and Settings remain visible. Desk actions expands desk-wide presets,
+warmth restoration and the Night saver work-display choice. Activating Night saver
+does not expand this settings section or consume adjustment space. At short heights
 the command area scrolls independently, preserving the adjustment viewport. Individual
 blackout and Night saver still own separate recovery snapshots and restoration paths.
+
+Night saver requests at most 5% of the retained display's hardware control range,
+rounded down. It never raises an already darker display and does not use the Night
+reading preset's estimated nits. The selected display and target are in accessible
+help; expanded options show the target beside the selector. Status describes a
+request, with confirmation left to the card's observation. Automatic presets skip
+the dimmed display; manual brightness choices take over. See [Night saver](night-saver.md).
 
 ## Evidence and accessibility
 

@@ -105,4 +105,6 @@ monitor while a request is pending. DdcWorker.Observe returns immutable snapshot
 under its queue lock, keeping requested and observed values distinct without changing
 write ordering. MonitorCard's owned timer reads snapshots only; callbacks and failure
 notices still use the original Monitor object. DeskCommandBar groups desk-wide actions
-behind disclosure and keeps active Night saver recovery visible.
+behind disclosure, while Night saver and its recovery command remain first in the
+toolbar. Night saver has a separate 5% hardware-range cap, persisted recovery state,
+and protection from automatic preset changes while its work display remains dimmed.

@@ -61,7 +61,7 @@ DWM-composited Mica is not captured.</sub></p>
 | **Preset schedule** | Optional: request Day, Evening, Night or Custom at times you choose |
 | **Custom** | Request your remembered manual levels per monitor; presets preserve those levels |
 | **Reversible screen blackout** | Per-monitor black overlay plus minimum supported brightness; click or use an optional global shortcut to restore |
-| **Night saver** | Keep one work display on and dim it toward your Night target; darken all other displays with one click, then restore their saved brightness |
+| **Night saver** | Keep one work display on at 5% hardware brightness or lower; darken the others with one click, then restore saved brightness |
 | **Precise adjustment** | Click a slider's value or press F2 to enter an exact value; arrows adjust one hardware unit, Shift adjusts ten |
 | **Additional advertised controls** | Input source, picture mode, speaker volume, sharpness, RGB gain, black level, factory reset — availability and behavior depend on the monitor |
 | **Desk map** | Windows desktop positions, adjacency and pixel proportions; select a screen with the mouse or keyboard |
@@ -78,10 +78,11 @@ warmth when brightness is unavailable. A stacked desk can use a side selector in
 a wider window.
 
 **All displays** reveals every monitor card for repeated adjustments. The same
-components reflow at smaller widths. **Desk actions…** opens desk-wide presets,
-warmth restoration and Night saver; active Night saver keeps its recovery group
-available. A short window gives the command area its own scrolling viewport.
-Identify, Connection help and Settings stay available beside the selector.
+components reflow at smaller widths. **Night saver** stays first in the toolbar;
+while active, the same button becomes **End Night saver**. **Desk actions…** opens
+desk-wide presets, warmth restoration and the work-display choice. A short window
+gives expanded commands their own scrolling viewport. Identify, Refresh, Help
+(connection troubleshooting) and Settings stay available beside the selector.
 
 Click a display to focus its brightness or available warmth control. The selector
 also supports spatial arrows (without edge wrapping), Home/End, and Enter to
@@ -294,7 +295,7 @@ changing the whole desk:
    card's **Custom** requests its remembered manual levels. The **All monitors**
    commands apply across the desk, skipping blanked displays.
 4. To darken unused screens, select your work display in **Keep working on**,
-   then choose **Night saver**. Use **Restore night desk** for those screens;
+   then choose **Night saver**. Use **End Night saver** for those screens;
    screens blanked individually retain their own restore controls. Verify the
    screens after restoration.
 
@@ -383,18 +384,24 @@ brightness control still gets the black overlay.
 
 ### One-click night desk
 
-Choose your centre display in **Keep working on** (the Windows primary display
-is selected by default), then press **Night saver** in the window or tray menu.
-The selected display stays on but is dimmed toward your **Night** preset's
-estimated target, only if it is brighter; edit that target in **Settings >
-Preset targets…**. Other screens get a black overlay and their lowest supported
-hardware brightness. **Restore night desk** attempts to restore the saved
+Press **Night saver** in the toolbar or tray menu. The Windows primary display
+is kept on by default; change and remember that choice under **Desk actions… >
+Keep working on**. Its brightness is requested at **5% of its hardware control
+range**, rounded down to a supported unit. A display already darker stays unchanged.
+This low target is independent of the **Night** reading preset. It is not measured
+light output: a panel's minimum brightness still limits how dark it can get.
+Displays without brightness control stay unchanged, with a warning.
+Other screens get a black overlay and their lowest supported
+hardware brightness. **End Night saver** attempts to restore the saved
 hardware brightness values, including the work display's and values on panels
 with ranges such as 0–255. Screens you had already blanked individually stay
 under their own restore controls. The work display's original brightness is
 saved before it is dimmed, so exiting, or the next launch after a crash, puts it back.
-If you change the work display's brightness during the night (slider, preset,
-Custom or the schedule), your choice wins and ending the night leaves it alone.
+If you manually change the work display's brightness during the night (slider,
+preset or Custom), your choice wins and ending the night leaves it alone. Automatic
+presets and scheduled Custom skip the dimmed work display, keeping its brightness,
+warmth and recovery snapshot. They resume their ordinary behavior at the next period
+after you end Night saver. Night saver does not put Windows to sleep.
 
 You can restore one screen by clicking its black overlay or using its existing
 shortcut. Refresh keeps remaining blackouts in place; exiting attempts restoration.

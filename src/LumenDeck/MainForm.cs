@@ -133,6 +133,7 @@ internal partial class MainForm : Form
             {
                 _settings.NightWorkMonitorKey = choice.Key;
                 RequestSettingsSave();
+                UpdateNightSaver();
             }
         };
 
@@ -679,8 +680,8 @@ internal partial class MainForm : Form
             _nightSaver.Restore(_monitors);
             UpdateNightSaver();
             SetStatus(_nightSaver.Count == 0
-                ? "Night desk restored to its saved brightness."
-                : "Some brightness restores are pending. Reconnect the displays and press Restore night desk again.",
+                ? "Night saver ended. Saved brightness restored; any manual brightness choices were kept."
+                : "Some brightness restores are pending. Reconnect the displays and press End Night saver again.",
                 _nightSaver.Count == 0 ? StatusKind.Info : StatusKind.Warn);
             return;
         }
@@ -695,17 +696,16 @@ internal partial class MainForm : Form
         }
         UpdateNightSaver();
         int dark = _nightSaver.Count - (_nightSaver.WorkDim == NightWorkDim.Dimmed ? 1 : 0);
-        var night = _settings.PresetLevel("Night");
         string workState = _nightSaver.WorkDim switch
         {
-            NightWorkDim.Dimmed => $"{work.DisplayName} dimmed toward the Night target (estimated {night.Nits} nits).",
-            NightWorkDim.AlreadyDim => $"{work.DisplayName} is already at or below the Night target and stays as it is.",
+            NightWorkDim.Dimmed => $"{work.DisplayName}: {NightSaver.WorkBrightnessPercent}% brightness requested; check its card for confirmation.",
+            NightWorkDim.AlreadyDim => $"{work.DisplayName} is already at or below {NightSaver.WorkBrightnessPercent}% brightness and stays as it is.",
             NightWorkDim.NotSaved => $"{work.DisplayName} stays unchanged: its brightness could not be saved for restoring.",
             _ => $"{work.DisplayName} stays unchanged: it has no brightness control.",
         };
         SetStatus($"Night saver: {dark} screen(s) dark; {workState}" +
-            (failed > 0 ? $" {failed} screen(s) could not be blanked." : " Press Restore night desk to go back."),
-            failed > 0 || _nightSaver.WorkDim == NightWorkDim.NotSaved ? StatusKind.Warn : StatusKind.Info);
+            (failed > 0 ? $" {failed} screen(s) could not be blanked." : " Press End Night saver to go back."),
+            failed > 0 || _nightSaver.WorkDim is NightWorkDim.NotSaved or NightWorkDim.Unsupported ? StatusKind.Warn : StatusKind.Info);
     }
 
     private static int CountControls(Control root)
@@ -941,24 +941,32 @@ internal partial class MainForm : Form
     private void ApplyLevel(string name) => ApplyLevel(name, null);
 
     /// <summary><paramref name="origin"/> prefixes the status, such as "Schedule: ".</summary>
-    private void ApplyLevel(string name, string origin)
+    private void ApplyLevel(string name, string origin, bool scheduled = false)
     {
         if (!CanAdjustDisplays || _settings.PresetLevel(name) is not { } level) return;
-        foreach (var c in _cards.Where(c => !_settings.ScreenBlankActiveFor(c.Monitor.StableKey)))
+        bool keepNightDim = scheduled && _cards.Any(c => KeepNightWorkDisplay(c.Monitor.StableKey));
+        var targets = _cards.Where(c => CanApplyDeskPreset(c, scheduled)).ToArray();
+        foreach (var c in targets)
         {
             c.ApplyBrightness(Presets.BrightnessFor(c.Monitor, level.Nits));
             c.ApplyWarmth(level.Kelvin);
         }
         SaveSoon();
-        SetMode(level.Name);
+        SetMode(keepNightDim ? null : level.Name);
 
-        int generic = _cards.Count(c => c.Monitor.SupportsBrightness &&
-            !_settings.ScreenBlankActiveFor(c.Monitor.StableKey) && !PanelDatabase.HasUserProfile(c.Monitor));
+        if (targets.Length == 0 && keepNightDim)
+        {
+            SetStatus($"{origin}{level.Name}: Night saver's work display was kept unchanged; no preset levels were requested.");
+            return;
+        }
+
+        int generic = targets.Count(c => c.Monitor.SupportsBrightness && !PanelDatabase.HasUserProfile(c.Monitor));
         string caveat = generic > 0
             ? $"  {generic} brightness estimate{(generic == 1 ? " uses" : "s use")} a generic profile."
             : "";
         SetStatus($"{origin}{level.Name}: estimated {level.Nits}-nit target and {level.Kelvin}K tint requested." +
-                  $"{caveat}  Check card warnings. Press {Presets.CustomName} to go back.");
+                  $"{caveat}  Check card warnings. Press {Presets.CustomName} to go back." +
+                  (keepNightDim ? " Night saver's work display was kept unchanged." : ""));
     }
 
     /// <summary>
@@ -967,17 +975,28 @@ internal partial class MainForm : Form
     /// </summary>
     private void ApplyCustom() => ApplyCustom(null);
 
-    private void ApplyCustom(string origin)
+    private void ApplyCustom(string origin, bool scheduled = false)
     {
         if (!CanAdjustDisplays) return;
-        int restored = _cards.Count(c => !_settings.ScreenBlankActiveFor(c.Monitor.StableKey) && c.RestoreCustom());
+        bool keepNightDim = scheduled && _cards.Any(c => KeepNightWorkDisplay(c.Monitor.StableKey));
+        int restored = _cards.Count(c => CanApplyDeskPreset(c, scheduled) && c.RestoreCustom());
         SaveSoon();
-        SetMode(restored == 0 ? null : Presets.CustomName);
+        SetMode(restored == 0 || keepNightDim ? null : Presets.CustomName);
 
-        SetStatus(origin + (restored == 0
+        SetStatus(origin + (restored == 0 && keepNightDim
+            ? "Night saver's work display was kept unchanged; no Custom levels were requested."
+            : restored == 0
             ? "No monitor has settings of its own saved yet - move a slider and they are remembered."
-            : $"Your own settings requested on {restored} monitor{(restored == 1 ? "" : "s")}. Check any card warnings."));
+            : $"Your own settings requested on {restored} monitor{(restored == 1 ? "" : "s")}. Check any card warnings." +
+              (keepNightDim ? " Night saver's work display was kept unchanged." : "")));
     }
+
+    private bool CanApplyDeskPreset(MonitorCard card, bool scheduled) =>
+        !_settings.ScreenBlankActiveFor(card.Monitor.StableKey) &&
+        (!scheduled || !KeepNightWorkDisplay(card.Monitor.StableKey));
+
+    private bool KeepNightWorkDisplay(string key) =>
+        _nightSaver.KeepsWorkDisplay(key) || _settings.NightDimActiveFor(key);
 
     private void WarmthOff()
     {

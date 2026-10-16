@@ -12,12 +12,12 @@ internal sealed class DeskCommandBar : Panel
     private bool _nightActive;
     private readonly FlatButton _expand = new("Desk actions…") { Width = 120, Quiet = true };
     public Dictionary<string, FlatButton> ModeButtons { get; } = new(StringComparer.OrdinalIgnoreCase);
-    public FlatButton IdentifyButton { get; } = new("Identify") { Width = 84 };
-    public FlatButton RefreshButton { get; } = new("Refresh") { Width = 82 };
+    public FlatButton IdentifyButton { get; } = new("Identify") { Width = 72 };
+    public FlatButton RefreshButton { get; } = new("Refresh") { Width = 72 };
     public FlatButton WarmthOffButton { get; } = new("Warmth off") { Width = 100 };
-    public FlatButton HelpButton { get; } = new("Connection help") { Width = 136, Quiet = true };
-    public FlatButton SettingsButton { get; } = new("Settings") { Width = 90, Quiet = true };
-    public FlatButton NightButton { get; } = new("Night saver") { Width = 148 };
+    public FlatButton HelpButton { get; } = new("Help") { Width = 52, Quiet = true, AccessibleName = "Connection help" };
+    public FlatButton SettingsButton { get; } = new("Settings") { Width = 76, Quiet = true };
+    public FlatButton NightButton { get; } = new("Night saver") { Width = 138 };
     public ComboBox WorkMonitor { get; } = new()
     {
         DropDownStyle = ComboBoxStyle.DropDownList, Width = 260,
@@ -33,13 +33,13 @@ internal sealed class DeskCommandBar : Panel
         Dock = DockStyle.Top;
         DoubleBuffered = true;
         BackColor = Theme.Bar;
-        var modes = new CommandSection("All monitors") { TabIndex = 0 };
-        var tools = new CommandSection("") { TabIndex = 1 };
-        var night = new CommandSection("Night desk") { TabIndex = 2 };
+        var modes = new CommandSection("All monitors") { TabIndex = 1 };
+        var tools = new CommandSection("") { TabIndex = 0 };
+        var night = new CommandSection("Night saver") { TabIndex = 2 };
         _modes = modes;
         _night = night;
         _expand.Click += (_, _) => SetExpanded(!_expanded);
-        _expand.SetHelp(_tips, "Show or hide desk-wide presets, warmth restoration and Night saver. These actions apply across displays; per-display controls stay below.");
+        _expand.SetHelp(_tips, "Show or hide desk-wide presets, warmth restoration and the Night saver work-display choice. Night saver and its restore command stay in the toolbar.");
         foreach (var level in Presets.Levels)
         {
             string name = level.Name;
@@ -56,7 +56,7 @@ internal sealed class DeskCommandBar : Panel
             "Request remembered manual levels on each visible monitor.\n" +
             "Slider edits replace them; presets keep them.\n" +
             "Changes save in the background; check Settings for save status.");
-        tools.Commands.Controls.AddRange([IdentifyButton, RefreshButton, HelpButton, SettingsButton, _expand]);
+        tools.Commands.Controls.AddRange([NightButton, IdentifyButton, RefreshButton, HelpButton, SettingsButton, _expand]);
         modes.Commands.Controls.Add(WarmthOffButton);
         SetPresetHelp(Presets.Levels);
         SettingsButton.SetHelp(_tips, "Windows startup, notification-area behavior, warmth reapplication and preset targets. Does not adjust the screen.");
@@ -65,12 +65,12 @@ internal sealed class DeskCommandBar : Panel
         RefreshButton.SetHelp(_tips, "Re-read displays. This may reapply saved warmth or adjust brightness for active blackouts and pending recovery.");
         WarmthOffButton.SetHelp(_tips, "Restore each display's original gamma, including its calibration profile");
         SetNightSaverState(false);
-        night.Commands.Controls.Add(NightButton);
+        WorkMonitor.SelectedIndexChanged += (_, _) => SetNightSaverState(_nightActive);
         // The label travels with its selector when the row wraps.
         var workChoice = new FlowLayoutPanel
         {
             AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = true, Margin = new Padding(12, 3, 3, 3),
+            WrapContents = true, Margin = new Padding(3),
         };
         workChoice.Controls.Add(new Label
         {
@@ -79,6 +79,11 @@ internal sealed class DeskCommandBar : Panel
         });
         workChoice.Controls.Add(WorkMonitor);
         night.Commands.Controls.Add(workChoice);
+        night.Commands.Controls.Add(new Label
+        {
+            Text = $"Work brightness: {NightSaver.WorkBrightnessPercent}% or lower",
+            AutoSize = true, ForeColor = Theme.InkMuted, Margin = new Padding(3, 8, 3, 3),
+        });
         foreach (var section in new[] { modes, tools, night })
             foreach (Control control in section.Commands.Controls)
                 if (control is FlatButton button)
@@ -87,8 +92,8 @@ internal sealed class DeskCommandBar : Panel
                     button.AutoSize = true;
                 }
         Controls.Add(night);
-        Controls.Add(tools);
         Controls.Add(modes);
+        Controls.Add(tools);
         SetExpanded(true);
     }
 
@@ -116,7 +121,8 @@ internal sealed class DeskCommandBar : Panel
         _expanded = expanded;
         _expand.Text = expanded ? "Less desk actions" : "Desk actions…";
         _modes.Visible = expanded;
-        _night.Visible = expanded || _nightActive;
+        _night.Visible = expanded;
+        if (!expanded) AutoScrollPosition = Point.Empty;
         PerformLayout();
     }
 
@@ -135,13 +141,23 @@ internal sealed class DeskCommandBar : Panel
     internal void SetNightSaverState(bool active)
     {
         _nightActive = active;
-        if (_night != null) _night.Visible = _expanded || active;
-        NightButton.Text = active ? "Restore night desk" : "Night saver";
+        // Reserve the longer action in both states so starting a night cannot
+        // move its neighbours or create a new toolbar line.
+        NightButton.MinimumSize = new Size(
+            TextRenderer.MeasureText("End Night saver", NightButton.Font).Width + NightButton.LogicalToDeviceUnits(22),
+            NightButton.MinimumSize.Height);
+        NightButton.Text = active ? "End Night saver" : "Night saver";
         NightButton.Primary = active;
         NightButton.SetHelp(_tips, active
             ? "Close this night desk's blackouts, return the work display to its saved brightness and retry saved brightness recovery. Failed or disconnected restores stay pending; reconnect and press again. Separately blanked displays stay separate."
-            : "Keep your selected work display on, dimmed toward the Night preset's target if it is brighter. Cover the other displays in black, lowering brightness only where supported. Displays already blanked separately stay separate. Press again to restore this night desk.");
+            : $"Keep {(WorkMonitor.SelectedItem == null ? "your selected work display" : WorkMonitor.Text)} on. Request {NightSaver.WorkBrightnessPercent}% hardware brightness only if it is brighter; the panel's minimum light output varies. Change the work display under Desk actions. Cover the other displays in black, lowering brightness only where supported. Displays already blanked separately stay separate. Press again to restore this night desk. Does not put Windows to sleep.");
         NightButton.Invalidate();
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        SetNightSaverState(_nightActive);
     }
 
     protected override void OnLayout(LayoutEventArgs e)

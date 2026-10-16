@@ -68,6 +68,17 @@ internal static partial class Program
             var custom = Controls(card).Single(c => c.Name == "preset-custom");
             Assert(viewport.ClientRectangle.Contains(new Rectangle(viewport.PointToClient(custom.PointToScreen(Point.Empty)), custom.Size)),
                 "all everyday adjustments and per-display presets fit the screenshot-sized viewport");
+            var bar = Private<DeskCommandBar>(form, "_bar");
+            foreach (bool active in new[] { false, true, false })
+            {
+                bar.SetNightSaverState(active);
+                Application.DoEvents();
+                Assert(bar.NightButton.Visible && bar.ClientRectangle.Contains(new Rectangle(
+                    bar.PointToClient(bar.NightButton.PointToScreen(Point.Empty)), bar.NightButton.Size)),
+                    "the one-click night command stays visible in either state at screenshot size");
+                Assert(viewport.ClientRectangle.Contains(new Rectangle(viewport.PointToClient(custom.PointToScreen(Point.Empty)), custom.Size)),
+                    "the active restore label does not push everyday presets out of the screenshot viewport");
+            }
             var label = Controls(card).OfType<Label>().Single(l => l.Text == "Brightness");
             Assert(label.Width >= TextRenderer.MeasureText(label.Text, label.Font).Width,
                 $"brightness caption does not split its word at {form.DeviceDpi} DPI");

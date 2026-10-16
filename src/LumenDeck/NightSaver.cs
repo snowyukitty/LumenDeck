@@ -9,10 +9,16 @@ internal enum NightWorkDim { None, Dimmed, AlreadyDim, Unsupported, NotSaved }
 /// </summary>
 internal sealed class NightSaver
 {
+    // A night desk needs a much lower hardware level than the Night reading
+    // preset. This is a percentage of the display's reported control range,
+    // not measured light output; its physical minimum remains panel-dependent.
+    internal const int WorkBrightnessPercent = 5;
+
     private readonly ScreenBlanker _blanker;
     private readonly AppSettings _settings;
     private readonly DdcWorker _worker;
     private readonly HashSet<string> _screens = new(StringComparer.Ordinal);
+    private string _workKey;
 
     /// <summary>The work display this session dimmed, until its brightness is restored.</summary>
     private string _dimmed;
@@ -32,6 +38,9 @@ internal sealed class NightSaver
 
     public NightWorkDim WorkDim { get; private set; }
 
+    /// <summary>Protect even an already-dark work display from automatic presets.</summary>
+    public bool KeepsWorkDisplay(string key) => Count > 0 && key == _workKey;
+
     /// <returns>The number of failed blackouts, or -1 if the work display is unavailable.</returns>
     public int Start(IEnumerable<Monitor> monitors, string workKey)
     {
@@ -40,6 +49,7 @@ internal sealed class NightSaver
         if (work == null || _blanker.IsBlanked(workKey) || _settings.ScreenBlankActiveFor(workKey))
             return -1;
         if (Count > 0) return 0;
+        _workKey = workKey;
 
         int failed = 0;
         foreach (var m in desk.Where(m => m.StableKey != workKey))
@@ -53,14 +63,16 @@ internal sealed class NightSaver
     }
 
     /// <summary>
-    /// Lower the work display to the Night preset's estimated target, never
-    /// raise it. The target is the person's own Night setting, so "dim enough
-    /// to work in the dark" is already something they can tune.
+    /// Request a very low work-display brightness, independently of reading
+    /// presets, and never raise a display that is already darker.
     /// </summary>
     private NightWorkDim DimWork(Monitor work)
     {
         if (!work.SupportsBrightness) return NightWorkDim.Unsupported;
-        int target = Presets.BrightnessFor(work, _settings.PresetLevel("Night").Nits);
+        // Round downward so even a coarse hardware range stays at or below
+        // the cap rather than rounding a 0-255 display up to 5.1%.
+        int target = (int)Math.Floor(work.BrightnessMin +
+            (work.BrightnessMax - (double)work.BrightnessMin) * WorkBrightnessPercent / 100);
         // A marker left by an earlier, unrecovered dim already holds the real
         // original brightness; the current level is not it, so keep the marker.
         bool owed = _settings.NightDimActiveFor(work.StableKey);
@@ -104,15 +116,16 @@ internal sealed class NightSaver
 
     /// <summary>
     /// The person chose a brightness for the dimmed work display during the
-    /// night: a slider, preset, Custom or the schedule. That newer choice wins,
+    /// night: a slider, preset or Custom. That newer manual choice wins,
     /// so ending the night must not overwrite it. The cleared marker is saved
     /// with the change that caused it.
     /// </summary>
     /// <returns>True when this released the session's dim.</returns>
     public bool TakeOver(string key)
     {
-        if (key == null || key != _dimmed) return false;
-        _settings.SetNightDim(key, null, false, null, null);
+        if (key == null || key != _workKey) return false;
+        if (key == _dimmed) _settings.SetNightDim(key, null, false, null, null);
+        _workKey = null;
         _dimmed = null;
         return true;
     }

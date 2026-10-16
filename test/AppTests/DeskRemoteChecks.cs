@@ -68,6 +68,13 @@ internal static partial class Program
             }
             Assert(fixture.Transport.Writes == 0, "selection, accessibility reads and capture never write hardware");
             var bar = Private<DeskCommandBar>(form, "_bar");
+            foreach (bool active in new[] { false, true, false })
+            {
+                bar.SetNightSaverState(active);
+                Assert(bar.NightButton.Visible && bar.ClientRectangle.Contains(new Rectangle(
+                    bar.PointToClient(bar.NightButton.PointToScreen(Point.Empty)), bar.NightButton.Size)),
+                    "Night saver and Restore stay immediately visible with desk actions collapsed");
+            }
             bar.SetExpanded(true);
             bar.ScrollControlIntoView(bar.NightButton);
             Assert(bar.ClientRectangle.Contains(new Rectangle(bar.PointToClient(bar.NightButton.PointToScreen(Point.Empty)), bar.NightButton.Size)),

@@ -22,9 +22,9 @@ Windows desktop coordinates, adjacency and pixel proportions, not physical size.
 Click a display to enter its brightness control, or warmth if brightness is
 unavailable. The selected screen has a strong outline. Compact tiles show numbers;
 larger tiles can also show names and a SELECTED marker. The caption identifies it.
-Desk actions opens desk-wide presets, Warmth off and Night saver. Active Night
-saver keeps its recovery controls available. Restore screen on an individual
-card remains separate from Restore night desk.
+Night saver is always first in the toolbar; its active button reads End Night saver.
+Desk actions opens desk-wide presets, Warmth off and the work-display choice.
+Restore screen on an individual card remains separate from End Night saver.
 
 Refresh returns keyboard selection to the same display/control when available
 and scrolls that control into view. Choosing another control during reading takes
@@ -99,12 +99,17 @@ Identical model names share a profile. Endpoint measurement is your declaration,
 not app verification. Existing files are backed up in the settings directory's
 profile-backups folder. If the file changed during editing, cancel and reopen.
 
-Night desk
-Choose the screen to keep working on, then use Night saver. The work display
-dims toward the Night target only if initially brighter; the other displays
-become black. Restore night desk returns the saved brightness, including the
+Night saver
+Use Night saver in the toolbar. It keeps the primary display on by default;
+choose another under Desk actions > Keep working on. The work display requests
+5% of its hardware brightness range, rounded down, only if initially brighter.
+This is independent of the Night reading preset; actual darkness depends on the
+panel's minimum brightness. Unsupported work displays stay unchanged. Other displays
+become black. End Night saver returns the saved brightness, including the
 work display, unless you chose a newer brightness for it. Individual Blank screen actions
-also restore by clicking their overlay. This is a reversible blackout, not
+remain separate. Automatic presets skip the dimmed work display. Night saver does
+not put Windows to sleep. Individual blackouts also restore by clicking their
+overlay. This is a reversible blackout, not
 hardware power-off. Exit normally from the tray menu before moving or replacing
 the app files so active blackouts can be restored.
 

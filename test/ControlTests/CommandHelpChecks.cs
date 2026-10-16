@@ -24,7 +24,7 @@ internal static partial class Program
         {
             bar.SetNightSaverState(active);
             string help = bar.NightButton.AccessibilityObject.Description;
-            Assert(bar.NightButton.Text == (active ? "Restore night desk" : "Night saver")
+            Assert(bar.NightButton.Text == (active ? "End Night saver" : "Night saver")
                 && bar.NightButton.Primary == active,
                 "night command label and emphasis follow its active session");
             Assert(help.Contains(active ? "pending" : "only where supported") && help.Contains("separate"),

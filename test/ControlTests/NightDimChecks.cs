@@ -5,7 +5,7 @@ using Monitor = LumenDeck.Monitor;
 internal static partial class Program
 {
     /// <summary>
-    /// Night saver's work display: dimmed toward the Night target, never
+    /// Night saver's work display: dimmed to a low hardware level, never
     /// brightened, with its original brightness persisted before any write and
     /// restored on Restore, on exit or after an interrupted session.
     /// </summary>
@@ -23,8 +23,7 @@ internal static partial class Program
         work.BrightnessMax = 100;
         work.Brightness = 80;
         Monitor[] desk = [work, side];
-        int target = Presets.BrightnessFor(work, settings.PresetLevel("Night").Nits);
-        Assert(target < 80, "the fixture's Night target is below the work display's brightness");
+        const int target = 5;
 
         settings.SeedCustom(work);
         double custom = settings.Find(work.StableKey).CustomBrightnessPercent.Value;
@@ -43,6 +42,8 @@ internal static partial class Program
         Assert(stored["NightDimActive"].GetValue<bool>() && stored["NightDimBrightnessRaw"].GetValue<int>() == 80,
             "the original work brightness is on disk before the dimming write");
         WaitFor(() => markerBeforeWrite != null, "work display dimming write");
+        WaitFor(() => transport.Hardware[(work, DdcWorker.Feature.Brightness)] == target,
+            "Night saver requests 5% on the retained work display");
         Assert(markerBeforeWrite == true, "the dimming write happens only after the original brightness is on disk");
         transport.OnWrite = null;
         Assert(!transport.Writes.Any(w => w.Monitor == work && w.Value > target), "dimming never requests a brighter level");
@@ -67,14 +68,18 @@ internal static partial class Program
         night.Restore(desk);
         Assert(night.Count == 0 && !settings.NightDimActiveFor(work.StableKey) &&
             transport.Hardware[(work, DdcWorker.Feature.Brightness)] == 80,
-            "Restore night desk returns the work display to its saved brightness and clears the marker");
+            "End Night saver returns the work display to its saved brightness and clears the marker");
 
-        work.Brightness = 10;
+        work.Brightness = 2;
         int quiet = transport.Writes.Count(w => w.Monitor == work);
         Assert(night.Start(desk, work.StableKey) == 0 && night.WorkDim == NightWorkDim.AlreadyDim && night.Count == 1 &&
-            !settings.NightDimActiveFor(work.StableKey), "a work display already below the Night target is left alone");
+            !settings.NightDimActiveFor(work.StableKey), "a work display already below 5% is left alone");
         System.Threading.Thread.Sleep(50);
         Assert(transport.Writes.Count(w => w.Monitor == work) == quiet, "an already-dim work display receives no write");
+        Assert(night.KeepsWorkDisplay(work.StableKey) && !night.KeepsWorkDisplay(side.StableKey),
+            "an already-dark work display remains protected from automatic presets without a dim marker");
+        Assert(night.TakeOver(work.StableKey) && !night.KeepsWorkDisplay(work.StableKey) && night.Count == 1,
+            "a manual choice also releases automatic protection for an already-dark work display");
         night.Restore(desk);
 
         // The person changes the dimmed display during the night: their choice wins.
@@ -111,11 +116,11 @@ internal static partial class Program
         settings.SetScreenBlank(side.StableKey, "side", false, null);
 
         work.Brightness = 80;
-        settings.PresetTargets = settings.WithPresetLevels([Presets.ByName("Night") with { Nits = 40 }]);
-        int customTarget = Presets.BrightnessFor(work, 40);
+        settings.PresetTargets = settings.WithPresetLevels([Presets.ByName("Night") with { Nits = 300 }]);
         transport.OnRestore = (_, _) => false;
         night.Start(desk, work.StableKey);
-        WaitFor(() => transport.Writes.Any(w => w.Monitor == work && w.Value == customTarget), "edited Night target dimming");
+        WaitFor(() => transport.Hardware[(work, DdcWorker.Feature.Brightness)] == target,
+            "a brighter reading preset cannot brighten the Night saver target");
         night.Restore(desk);
         Assert(night.Count == 1 && settings.NightDimActiveFor(work.StableKey),
             "a refused restore keeps the work display owed and its marker kept for retry");
@@ -132,6 +137,26 @@ internal static partial class Program
         Assert(restarted.RecoverInterruptedDim(work) && !settings.NightDimActiveFor(work.StableKey) &&
             transport.Hardware[(work, DdcWorker.Feature.Brightness)] == 77,
             "a dim left by a killed process is restored at the next scan");
+
+        work.BrightnessMin = 20;
+        work.BrightnessMax = 220;
+        work.Brightness = 180;
+        restarted.Start(desk, work.StableKey);
+        WaitFor(() => transport.Hardware[(work, DdcWorker.Feature.Brightness)] == 30,
+            "5% uses the full reported 20-220 range rather than raw value 5");
+        restarted.Restore(desk);
+        Assert(transport.Hardware[(work, DdcWorker.Feature.Brightness)] == 180,
+            "nonzero-floor displays restore their exact pre-night raw level");
+        work.BrightnessMin = 0;
+        work.BrightnessMax = 255;
+        work.Brightness = 200;
+        restarted.Start(desk, work.StableKey);
+        WaitFor(() => transport.Hardware[(work, DdcWorker.Feature.Brightness)] == 12,
+            "the 5% cap rounds downward on a 0-255 display");
+        restarted.Restore(desk);
+        Assert(transport.Hardware[(work, DdcWorker.Feature.Brightness)] == 200,
+            "a 0-255 display restores its original raw brightness");
+        work.BrightnessMax = 100;
         Assert(!restarted.RecoverInterruptedDim(work), "a display without a marker needs no recovery");
         int unrecoverable = transport.Writes.Count(w => w.Monitor == work);
         settings.SetNightDim(work.StableKey, "work", true, null, null);

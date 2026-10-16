@@ -62,8 +62,11 @@ remain separate acceptance work.
 
 ## Desk remote disclosure
 
-The actual main window starts with desk-wide preset and Night saver groups collapsed.
-Desk actions toggles them; active Night saver keeps its recovery row available. The
+The actual main window starts with desk-wide presets and the Night saver options collapsed.
+Desk actions toggles them. Night saver / End Night saver is always first in the tools
+row, which remains above the expanded sections. Its longer label is reserved at the
+current DPI, so changing state does not move adjacent controls. Help is the compact
+label for Connection help; its accessible name retains the full purpose. The
 standalone command component defaults expanded for complete layout checks. MainForm
 caps its height in short windows and enables native scrolling. Its maximum width is
 explicitly unbounded: a zero width in MaximumSize caused dock layout to collapse the
