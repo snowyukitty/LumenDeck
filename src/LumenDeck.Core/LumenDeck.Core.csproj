@@ -18,7 +18,7 @@
   <ItemGroup>
     <!-- The only dependency, and only for laptop internal panels: those are not
          reachable over DDC/CI and need WmiMonitorBrightnessMethods instead. -->
-    <PackageReference Include="System.Management" Version="9.0.0" />
+    <PackageReference Include="System.Management" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>
